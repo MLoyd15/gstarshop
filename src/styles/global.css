@@ -1,0 +1,113 @@
+@import "tailwindcss";
+
+:root {
+  font-family: 'DM Sans', sans-serif;
+  color: #24243a;
+  background: #f7f7f9;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  --ink: #25253a;
+  --muted: #9293a5;
+  --purple: #6967d9;
+  --accent-soft: color-mix(in srgb, var(--purple), white 92%);
+  --line: #eeeef2;
+  --sidebar-width: 253px;
+  --type-scale: 1.15;
+  --text-xs: calc(.75rem * var(--type-scale, 1));
+  --text-sm: calc(.875rem * var(--type-scale, 1));
+  --text-base: calc(1rem * var(--type-scale, 1));
+  --text-lg: calc(1.125rem * var(--type-scale, 1));
+  --text-xl: calc(1.25rem * var(--type-scale, 1));
+  --text-2xl: calc(1.5rem * var(--type-scale, 1));
+  --text-3xl: calc(1.875rem * var(--type-scale, 1));
+}
+
+* { box-sizing: border-box; }
+#root { zoom: 1.2; }
+body { min-width: 360px; min-height: 100vh; margin: 0; }
+button, input, textarea { font: inherit; }
+button { color: inherit; }
+
+:root {
+  --surface: #ffffff;
+  --surface-soft: #fafaff;
+  --line-strong: #e5e5ef;
+  --ink: #25253a;
+  --muted: #85869a;
+  --purple-hover: color-mix(in srgb, var(--purple), #24243a 12%);
+  --focus-ring: color-mix(in srgb, var(--purple), transparent 78%);
+  --shadow-sm: 0 2px 8px rgba(36, 36, 66, 0.04);
+  --shadow-md: 0 12px 32px rgba(36, 36, 66, 0.09);
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  color-scheme: light;
+}
+
+html {
+  scroll-behavior: smooth;
+  scrollbar-gutter: stable;
+}
+
+#root {
+  zoom: 1;
+  min-height: 100vh;
+}
+
+body {
+  color: var(--ink);
+  background:
+    radial-gradient(
+      ellipse at 88% 0%,
+      color-mix(in srgb, var(--purple), transparent 96%),
+      transparent 38rem
+    ),
+    #f7f7fb;
+  line-height: 1.5;
+}
+
+button,
+input,
+textarea,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+button:active {
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

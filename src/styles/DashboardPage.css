@@ -1,0 +1,22 @@
+.dashboard-page { font-size: calc(1rem * var(--type-scale, 1)); }
+.dashboard-page .dashboard-title { font-size: clamp(calc(1.5rem * var(--type-scale, 1)), calc(3vw * var(--type-scale, 1)), calc(2.25rem * var(--type-scale, 1))); }
+.dashboard-page .profit-amount { font-size: clamp(calc(2.1rem * var(--type-scale, 1)), calc(4.4vw * var(--type-scale, 1)), calc(2.9rem * var(--type-scale, 1))); }
+
+/* Keep the dashboard type scale aligned with the compact business pages. */
+.dashboard-page {
+  --text-xs: calc(.5625rem * var(--type-scale, 1));
+  --text-sm: calc(.625rem * var(--type-scale, 1));
+  --text-base: calc(.75rem * var(--type-scale, 1));
+  --text-lg: calc(.875rem * var(--type-scale, 1));
+  --text-xl: calc(1rem * var(--type-scale, 1));
+  --text-2xl: calc(1.2rem * var(--type-scale, 1));
+  --text-3xl: calc(1.5rem * var(--type-scale, 1));
+}
+
+.dashboard-page .dashboard-title {
+  font-size: clamp(calc(1.25rem * var(--type-scale, 1)), calc(2vw * var(--type-scale, 1)), calc(1.75rem * var(--type-scale, 1)));
+}
+
+.dashboard-page .profit-amount {
+  font-size: clamp(calc(1.75rem * var(--type-scale, 1)), calc(3vw * var(--type-scale, 1)), calc(2.25rem * var(--type-scale, 1)));
+}

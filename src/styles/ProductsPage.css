@@ -1,0 +1,3 @@
+.products-page { --page-accent: var(--purple); }
+.products-page .records-summary { border-color: color-mix(in srgb, var(--page-accent), white 82%); }
+.products-page .records-welcome .eyebrow-line { background: var(--page-accent); }

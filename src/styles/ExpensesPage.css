@@ -1,0 +1,3 @@
+.expenses-page { --page-accent: var(--purple); }
+.expenses-page .records-summary { border-color: color-mix(in srgb, var(--page-accent), white 82%); }
+.expenses-page .records-welcome .eyebrow-line { background: var(--page-accent); }

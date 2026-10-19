@@ -1,0 +1,3 @@
+.income-page { --page-accent: var(--purple); }
+.income-page .records-summary { border-color: color-mix(in srgb, var(--page-accent), white 82%); }
+.income-page .records-welcome .eyebrow-line { background: var(--page-accent); }
