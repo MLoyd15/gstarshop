@@ -11,6 +11,70 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
   const router = express.Router();
   const fail = (res, error) => res.status(error.status || 500).json({ error: error.message || 'Payroll action failed.' });
 
+  router.get('/employees/:employeeId/sheet', async (req, res) => {
+    try {
+      const period = validPayrollPeriod(req.query.period);
+      if (!mongoose.isValidObjectId(req.params.employeeId)) return res.status(400).json({ error: 'Employee ID is invalid.' });
+      const employee = await BusinessRecord.findOne({ _id: req.params.employeeId, resource: 'employees' }).lean();
+      if (!employee) return res.status(404).json({ error: 'Employee not found.' });
+      const sheet = await BusinessRecord.findOne({ resource: 'payroll-timesheets', 'data.employeeRecordId': req.params.employeeId, 'data.period': period }).lean();
+      const run = await BusinessRecord.findOne({ resource: 'payroll-runs', 'data.employeeRecordId': req.params.employeeId, 'data.period': period }).lean();
+      const previous = sheet ? null : await BusinessRecord.findOne({ resource: 'payroll-timesheets', 'data.employeeRecordId': req.params.employeeId, 'data.period': { $lt: period } }).sort({ 'data.period': -1 }).lean();
+      res.json({ ...(sheet ? serialize(sheet) : { employeeRecordId: req.params.employeeId, period, dailyEntries: [], advances: [], advanceOwedBefore: Number(previous?.data.advanceOwed || 0) }), locked: Boolean(run) });
+    } catch (error) { fail(res, error); }
+  });
+
+  router.put('/employees/:employeeId/sheet', async (req, res) => {
+    try {
+      const period = validPayrollPeriod(req.query.period);
+      if (!mongoose.isValidObjectId(req.params.employeeId)) return res.status(400).json({ error: 'Employee ID is invalid.' });
+      const employeeRecord = await BusinessRecord.findOne({ _id: req.params.employeeId, resource: 'employees' });
+      if (!employeeRecord) return res.status(404).json({ error: 'Employee not found.' });
+      if ((employeeRecord.data.salaryType || 'monthly') !== 'hourly') return res.status(409).json({ error: 'Set this employee’s pay basis to Hourly before entering daily hours.' });
+      const run = await BusinessRecord.findOne({ resource: 'payroll-runs', 'data.employeeRecordId': req.params.employeeId, 'data.period': period }).lean();
+      if (run) return res.status(409).json({ error: 'This month already has a payroll run. Edit the draft from Pay runs or reverse the run before changing the sheet.' });
+      const validDate = (date) => {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date)) || !String(date).startsWith(`${period}-`)) return false;
+        const [year, month, day] = String(date).split('-').map(Number);
+        const parsed = new Date(year, month - 1, day);
+        return parsed.getFullYear() === year && parsed.getMonth() === month - 1 && parsed.getDate() === day;
+      };
+      const dailyEntries = (Array.isArray(req.body.dailyEntries) ? req.body.dailyEntries : []).map((entry) => {
+        const hours = Number(entry.hours);
+        if (!validDate(entry.date) || !Number.isFinite(hours) || hours <= 0 || hours > 24) throw new PayrollValidationError('Each workday needs a valid date and hours between 0 and 24.');
+        return { date: entry.date, hours: Math.round(hours * 100) / 100 };
+      });
+      if (new Set(dailyEntries.map((entry) => entry.date)).size !== dailyEntries.length) throw new PayrollValidationError('There can only be one hours entry per day.');
+      const advances = (Array.isArray(req.body.advances) ? req.body.advances : []).map((advance) => {
+        if (!validDate(advance.date)) throw new PayrollValidationError('Each advance needs a date in the selected month.');
+        const amount = toMoney(advance.amount, 'Advance amount');
+        if (!amount) throw new PayrollValidationError('Advance amounts must be greater than zero.');
+        return { id: String(advance.id || new mongoose.Types.ObjectId()), date: advance.date, amount, note: String(advance.note || '').trim() };
+      });
+      const totalHours = dailyEntries.reduce((sum, entry) => sum + entry.hours, 0);
+      const totalAdvances = advances.reduce((sum, entry) => sum + entry.amount, 0);
+      const rate = toMoney(employeeRecord.data.salary ?? employeeRecord.data.baseRate, 'Hourly rate');
+      const grossPay = Math.round((rate * totalHours + Number.EPSILON) * 100) / 100;
+      const regularDeductions = toMoney(employeeRecord.data.regularDeductions, 'Regular deductions', { optional: true });
+      const additions = ['allowances', 'bonus', 'commission'].reduce((sum, key) => sum + toMoney(employeeRecord.data[key], key, { optional: true }), 0);
+      const earningsBeforeAdvance = Math.max(0, grossPay + additions - regularDeductions);
+      const priorSheets = await BusinessRecord.find({ resource: 'payroll-timesheets', 'data.employeeRecordId': req.params.employeeId, 'data.period': { $lt: period } }).sort({ 'data.period': -1 }).limit(1).lean();
+      const advanceOwedBefore = Number(priorSheets[0]?.data.advanceOwed || 0);
+      const advanceApplied = Math.min(advanceOwedBefore + totalAdvances, earningsBeforeAdvance);
+      const advanceOwed = Math.max(0, advanceOwedBefore + totalAdvances - earningsBeforeAdvance);
+      const data = {
+        employeeRecordId: req.params.employeeId, employee: employeeRecord.data.name, employeeId: employeeRecord.data.employeeId || '',
+        period, rate, dailyEntries, advances, totalHours, grossPay, regularDeductions, totalAdvances,
+        advanceOwedBefore, advanceApplied, advanceOwed,
+        estimatedNetPay: Math.max(0, earningsBeforeAdvance - advanceApplied), updatedAt: new Date().toISOString()
+      };
+      let sheet = await BusinessRecord.findOne({ resource: 'payroll-timesheets', 'data.employeeRecordId': req.params.employeeId, 'data.period': period });
+      if (sheet) { sheet.data = data; sheet.updatedAt = new Date(); await sheet.save(); }
+      else [sheet] = await BusinessRecord.create([{ resource: 'payroll-timesheets', data }]);
+      res.json(serialize(sheet));
+    } catch (error) { fail(res, error); }
+  });
+
   router.get('/runs', async (req, res) => {
     try {
       const query = { resource: 'payroll-runs' };
@@ -30,31 +94,41 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
       const unitsByEmployee = req.body.unitsByEmployee || {};
       const advancesByEmployee = req.body.advancesByEmployee || {};
       const advanceDatesByEmployee = req.body.advanceDatesByEmployee || {};
-      const prepared = employees.filter((r) => active(r.data)).map((record) => {
+      const requestedIds = Array.isArray(req.body.employeeIds) ? new Set(req.body.employeeIds.map(String)) : null;
+      const timesheets = await BusinessRecord.find({ resource: 'payroll-timesheets', 'data.period': period }).lean();
+      const sheetByEmployee = new Map(timesheets.map((sheet) => [String(sheet.data.employeeRecordId), sheet.data]));
+      const skipped = [];
+      const candidates = employees.filter((r) => active(r.data) && (!requestedIds || requestedIds.has(r._id.toString())));
+      const prepared = candidates.flatMap((record) => {
         const employee = record.data;
         const id = record._id.toString();
         const employeeKey = String(employee.employeeId || employee.name || id).toLowerCase();
-        if (keys.has(id.toLowerCase()) || keys.has(employeeKey)) throw new PayrollValidationError(`${employee.name || 'An employee'} already has a payroll run for ${period}.`);
-        const unit = unitsByEmployee[id];
-        const advanceDeduction = toMoney(advancesByEmployee[id], `${employee.name || 'Employee'} advance`, { optional: true });
+        if (keys.has(id.toLowerCase()) || keys.has(employeeKey)) { skipped.push({ employee: employee.name || 'Employee', reason: 'A payroll record already exists for this period.' }); return []; }
+        const sheet = sheetByEmployee.get(id);
+        const unit = sheet?.totalHours ?? unitsByEmployee[id];
+        const salaryType = employee.salaryType || 'monthly';
+        if (salaryType === 'hourly' && !(Number(unit) > 0)) { skipped.push({ employee: employee.name || 'Employee', reason: 'No hours saved for this period.' }); return []; }
+        if (salaryType === 'daily') { skipped.push({ employee: employee.name || 'Employee', reason: 'Daily pay is not supported by the current timesheet.' }); return []; }
+        const advanceDeduction = sheet?.advanceApplied ?? toMoney(advancesByEmployee[id], `${employee.name || 'Employee'} advance`, { optional: true });
         const regularDeductions = toMoney(employee.regularDeductions, 'Regular deductions', { optional: true });
         const calc = calculatePayroll({
-          salaryType: employee.salaryType || 'monthly', baseRate: employee.salary ?? employee.baseRate,
-          units: employee.salaryType === 'daily' || employee.salaryType === 'hourly' ? unit : 1,
+          salaryType, baseRate: employee.salary ?? employee.baseRate,
+          units: salaryType === 'daily' || salaryType === 'hourly' ? unit : 1,
           allowances: employee.allowances, bonus: employee.bonus, commission: employee.commission,
           deductions: regularDeductions + advanceDeduction
         });
-        return { resource: 'payroll-runs', data: {
+        return [{ resource: 'payroll-runs', data: {
           period, periodEnd: payrollPeriodEnd(period).toISOString().slice(0, 10), employee: employee.name,
           employeeId: employee.employeeId || '', employeeRecordId: id, employeeSnapshot: { ...employee },
           ...calc, regularDeductions, advanceDeduction,
-          advanceDate: advanceDeduction > 0 ? (advanceDatesByEmployee[id] || '') : '',
+          advanceDate: advanceDeduction > 0 ? (advanceDatesByEmployee[id] || sheet?.advances?.at(-1)?.date || '') : '',
+          dailyEntries: sheet?.dailyEntries || [], advances: sheet?.advances || [], advanceOwed: sheet?.advanceOwed || 0,
           amountPaid: 0, balance: calc.netPay, payments: [], status: 'draft', expenseId: null
-        }};
+        }}];
       });
-      if (!prepared.length) throw new PayrollValidationError('No active employees are available for this payroll period.');
-      const created = await BusinessRecord.insertMany(prepared);
-      res.status(201).json(created.map(serialize));
+      if (!candidates.length) throw new PayrollValidationError('No active employees were selected for this payroll period.');
+      const created = prepared.length ? await BusinessRecord.insertMany(prepared) : [];
+      res.status(201).json({ created: created.map(serialize), skipped });
     } catch (error) { fail(res, error); }
   });
 
@@ -73,48 +147,13 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
   });
 
   router.post('/runs/:id/finalize', async (req, res) => {
-    let session;
     try {
-      const finish = async () => {
-        const run = await BusinessRecord.findOne({ _id: req.params.id, resource: 'payroll-runs' }).session(session);
-        if (!run) throw Object.assign(new Error('Payroll run not found.'), { status: 404 });
-        if (run.data.status === 'finalized' || run.data.status === 'partially-paid' || run.data.status === 'paid') return run;
-        if (run.data.status !== 'draft') throw Object.assign(new Error('Only draft runs can be finalized.'), { status: 409 });
-        const expense = await BusinessRecord.create([{ resource: 'expenses', data: {
-          name: `Payroll ${run.data.period} — ${run.data.employee}`, category: 'Payroll',
-          amount: run.data.grossPay, date: run.data.periodEnd, payrollRunId: run._id.toString(), expenseKind: 'payroll-accrual'
-        }}], { session });
-        run.data = { ...run.data, status: 'finalized', finalizedAt: new Date().toISOString(), expenseId: expense[0]._id.toString() };
-        run.updatedAt = new Date(); await run.save({ session }); return run;
-      };
-      try { session = await mongoose.startSession(); let result; await session.withTransaction(async () => { result = serialize(await finish()); }); res.json(result); }
-      catch (error) {
-        if (!/transaction numbers|replica set|does not support transactions/i.test(error.message)) throw error;
-        // Standalone MongoDB has no transactions. Claim the draft first, then reuse a linked expense on retry.
-        const now = new Date();
-        let run = await BusinessRecord.findOneAndUpdate(
-          { _id: req.params.id, resource: 'payroll-runs', 'data.status': 'draft' },
-          { $set: { 'data.status': 'finalizing', 'data.finalizingAt': now.toISOString(), updatedAt: now } },
-          { new: true }
-        );
-        if (!run) {
-          run = await BusinessRecord.findOne({ _id: req.params.id, resource: 'payroll-runs' });
-          if (!run) return res.status(404).json({ error: 'Payroll run not found.' });
-          if (['finalized', 'partially-paid', 'paid'].includes(run.data.status)) return res.json(serialize(run));
-          if (run.data.status !== 'finalizing' || Date.now() - Date.parse(run.data.finalizingAt || 0) < 60000) {
-            return res.status(409).json({ error: 'This payroll run is already being finalized. Retry shortly.' });
-          }
-          run.data.finalizingAt = now.toISOString(); run.updatedAt = now; await run.save();
-        }
-        let expense = await BusinessRecord.findOne({ resource: 'expenses', 'data.payrollRunId': run._id.toString(), 'data.expenseKind': 'payroll-accrual' });
-        if (!expense) expense = await BusinessRecord.create({ resource: 'expenses', data: {
-          name: `Payroll ${run.data.period} — ${run.data.employee}`, category: 'Payroll', amount: run.data.grossPay,
-          date: run.data.periodEnd, payrollRunId: run._id.toString(), expenseKind: 'payroll-accrual'
-        }});
-        run.data = { ...run.data, status: 'finalized', finalizedAt: now.toISOString(), expenseId: expense._id.toString() };
-        delete run.data.finalizingAt; run.updatedAt = now; await run.save(); res.json(serialize(run));
-      }
-      finally { if (session) await session.endSession(); }
+      const run = await BusinessRecord.findOne({ _id: req.params.id, resource: 'payroll-runs' });
+      if (!run) return res.status(404).json({ error: 'Payroll run not found.' });
+      if (['finalized', 'partially-paid', 'paid'].includes(run.data.status)) return res.json(serialize(run));
+      if (run.data.status !== 'draft') return res.status(409).json({ error: 'Only draft runs can be finalized.' });
+      run.data = { ...run.data, status: 'finalized', finalizedAt: new Date().toISOString() };
+      run.updatedAt = new Date(); await run.save(); res.json(serialize(run));
     } catch (error) { fail(res, error); }
   });
 
@@ -126,13 +165,26 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
       const amount = toMoney(req.body.amount, 'Payment amount');
       if (!amount || amount > Number(run.data.balance)) throw new PayrollValidationError('Payment must be greater than zero and no more than the outstanding balance.');
       const date = String(req.body.date || ''); if (Number.isNaN(Date.parse(date))) throw new PayrollValidationError('Enter a valid payment date.');
-      const payment = { amount, date, method: String(req.body.method || 'Manual'), reference: String(req.body.reference || '').trim(), notes: String(req.body.notes || '').trim(), source: 'manual', recordedAt: new Date().toISOString() };
+      const paymentId = String(req.body.paymentId || new mongoose.Types.ObjectId());
+      const existingPayment = (run.data.payments || []).find((entry) => entry.id === paymentId);
+      if (existingPayment) return res.json(serialize(run));
+      const payment = { id: paymentId, amount, date, method: String(req.body.method || 'Manual'), reference: String(req.body.reference || '').trim(), notes: String(req.body.notes || '').trim(), source: 'manual', recordedAt: new Date().toISOString() };
       if (req.body.source === 'externally-confirmed') {
         if (!payment.reference) throw new PayrollValidationError('An external payment reference is required.');
         payment.source = 'externally-confirmed';
         if ((run.data.payments || []).some((p) => p.reference === payment.reference)) throw new PayrollValidationError('This payment reference has already been recorded.');
       }
-      run.data = { ...run.data, payments: [...(run.data.payments || []), payment], amountPaid: Number(run.data.amountPaid || 0) + amount, balance: Number(run.data.balance) - amount };
+      const amountPaid = Number(run.data.amountPaid || 0) + amount;
+      let expense = await BusinessRecord.findOne({ resource: 'expenses', 'data.payrollPaymentId': paymentId });
+      if (!expense) expense = await BusinessRecord.findOne({ resource: 'expenses', 'data.payrollRunId': run._id.toString(), 'data.expenseKind': { $in: ['payroll-payment', 'payroll-accrual'] } });
+      const expenseData = {
+        name: `Payroll payment ${run.data.period} — ${run.data.employee}`, category: 'Payroll', amount: amountPaid,
+        date, payrollRunId: run._id.toString(), payrollPaymentId: paymentId, expenseKind: 'payroll-payment',
+        paymentMethod: payment.method, paymentReference: payment.reference
+      };
+      if (expense) { expense.data = { ...expense.data, ...expenseData }; expense.updatedAt = new Date(); await expense.save(); }
+      else [expense] = await BusinessRecord.create([{ resource: 'expenses', data: expenseData }]);
+      run.data = { ...run.data, payments: [...(run.data.payments || []), payment], amountPaid, balance: Number(run.data.balance) - amount, expenseId: expense._id.toString() };
       run.data.status = run.data.balance <= 0 ? 'paid' : 'partially-paid';
       run.updatedAt = new Date(); await run.save(); res.json(serialize(run));
     } catch (error) { fail(res, error); }
@@ -144,8 +196,9 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
       if (!run) return res.status(404).json({ error: 'Payroll run not found.' });
       if (run.data.status !== 'finalized' || Number(run.data.amountPaid || 0) > 0) return res.status(409).json({ error: 'Only finalized payroll runs with no payments can be reversed.' });
       const reason = String(req.body.reason || '').trim(); if (!reason) throw new PayrollValidationError('Enter a reason for reversing this payroll run.');
-      const expense = await BusinessRecord.create({ resource: 'expenses', data: { name: `Payroll reversal ${run.data.period} — ${run.data.employee}`, category: 'Payroll reversal', amount: -Number(run.data.grossPay), date: new Date().toISOString().slice(0, 10), payrollRunId: run._id.toString(), expenseKind: 'payroll-reversal' } });
-      run.data = { ...run.data, status: 'reversed', reversalReason: reason, reversedAt: new Date().toISOString(), reversalExpenseId: expense._id.toString() };
+      const legacyExpense = run.data.expenseId ? await BusinessRecord.findOne({ _id: run.data.expenseId, resource: 'expenses' }) : null;
+      if (legacyExpense) { legacyExpense.data = { ...legacyExpense.data, amount: 0, expenseKind: 'payroll-void' }; legacyExpense.updatedAt = new Date(); await legacyExpense.save(); }
+      run.data = { ...run.data, status: 'reversed', reversalReason: reason, reversedAt: new Date().toISOString() };
       run.updatedAt = new Date(); await run.save(); res.json(serialize(run));
     } catch (error) { fail(res, error); }
   });

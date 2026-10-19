@@ -2,13 +2,16 @@ import '../styles/RecordManagementPage.css';
 import '../styles/SuppliersPage.css';
 import '../styles/ProductsPage.css';
 import '../styles/InventoryPage.css';
+import '../styles/EmployeeLink.css';
 import { useEffect, useMemo, useState } from 'react';
 const dateFromValue=(value)=>{if(!value)return null;const [year,month,day]=value.split('-').map(Number);const date=new Date(year,month-1,day);return Number.isNaN(date.getTime())?null:date;};
+const moneyFields = new Set(['amount','price','salary','income','expenses','grossPay','netPay']);
+const money = (value) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(value) || 0);
 
 
 
 
-export default function RecordManagementPage({ active, title, fields, records, loading, search, setSearch, onCreate, onEdit, onDelete, pageClass = '' }) {
+export default function RecordManagementPage({ active, title, fields, records, loading, search, setSearch, onCreate, onEdit, onDelete, onSelect, pageClass = '' }) {
   const lower = active === 'income' || active === 'expenses' || active === 'profit' || active === 'money-tracker';
   const isInventory = active === 'inventory';
   const totalStock = records.reduce((total, record) => total + (Number(record.stock) || 0), 0);
@@ -52,12 +55,14 @@ export default function RecordManagementPage({ active, title, fields, records, l
       <div className="table-wrap"><table><thead><tr>{fields.map(([, label]) => <th key={label}>{label}</th>)}{!isInventory && <><th>Added</th><th aria-label="Actions" /></>}</tr></thead>
         <tbody>{loading ? <tr><td className="empty-state" colSpan={fields.length + (isInventory ? 0 : 2)}>Loading your records…</td></tr>
           : matchingRecords.length === 0 ? <tr><td className="empty-state" colSpan={fields.length + (isInventory ? 0 : 2)}><span className="empty-icon">{lower ? '↗' : '▤'}</span><strong>{search || statusFilter !== 'all' ? 'No matches found' : isInventory ? 'No products to track yet' : `No ${title.toLowerCase()} yet`}</strong><span>{search || statusFilter !== 'all' ? 'Try changing your search or status filter.' : isInventory ? 'Add products with stock quantities to see them here.' : `Add your first ${title.toLowerCase().replace(/s$/, '')} to get started.`}</span></td></tr>
-          : pageRecords.map((record) => <tr key={record.id}>{fields.map(([key]) => <td key={key}>{key === 'status'
+          : pageRecords.map((record) => <tr key={record.id}>{fields.map(([key]) => <td key={key}>{active === 'employees' && key === 'name' && onSelect
+            ? <button type="button" className="employee-sheet-link" onClick={() => onSelect(record)}>{record.name || 'Unnamed employee'}<small>Open monthly sheet →</small></button>
+            : key === 'status'
             || key === 'stockStatus'
             ? <span className={`record-status ${String(record[key] || 'active').toLowerCase().replace(/\s/g, '-')}`}>{record[key] || 'Active'}</span>
             : (key.toLowerCase().includes('date') || key === 'updated') && record[key]
               ? <span className="date-cell"><span>▦</span>{dateFromValue(String(record[key]).slice(0, 10))?.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) || record[key]}</span>
-              : record[key] !== undefined && record[key] !== null && record[key] !== '' ? record[key] : '—'}</td>)}
+            : record[key] !== undefined && record[key] !== null && record[key] !== '' ? moneyFields.has(key) && Number.isFinite(Number(record[key])) ? money(record[key]) : record[key] : '—'}</td>)}
             {!isInventory && <><td>{record.createdAt ? new Date(record.createdAt).toLocaleDateString() : '—'}</td><td><div className="row-actions"><button aria-label="Edit record" onClick={() => onEdit(record)}>✎</button><button aria-label="Delete record" onClick={() => onDelete(record)}>×</button></div></td></>}</tr>)}</tbody></table></div>
       <div className="table-footer"><span>Showing <strong>{firstResult}–{lastResult}</strong> of <strong>{sortedRecords.length}</strong> results</span><div><button type="button" disabled={currentPage <= 1} onClick={() => setCurrentPage((page) => page - 1)}>← Previous</button><button type="button" disabled={currentPage >= pageCount} onClick={() => setCurrentPage((page) => page + 1)}>Next →</button></div></div>
     </section>

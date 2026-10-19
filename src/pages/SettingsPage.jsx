@@ -1,5 +1,5 @@
 import '../styles/SettingsPage.css';
-const defaultAppearance={accent:'#6967d9',textScale:1.15};
+const defaultAppearance={accent:'#6967d9',textScale:1.15,nightMode:true};
 const accentPresets=[{label:'Violet',value:'#6967d9'},{label:'Ocean',value:'#2878c7'},{label:'Forest',value:'#26836b'},{label:'Coral',value:'#d46a70'},{label:'Amber',value:'#bd7d28'}];
 
 
@@ -13,6 +13,14 @@ export default function SettingsPage({ health, appearance, onAppearanceChange, a
       </div>
       {appearanceError && <p className="appearance-error" role="status">{appearanceError}</p>}
       <div className="appearance-options">
+        <fieldset className="appearance-control theme-mode-control">
+          <legend>Night mode</legend>
+          <p>Use the dark glass appearance across the workspace.</p>
+          <label className="theme-mode-toggle"><input type="checkbox" checked={appearance.nightMode}
+            onChange={(event) => onAppearanceChange((current) => ({ ...current, nightMode: event.target.checked }))} />
+            <span className="theme-mode-track" aria-hidden="true"><span /></span><strong>{appearance.nightMode ? 'On' : 'Off'}</strong>
+          </label>
+        </fieldset>
         <fieldset className="appearance-control">
           <legend>Accent color</legend>
           <p>Choose a color for buttons, highlights, and navigation.</p>

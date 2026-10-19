@@ -7,6 +7,8 @@ import IncomePage from './pages/IncomePage.jsx';
 import ExpensesPage from './pages/ExpensesPage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 import PayrollPage from './pages/PayrollPage.jsx';
+import EmployeeMonthlySheet from './pages/EmployeeMonthlySheet.jsx';
+import EmployeesPage from './pages/EmployeesPage.jsx';
 import ClientsPage from './pages/ClientsPage.jsx';
 import logo from './assets/logo.png';
 import { Icon } from './shared.jsx';
@@ -67,7 +69,7 @@ const titles = {
   notepad: 'Notepad', settings: 'Settings'
 };
 
-const defaultAppearance = { accent: '#6967d9', textScale: 1.15 };
+const defaultAppearance = { accent: '#6967d9', textScale: 1.15, nightMode: true };
 const accentPresets = [
   { label: 'Violet', value: '#6967d9' },
   { label: 'Ocean', value: '#2878c7' },
@@ -84,7 +86,8 @@ function readAppearance() {
       accent: /^#[\da-f]{6}$/i.test(saved.accent) ? saved.accent : defaultAppearance.accent,
       textScale: Number.isFinite(textScale) && textScale >= 0.9 && textScale <= 1.4
         ? textScale
-        : defaultAppearance.textScale
+        : defaultAppearance.textScale,
+      nightMode: saved.nightMode !== false
     };
   } catch (error) {
     console.error('Could not read saved appearance settings:', error);
@@ -233,6 +236,7 @@ function App() {
   const [modal, setModal] = useState(false);
   const [modalError, setModalError] = useState('');
   const [editing, setEditing] = useState(null);
+  const [sheetEmployee, setSheetEmployee] = useState(null);
   const [search, setSearch] = useState('');
   const [health, setHealth] = useState('checking');
   const [notice, setNotice] = useState('');
@@ -255,6 +259,7 @@ function App() {
   useEffect(() => {
     document.documentElement.style.setProperty('--purple', appearance.accent);
     document.documentElement.style.setProperty('--type-scale', String(appearance.textScale));
+    document.documentElement.classList.toggle('day-mode', !appearance.nightMode);
     try {
       window.localStorage.setItem('g4-sticker-appearance', JSON.stringify(appearance));
       setAppearanceError('');
@@ -508,17 +513,22 @@ function App() {
               search={search} setSearch={setSearch} onCreate={openCreate}
               onEdit={openEdit} onDelete={deleteRecord} />
           ) : active === 'payroll-runs' ? (
-            <PayrollPage />
+            <PayrollPage onOpenEmployee={setSheetEmployee} onEditEmployee={openEdit} />
+          ) : active === 'employees' ? (
+            <EmployeesPage employees={filteredRecords} loading={loading} search={search} setSearch={setSearch}
+              onCreate={openCreate} onEdit={openEdit} onDelete={deleteRecord} onSelect={setSheetEmployee} />
           ) : (
             <RecordManagementPage active={active} title={activeLabel} fields={fields} records={filteredRecords} loading={loading}
               search={search} setSearch={setSearch}
               onCreate={active === 'inventory' ? () => navigate('products') : openCreate}
               onEdit={openEdit} onDelete={deleteRecord}
+              onSelect={active === 'employees' ? setSheetEmployee : undefined}
               pageClass={active === 'suppliers' ? 'suppliers-page' : active === 'products' ? 'products-page' : active === 'inventory' ? 'inventory-page' : 'record-management-page'} />
           )}
         </div>
       </main>
       {modal && <RecordModal title={activeLabel} active={active} fields={fields} record={editing} saveError={modalError} onClose={() => setModal(false)} onSave={saveRecord} />}
+      {sheetEmployee && <EmployeeMonthlySheet employee={sheetEmployee} onClose={() => setSheetEmployee(null)} />}
     </div>
   );
 }

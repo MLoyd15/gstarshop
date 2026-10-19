@@ -10,7 +10,7 @@ const port = Number(process.env.PORT) || 4000;
 const resources = [
   'suppliers', 'products', 'inventory', 'prices', 'purchases', 'excel-sheet',
   'scheduler', 'bookings', 'clients', 'income', 'expenses', 'profit', 'shareholders',
-  'employees', 'payroll-runs',
+  'employees', 'payroll-runs', 'payroll-timesheets',
   'money-tracker', 'notepad'
 ];
 
@@ -145,6 +145,7 @@ app.post('/api/records/:resource', async (request, response, next) => {
   }
 
   try {
+    if (request.params.resource === 'payroll-timesheets') return response.status(409).json({ error: 'Use the employee monthly sheet to manage work hours and advances.' });
     if (request.params.resource === 'payroll-runs') return response.status(409).json({ error: 'Use the Pay runs page to generate and manage payroll.' });
     const data = request.params.resource === 'employees' ? validateEmployeePayrollData(request.body) : request.body;
     const record = await BusinessRecord.create({ resource: request.params.resource, data });
@@ -167,6 +168,7 @@ app.patch('/api/records/:resource/:id', async (request, response, next) => {
   }
 
   try {
+    if (request.params.resource === 'payroll-timesheets') return response.status(409).json({ error: 'Use the employee monthly sheet to manage work hours and advances.' });
     if (request.params.resource === 'payroll-runs') return response.status(409).json({ error: 'Payroll runs can only be changed through the Pay runs page.' });
     if (request.params.resource === 'expenses') {
       const linked = await BusinessRecord.findOne({ _id: request.params.id, resource: 'expenses' }).lean();
@@ -194,6 +196,7 @@ app.delete('/api/records/:resource/:id', async (request, response, next) => {
     return response.status(404).json({ error: 'This business area does not exist.' });
   }
   try {
+    if (request.params.resource === 'payroll-timesheets') return response.status(409).json({ error: 'Payroll timesheets are preserved through the employee sheet.' });
     if (request.params.resource === 'payroll-runs') return response.status(409).json({ error: 'Payroll history is preserved; reverse the run instead.' });
     if (request.params.resource === 'expenses') {
       const linked = await BusinessRecord.findOne({ _id: request.params.id, resource: 'expenses' }).lean();

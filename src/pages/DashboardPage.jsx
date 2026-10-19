@@ -43,11 +43,11 @@ function IconBadge({ name, tone }) {
   return <span className={`grid size-9 shrink-0 place-items-center rounded-[10px] ${TONES[tone]}`}><Glyph name={name} /></span>;
 }
 
-const currency = (value) => new Intl.NumberFormat('en-US', {
-  style: 'currency', currency: 'USD', maximumFractionDigits: 0
+const currency = (value) => new Intl.NumberFormat('en-PH', {
+  style: 'currency', currency: 'PHP', maximumFractionDigits: 0
 }).format(value);
-const compactCurrency = (value) => new Intl.NumberFormat('en-US', {
-  style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1
+const compactCurrency = (value) => new Intl.NumberFormat('en-PH', {
+  style: 'currency', currency: 'PHP', notation: 'compact', maximumFractionDigits: 1
 }).format(value);
 
 export default function DashboardPage({ onNavigate, data, compact, name = 'Jamie' }) {

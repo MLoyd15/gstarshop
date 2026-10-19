@@ -14,9 +14,9 @@ function clientKey(name = "") {
 }
 
 function money(value) {
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("en-PH", {
     style: "currency",
-    currency: "USD",
+    currency: "PHP",
     maximumFractionDigits: 2,
   }).format(Number(value) || 0);
 }
