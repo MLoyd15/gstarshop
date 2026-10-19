@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import DashboardPage from './pages/DashboardPage.jsx';
 import RecordManagementPage from './pages/RecordManagementPage.jsx';
 import BookingsPage from './pages/BookingsPage.jsx';
 import IncomePage from './pages/IncomePage.jsx';
 import ExpensesPage from './pages/ExpensesPage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
+import PayrollPage from './pages/PayrollPage.jsx';
 import ClientsPage from './pages/ClientsPage.jsx';
-import { Icon, Butterfly } from './shared.jsx';
+import logo from './assets/logo.png';
+import { Icon } from './shared.jsx';
 
 const sections = [
   { heading: 'Workspace', items: [{ id: 'home', label: 'Main dashboard', icon: '⌂' }] },
@@ -18,18 +21,12 @@ const sections = [
     { id: 'prices', label: 'Prices', icon: '＄' },
     { id: 'purchases', label: 'Purchases', icon: '🛒' },
     { id: 'excel-sheet', label: 'Excel sheet', icon: '▦', badge: 'NEW' },
-    { id: 'supplier-reports', label: 'Reports', icon: '▥' }
+    { id: 'supplier-reports', label: 'Reports', icon: '▥' },
+    { id: 'clients', label: 'Clients', icon: '◎' }
   ] },
-  { heading: 'Excel business', items: [
-    { id: 'excel-dashboard', label: 'Dashboard', icon: '◫' },
-    { id: 'scheduler', label: 'Scheduler', icon: '▦' },
-    { id: 'bookings', label: 'Bookings', icon: '▣' },
-    { id: 'clients', label: 'Clients', icon: '◎' },
-    { id: 'income', label: 'Income', icon: '↗' },
-    { id: 'expenses', label: 'Expenses', icon: '↘' },
-    { id: 'profit', label: 'Profit', icon: '◒' },
-    { id: 'shareholders', label: 'Shareholders', icon: '♧' },
-    { id: 'excel-reports', label: 'Excel reports', icon: '▥' }
+  { heading: 'Payroll system', items: [
+    { id: 'employees', label: 'Employees', icon: '♙' },
+    { id: 'payroll-runs', label: 'Pay runs', icon: '＄' }
   ] }
 ];
 
@@ -37,6 +34,7 @@ const resourceFor = {
   suppliers: 'suppliers', products: 'products', inventory: 'inventory', prices: 'prices',
   purchases: 'purchases', 'excel-sheet': 'excel-sheet', scheduler: 'scheduler',
   bookings: 'bookings', clients: 'clients', income: 'income', expenses: 'expenses', profit: 'profit',
+  employees: 'employees', 'payroll-runs': 'payroll-runs',
   shareholders: 'shareholders', 'money-tracker': 'money-tracker', notepad: 'notepad'
 };
 
@@ -54,6 +52,8 @@ const fieldsFor = {
   expenses: [['name', 'Description'], ['category', 'Category'], ['amount', 'Amount'], ['date', 'Date']],
   profit: [['name', 'Period'], ['income', 'Income'], ['expenses', 'Expenses'], ['amount', 'Net profit']],
   shareholders: [['name', 'Shareholder'], ['email', 'Email'], ['shares', 'Shares'], ['percentage', 'Ownership %']],
+  employees: [['employeeId', 'Employee ID'], ['name', 'Full name'], ['position', 'Position'], ['email', 'Email'], ['phone', 'Phone'], ['salary', 'Hourly rate / pay rate'], ['salaryType', 'Pay basis'], ['allowances', 'Regular allowances'], ['bonus', 'Regular bonus'], ['commission', 'Regular commission'], ['regularDeductions', 'Regular deductions'], ['effectiveDate', 'Rate effective date'], ['payFrequency', 'Pay frequency'], ['status', 'Status']],
+  'payroll-runs': [],
   'money-tracker': [['name', 'Description'], ['category', 'Category'], ['amount', 'Amount'], ['date', 'Date']],
   notepad: [['name', 'Title'], ['content', 'Note'], ['updated', 'Last updated']]
 };
@@ -61,9 +61,9 @@ const fieldsFor = {
 const titles = {
   home: 'Main dashboard', 'supplier-dashboard': 'G4 Sticker dashboard', suppliers: 'Suppliers',
   products: 'Products', inventory: 'Inventory', prices: 'Prices', purchases: 'Purchases',
-  'excel-sheet': 'Excel sheet', 'supplier-reports': 'G4 Sticker reports', 'excel-dashboard': 'Excel dashboard',
+  'excel-sheet': 'Excel sheet', 'supplier-reports': 'G4 Sticker reports',
   scheduler: 'Scheduler', bookings: 'Bookings', clients: 'Clients', income: 'Income', expenses: 'Expenses', profit: 'Profit',
-  shareholders: 'Shareholders', 'excel-reports': 'Excel reports', 'money-tracker': 'Money tracker',
+  shareholders: 'Shareholders', employees: 'Employees', 'payroll-runs': 'Pay runs', 'money-tracker': 'Money tracker',
   notepad: 'Notepad', settings: 'Settings'
 };
 
@@ -108,27 +108,46 @@ function dateFromValue(value) {
 
 function DatePicker({ name, value, required }) {
   const wrapperRef = useRef(null);
+  const popoverRef = useRef(null);
   const [selectedValue, setSelectedValue] = useState(value);
   const selectedDate = dateFromValue(selectedValue);
   const [open, setOpen] = useState(false);
+  const [popoverPosition, setPopoverPosition] = useState({ top: 0, left: 0 });
   const [visibleMonth, setVisibleMonth] = useState(() => {
     const initialDate = selectedDate || new Date();
     return new Date(initialDate.getFullYear(), initialDate.getMonth(), 1);
   });
 
+  function updatePopoverPosition() {
+    const rect = wrapperRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const width = Math.min(290, window.innerWidth - 32);
+    const height = 320;
+    const left = Math.max(16, Math.min(rect.left, window.innerWidth - width - 16));
+    const below = rect.bottom + 8;
+    const top = below + height <= window.innerHeight - 12
+      ? below
+      : Math.max(12, rect.top - height - 8);
+    setPopoverPosition({ top, left });
+  }
+
   useEffect(() => {
     if (!open) return undefined;
     function handlePointerDown(event) {
-      if (!wrapperRef.current?.contains(event.target)) setOpen(false);
+      if (!wrapperRef.current?.contains(event.target) && !popoverRef.current?.contains(event.target)) setOpen(false);
     }
     function handleKeyDown(event) {
       if (event.key === 'Escape') setOpen(false);
     }
     document.addEventListener('mousedown', handlePointerDown);
     document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('scroll', updatePopoverPosition, true);
+    window.addEventListener('resize', updatePopoverPosition);
     return () => {
       document.removeEventListener('mousedown', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('scroll', updatePopoverPosition, true);
+      window.removeEventListener('resize', updatePopoverPosition);
     };
   }, [open]);
 
@@ -156,6 +175,7 @@ function DatePicker({ name, value, required }) {
         aria-haspopup="dialog" aria-expanded={open} aria-required={required || undefined}
         onClick={() => {
           if (!open && selectedDate) setVisibleMonth(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
+          if (!open) updatePopoverPosition();
           setOpen((current) => !current);
         }}>
         <span className={selectedDate ? '' : 'date-placeholder'}>
@@ -163,8 +183,8 @@ function DatePicker({ name, value, required }) {
         </span>
         <span className="date-trigger-icon" aria-hidden="true">▦</span>
       </button>
-      {open && (
-        <div className="calendar-popover" role="dialog" aria-label="Choose a date">
+      {open && createPortal(
+        <div className="calendar-popover" ref={popoverRef} style={{ top: popoverPosition.top, left: popoverPosition.left }} role="dialog" aria-label="Choose a date">
           <div className="calendar-heading">
             <div className="calendar-heading-copy"><span>SELECT DATE</span><strong>{monthLabel}</strong></div>
             <div className="calendar-month-nav">
@@ -197,7 +217,7 @@ function DatePicker({ name, value, required }) {
             <button type="button" className="calendar-clear" onClick={() => { setSelectedValue(''); setOpen(false); }}>Clear date</button>
             <button type="button" className="calendar-today" onClick={() => chooseDate(new Date())}>Today</button>
           </div>
-        </div>
+        </div>, document.body
       )}
     </div>
   );
@@ -211,6 +231,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [modal, setModal] = useState(false);
+  const [modalError, setModalError] = useState('');
   const [editing, setEditing] = useState(null);
   const [search, setSearch] = useState('');
   const [health, setHealth] = useState('checking');
@@ -276,7 +297,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!['home', 'supplier-dashboard', 'excel-dashboard', 'supplier-reports', 'excel-reports'].includes(active)) return;
+    if (!['home', 'supplier-dashboard', 'supplier-reports'].includes(active)) return;
     const controller = new AbortController();
     fetch('/api/dashboard', { signal: controller.signal })
       .then(async (response) => {
@@ -327,6 +348,13 @@ function App() {
 
   function openCreate() {
     setEditing(null);
+    setModalError('');
+    setModal(true);
+  }
+
+  function openEdit(record) {
+    setEditing(record);
+    setModalError('');
     setModal(true);
   }
 
@@ -334,7 +362,11 @@ function App() {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const body = Object.fromEntries(fields.map(([key]) => [key, form.get(key)]));
+    if (resource === 'payroll-runs') {
+      body.netPay = Math.round(((Number(body.grossPay) || 0) - (Number(body.deductions) || 0)) * 100) / 100;
+    }
     const url = editing ? `/api/records/${resource}/${editing.id}` : `/api/records/${resource}`;
+    setModalError('');
     try {
       const response = await fetch(url, {
         method: editing ? 'PATCH' : 'POST',
@@ -351,7 +383,7 @@ function App() {
       setNotice(editing ? 'Changes saved successfully.' : 'Record added successfully.');
       window.setTimeout(() => setNotice(''), 3000);
     } catch (saveError) {
-      setError(saveError.message);
+      setModalError(saveError.message);
     }
   }
 
@@ -379,7 +411,7 @@ function App() {
       {mobileOpen && <button className="mobile-scrim" aria-label="Close navigation" onClick={() => setMobileOpen(false)} />}
       <aside className={`sidebar ${mobileOpen ? 'sidebar-open' : ''}`}>
         <div className="brand">
-          <div className="brand-mark"><Butterfly /></div>
+          <div className="brand-mark"><img className="brand-logo" src={logo} alt="G Sticker Works logo" /></div>
           <span className="brand-name">G4 <span>Sticker</span></span>
           <button className="collapse-button" aria-label="Toggle navigation" onClick={() => setMobileOpen(false)}>‹</button>
         </div>
@@ -410,13 +442,13 @@ function App() {
           <div className="help-card">
             <div className="help-icon">✳</div>
             <div><strong>Need a hand?</strong><span>We’re here to help.</span></div>
-            <button aria-label="Get help">↗</button>
+            <span aria-hidden="true">↗</span>
           </div>
-          <button className="profile-button">
+          <div className="profile-button">
             <div className="profile-avatar">JD</div>
             <div className="profile-copy"><strong>Jamie Davis</strong><span>Workspace admin</span></div>
             <span className="profile-menu">···</span>
-          </button>
+          </div>
         </div>
       </aside>
 
@@ -458,39 +490,44 @@ function App() {
             <DashboardPage onNavigate={navigate} data={dashboard} />
           ) : active === 'clients' ? (
             <ClientsPage clients={filteredRecords} loading={loading} search={search} setSearch={setSearch}
-              onCreate={openCreate} onEdit={(record) => { setEditing(record); setModal(true); }} onDelete={deleteRecord} />
-          ) : ['supplier-dashboard', 'excel-dashboard', 'supplier-reports', 'excel-reports'].includes(active) ? (
-            <DashboardPage onNavigate={navigate} data={dashboard} compact={active.includes('supplier') ? 'G4 Sticker' : 'Excel business'} />
+              onCreate={openCreate} onEdit={openEdit} onDelete={deleteRecord} />
+          ) : ['supplier-dashboard', 'supplier-reports'].includes(active) ? (
+            <DashboardPage onNavigate={navigate} data={dashboard} compact="G4 Sticker" />
           ) : active === 'settings' ? (
             <SettingsPage health={health} appearance={appearance} onAppearanceChange={setAppearance} appearanceError={appearanceError} />
           ) : active === 'bookings' ? (
             <BookingsPage active={active} title={activeLabel} fields={fields} records={filteredRecords} loading={loading}
               search={search} setSearch={setSearch} onCreate={openCreate}
-              onEdit={(record) => { setEditing(record); setModal(true); }} onDelete={deleteRecord} />
+              onEdit={openEdit} onDelete={deleteRecord} />
           ) : active === 'income' ? (
             <IncomePage active={active} title={activeLabel} fields={fields} records={filteredRecords} loading={loading}
               search={search} setSearch={setSearch} onCreate={openCreate}
-              onEdit={(record) => { setEditing(record); setModal(true); }} onDelete={deleteRecord} />
+              onEdit={openEdit} onDelete={deleteRecord} />
           ) : active === 'expenses' ? (
             <ExpensesPage active={active} title={activeLabel} fields={fields} records={filteredRecords} loading={loading}
               search={search} setSearch={setSearch} onCreate={openCreate}
-              onEdit={(record) => { setEditing(record); setModal(true); }} onDelete={deleteRecord} />
+              onEdit={openEdit} onDelete={deleteRecord} />
+          ) : active === 'payroll-runs' ? (
+            <PayrollPage />
           ) : (
             <RecordManagementPage active={active} title={activeLabel} fields={fields} records={filteredRecords} loading={loading}
               search={search} setSearch={setSearch}
               onCreate={active === 'inventory' ? () => navigate('products') : openCreate}
-              onEdit={(record) => { setEditing(record); setModal(true); }} onDelete={deleteRecord}
+              onEdit={openEdit} onDelete={deleteRecord}
               pageClass={active === 'suppliers' ? 'suppliers-page' : active === 'products' ? 'products-page' : active === 'inventory' ? 'inventory-page' : 'record-management-page'} />
           )}
         </div>
       </main>
-      {modal && <RecordModal title={activeLabel} active={active} fields={fields} record={editing} onClose={() => setModal(false)} onSave={saveRecord} />}
+      {modal && <RecordModal title={activeLabel} active={active} fields={fields} record={editing} saveError={modalError} onClose={() => setModal(false)} onSave={saveRecord} />}
     </div>
   );
 }
 
-function RecordModal({ title, active, fields, record, onClose, onSave }) {
+function RecordModal({ title, active, fields, record, saveError, onClose, onSave }) {
   const [dateError, setDateError] = useState('');
+  const [grossPay, setGrossPay] = useState(Number(record?.grossPay) || 0);
+  const [deductions, setDeductions] = useState(Number(record?.deductions) || 0);
+  const calculatedNetPay = Math.round((grossPay - deductions) * 100) / 100;
   function handleSubmit(event) {
     const formData = new FormData(event.currentTarget);
     const requiredDate = fields.find(([key]) =>
@@ -508,12 +545,45 @@ function RecordModal({ title, active, fields, record, onClose, onSave }) {
   return <div className="modal-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
     <form className="record-modal" onSubmit={handleSubmit}><div className="modal-header"><div><div className="eyebrow"><span className="eyebrow-line" />BUSINESS HUB</div><h2>{record ? 'Edit' : 'Add'} {title.replace(/s$/, '')}</h2></div>
       <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>×</button></div>
-      <div className="modal-fields">{fields.map(([key, label]) => <label key={key} className={key === 'content' ? 'wide-field' : ''}><span>{label}</span>
-        {['content', 'notes', ...(active === 'clients' ? ['address'] : [])].includes(key) ? <textarea name={key} defaultValue={record?.[key] || ''} rows={key === 'notes' ? 4 : 3} required={active === 'clients' ? key === 'name' : key === 'content'} /> : key === 'category' && active === 'products' ? <select name={key} defaultValue={record?.[key] || ''} required><option value="" disabled>Select a product type</option>{['Sticker', 'Cap', 'Mug', 'Tarpaulin', ...(record?.[key] && !['Sticker', 'Cap', 'Mug', 'Tarpaulin'].includes(record[key]) ? [record[key]] : [])].map((category) => <option key={category} value={category}>{category}</option>)}</select> : key.toLowerCase().includes('date') || key === 'updated' ? <DatePicker name={key} value={record?.[key] || ''} required={key !== 'updated'} /> : <input name={key} type={['amount', 'price', 'income', 'expenses', 'stock', 'shares', 'percentage'].includes(key) ? 'number' : key === 'email' ? 'email' : key === 'phone' ? 'tel' : 'text'} step={['amount', 'price', 'income', 'expenses', 'percentage'].includes(key) ? '0.01' : undefined} defaultValue={record?.[key] || ''} required={active === 'clients' ? key === 'name' : key !== 'phone'} />}</label>)}</div>
+      <div className="modal-fields">{fields.map(([key, label]) => (
+        <RecordField key={key} active={active} keyName={key} label={label} record={record}
+          grossPay={grossPay} deductions={deductions} calculatedNetPay={calculatedNetPay}
+          onGrossPayChange={setGrossPay} onDeductionsChange={setDeductions} />
+      ))}</div>
       {dateError && <p className="date-validation-error" role="alert">{dateError}</p>}
+      {saveError && <p className="modal-save-error" role="alert">{saveError}</p>}
       <div className="modal-footer"><button type="button" className="cancel-button" onClick={onClose}>Cancel</button><button type="submit" className="primary-button">{record ? 'Save changes' : 'Add record'}</button></div>
     </form>
   </div>;
+}
+
+function RecordField({ active, keyName: key, label, record, grossPay, deductions, calculatedNetPay, onGrossPayChange, onDeductionsChange }) {
+  const isNumeric = ['amount', 'price', 'income', 'expenses', 'stock', 'shares', 'percentage', 'salary', 'allowances', 'bonus', 'commission', 'regularDeductions', 'grossPay', 'deductions', 'netPay'].includes(key);
+  const step = ['amount', 'price', 'income', 'expenses', 'percentage', 'salary', 'allowances', 'bonus', 'commission', 'regularDeductions', 'grossPay', 'deductions', 'netPay'].includes(key) ? '0.01' : undefined;
+  const isCalculatedNetPay = active === 'payroll-runs' && key === 'netPay';
+  return <label className={key === 'content' ? 'wide-field' : ''}><span>{label}</span>
+    {['content', 'notes', ...(active === 'clients' ? ['address'] : [])].includes(key)
+      ? <textarea name={key} placeholder={label} defaultValue={record?.[key] || ''} rows={key === 'notes' ? 4 : 3} required={active === 'clients' ? key === 'name' : key === 'content'} />
+      : key === 'category' && active === 'products'
+        ? <select name={key} defaultValue={record?.[key] || ''} required><option value="" disabled>Select a product type</option>{['Sticker', 'Cap', 'Mug', 'Tarpaulin', ...(record?.[key] && !['Sticker', 'Cap', 'Mug', 'Tarpaulin'].includes(record[key]) ? [record[key]] : [])].map((category) => <option key={category} value={category}>{category}</option>)}</select>
+        : key === 'payFrequency' && active === 'employees'
+          ? <select name={key} defaultValue={record?.[key] || 'Monthly'}><option>Weekly</option><option>Biweekly</option><option>Semimonthly</option><option>Monthly</option></select>
+          : key === 'salaryType' && active === 'employees'
+            ? <select name={key} defaultValue={record?.[key] || 'hourly'}><option value="hourly">Hourly rate</option><option value="daily">Daily rate</option><option value="monthly">Monthly salary</option></select>
+          : key === 'status' && active === 'employees'
+            ? <select name={key} defaultValue={record?.[key] || 'Active'}><option>Active</option><option>On leave</option><option>Inactive</option></select>
+            : key === 'status' && active === 'payroll-runs'
+              ? <select name={key} defaultValue={record?.[key] || 'Draft'}><option>Draft</option><option>Processing</option><option>Paid</option><option>Failed</option></select>
+              : key.toLowerCase().includes('date') || key === 'updated'
+                ? <DatePicker name={key} value={record?.[key] || ''} required={key !== 'updated'} />
+                : <input name={key} placeholder={label} type={isNumeric ? 'number' : key === 'email' ? 'email' : key === 'phone' ? 'tel' : 'text'} step={step}
+                    min={['salary', 'grossPay', 'deductions'].includes(key) ? '0' : undefined}
+                    value={isCalculatedNetPay ? calculatedNetPay : undefined}
+                    defaultValue={isCalculatedNetPay ? undefined : record?.[key] || ''}
+                    readOnly={isCalculatedNetPay}
+                    onChange={key === 'grossPay' && active === 'payroll-runs' ? (event) => onGrossPayChange(Number(event.target.value) || 0) : key === 'deductions' && active === 'payroll-runs' ? (event) => onDeductionsChange(Number(event.target.value) || 0) : undefined}
+                    required={active === 'clients' ? key === 'name' : active === 'employees' ? ['employeeId', 'name', 'salary'].includes(key) : key !== 'phone'} />}
+  </label>;
 }
 
 export default App;

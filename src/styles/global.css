@@ -1,17 +1,60 @@
 @import "tailwindcss";
 
 :root {
-  font-family: 'DM Sans', sans-serif;
-  color: #24243a;
-  background: #f7f7f9;
+  font-family: 'DM Sans', Inter, ui-sans-serif, system-ui, sans-serif;
+  color: var(--ink);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   --ink: #25253a;
-  --muted: #9293a5;
+  --text-primary: #25253a;
+  --muted: #85869a;
+  --text-secondary: #62637a;
   --purple: #6967d9;
+  --purple-hover: color-mix(in srgb, var(--purple), #24243a 12%);
   --accent-soft: color-mix(in srgb, var(--purple), white 92%);
-  --line: #eeeef2;
+  --line: #e9e8f1;
+  --line-strong: #dcdbe9;
+  --surface: #ffffff;
+  --surface-soft: #fafaff;
+  --background: #f7f7fb;
+  --success: #27825f;
+  --success-soft: #eaf7f1;
+  --warning: #a96b13;
+  --warning-soft: #fff5e3;
+  --danger: #b94f5d;
+  --danger-soft: #fff0f2;
+  --info: #4b69a8;
+  --info-soft: #edf3ff;
+  --focus-ring: color-mix(in srgb, var(--purple), transparent 70%);
+  --shadow-sm: 0 2px 8px rgba(36, 36, 66, 0.045);
+  --shadow-md: 0 12px 32px rgba(36, 36, 66, 0.09);
+  --shadow-glass: 0 14px 38px rgba(42, 35, 86, 0.07);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --space-1: 0.375rem;
+  --space-2: 0.625rem;
+  --space-3: 0.875rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --page-gutter: clamp(14px, 3vw, 42px);
+  --glass-bg: rgba(255, 255, 255, 0.74);
+  --glass-bg-strong: rgba(255, 255, 255, 0.88);
+  --glass-border: rgba(255, 255, 255, 0.82);
+  --glass-blur: 16px;
+  --control-height: 40px;
+  --table-row-height: 48px;
+  --transition-fast: 150ms ease;
+  --transition-standard: 180ms ease;
+  --font-page-title: clamp(1.5rem, 2.1vw, 1.75rem);
+  --font-section-title: 1.0625rem;
+  --font-card-title: 0.875rem;
+  --font-body: 0.8125rem;
+  --font-table: 0.6875rem;
+  --font-label: 0.625rem;
+  --font-meta: 0.6rem;
   --sidebar-width: 253px;
   --type-scale: 1.15;
   --text-xs: calc(.75rem * var(--type-scale, 1));
@@ -21,28 +64,13 @@
   --text-xl: calc(1.25rem * var(--type-scale, 1));
   --text-2xl: calc(1.5rem * var(--type-scale, 1));
   --text-3xl: calc(1.875rem * var(--type-scale, 1));
+  color-scheme: light;
 }
 
 * { box-sizing: border-box; }
-#root { zoom: 1.2; }
 body { min-width: 360px; min-height: 100vh; margin: 0; }
 button, input, textarea { font: inherit; }
 button { color: inherit; }
-
-:root {
-  --surface: #ffffff;
-  --surface-soft: #fafaff;
-  --line-strong: #e5e5ef;
-  --ink: #25253a;
-  --muted: #85869a;
-  --purple-hover: color-mix(in srgb, var(--purple), #24243a 12%);
-  --focus-ring: color-mix(in srgb, var(--purple), transparent 78%);
-  --shadow-sm: 0 2px 8px rgba(36, 36, 66, 0.04);
-  --shadow-md: 0 12px 32px rgba(36, 36, 66, 0.09);
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  color-scheme: light;
-}
 
 html {
   scroll-behavior: smooth;

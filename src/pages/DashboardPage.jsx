@@ -61,7 +61,15 @@ export default function DashboardPage({ onNavigate, data, compact, name = 'Jamie
 
   return (
     <div className="dashboard-page grid gap-5 text-slate-800">
-      <header className="rounded-2xl border border-violet-100 bg-gradient-to-br from-white via-white to-violet-50 p-5 shadow-sm sm:p-7">
+      {compact && <section className="dashboard-quick-actions" aria-label="Quick actions">
+        <div className="grid w-full grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-2.5">
+          <button className={`${btnPrimary} w-full justify-center`} onClick={() => onNavigate('income')}><Glyph name="plus" size={16} />Record income</button>
+          <button className={`${btn} w-full justify-center`} onClick={() => onNavigate('bookings')}><Glyph name="bookings" size={16} />New booking</button>
+          <button className={`${btn} w-full justify-center`} onClick={() => onNavigate('products')}><Glyph name="purchases" size={16} />Add product</button>
+          <button className={`${btn} w-full justify-center`} onClick={() => onNavigate('suppliers')}><Glyph name="suppliers" size={16} />Add supplier</button>
+        </div>
+      </section>}
+      {!compact && <header className="rounded-2xl border border-violet-100 bg-gradient-to-br from-white via-white to-violet-50 p-5 shadow-sm sm:p-7">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <p className="mb-2 inline-flex rounded-full border border-violet-100 bg-white/80 px-3 py-1 text-xs font-semibold tracking-wide text-violet-700 shadow-sm">{compact || dateLabel}</p>
@@ -79,7 +87,7 @@ export default function DashboardPage({ onNavigate, data, compact, name = 'Jamie
           <button className={`${btn} w-full justify-center`} onClick={() => onNavigate('suppliers')}><Glyph name="suppliers" size={16} />Add supplier</button>
         </div>
         </div>
-      </header>
+      </header>}
 
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]">
         <section className={panel} aria-label="Financial summary">

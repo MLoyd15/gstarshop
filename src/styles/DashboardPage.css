@@ -1,20 +1,26 @@
-
 /* =========================================
-   G4 STICKER — DASHBOARD DESIGN SYSTEM
-   Compatible with the existing DashboardPage.jsx
+   G4 STICKER — DASHBOARD · GLASSMORPHISM
+   Drop-in replacement for the previous dashboard CSS.
+   Same selectors, same type-scale tokens.
 ========================================= */
 
 .dashboard-page {
   --dashboard-accent: var(--purple, #7655df);
-  --dashboard-accent-dark: #6042c4;
-  --dashboard-accent-soft: #f4f0ff;
-  --dashboard-border: #eae8f1;
-  --dashboard-text: #242238;
-  --dashboard-muted: #858399;
-  --dashboard-surface: #ffffff;
-  --dashboard-surface-soft: #faf9fd;
-  --dashboard-radius: 18px;
-  --dashboard-shadow: 0 3px 14px rgb(34 25 67 / 3%);
+  --dashboard-accent-dark: #5d3dc6;
+  --dashboard-accent-soft: rgb(255 255 255 / 60%);
+  --dashboard-text: #221f3a;
+  --dashboard-muted: #5f5d78;
+  --dashboard-radius: 22px;
+
+  /* Glass tuning knobs */
+  --glass: rgb(255 255 255 / 40%);
+  --glass-strong: rgb(255 255 255 / 66%);
+  --glass-border: rgb(255 255 255 / 72%);
+  --glass-blur: 20px;
+  --glass-shadow:
+    0 10px 34px rgb(70 48 150 / 10%),
+    inset 0 1px 0 rgb(255 255 255 / 85%);
+  --glass-divider: rgb(110 90 180 / 11%);
 
   --text-xs: calc(0.6875rem * var(--type-scale, 1));
   --text-sm: calc(0.75rem * var(--type-scale, 1));
@@ -24,6 +30,8 @@
   --text-2xl: calc(1.25rem * var(--type-scale, 1));
   --text-3xl: calc(1.5rem * var(--type-scale, 1));
 
+  position: relative;
+  isolation: isolate;
   color: var(--dashboard-text);
   font-size: calc(0.875rem * var(--type-scale, 1));
   line-height: 1.55;
@@ -36,7 +44,37 @@
   box-sizing: border-box;
 }
 
-/* Typography */
+/* ---------- Backdrop: the color the glass blurs ----------
+   Glass only looks like glass when something colorful sits behind it. */
+
+.dashboard-page::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 42% 30% at 90% 3%, rgb(167 139 250 / 55%), transparent 72%),
+    radial-gradient(ellipse 36% 26% at 4% 28%, rgb(244 162 207 / 42%), transparent 72%),
+    radial-gradient(ellipse 40% 28% at 72% 56%, rgb(125 211 252 / 42%), transparent 72%),
+    radial-gradient(ellipse 38% 26% at 18% 94%, rgb(167 243 208 / 40%), transparent 72%);
+}
+
+/* One crisp orb so the blur has an edge to bend */
+.dashboard-page::after {
+  position: absolute;
+  z-index: -1;
+  top: 32%;
+  right: 3%;
+  width: clamp(150px, 22vw, 300px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgb(139 92 246 / 70%), rgb(236 114 182 / 58%));
+  content: "";
+  pointer-events: none;
+}
+
+/* ---------- Typography ---------- */
 
 .dashboard-page .dashboard-title {
   font-size: clamp(
@@ -50,6 +88,7 @@
 }
 
 .dashboard-page .profit-amount {
+  margin-top: 9px;
   font-size: clamp(
     calc(1.8rem * var(--type-scale, 1)),
     calc(3.2vw * var(--type-scale, 1)),
@@ -59,91 +98,6 @@
   letter-spacing: -0.055em;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
-}
-
-.dashboard-page h2 {
-  letter-spacing: -0.025em;
-}
-
-.dashboard-page .text-xs {
-  font-size: var(--text-xs);
-}
-
-.dashboard-page .text-sm {
-  font-size: var(--text-sm);
-}
-
-.dashboard-page .text-base {
-  font-size: var(--text-lg);
-}
-
-/* Main welcome header */
-
-.dashboard-page > header {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  border-color: #e9e2fb;
-  border-radius: 22px;
-  background:
-    radial-gradient(
-      ellipse at 100% 0%,
-      rgb(221 210 255 / 42%),
-      transparent 42%
-    ),
-    linear-gradient(135deg, #ffffff 0%, #fbf9ff 100%);
-  box-shadow: 0 5px 22px rgb(58 40 110 / 4%);
-}
-
-.dashboard-page > header::after {
-  position: absolute;
-  z-index: -1;
-  right: -48px;
-  bottom: -90px;
-  width: 220px;
-  height: 220px;
-  border: 1px solid rgb(118 85 223 / 9%);
-  border-radius: 50%;
-  content: "";
-  pointer-events: none;
-}
-
-.dashboard-page > header > div {
-  position: relative;
-  z-index: 1;
-}
-
-.dashboard-page > header p {
-  line-height: 1.7;
-}
-
-/* Dashboard cards and panels */
-
-.dashboard-page section {
-  min-width: 0;
-}
-
-.dashboard-page > div > section,
-.dashboard-page > section {
-  border-color: var(--dashboard-border);
-  border-radius: var(--dashboard-radius);
-  background: var(--dashboard-surface);
-  box-shadow: var(--dashboard-shadow);
-  transition:
-    border-color 180ms ease,
-    box-shadow 180ms ease;
-}
-
-.dashboard-page > div > section:hover,
-.dashboard-page > section:hover {
-  border-color: #e0d9f2;
-  box-shadow: 0 6px 22px rgb(34 25 67 / 5%);
-}
-
-/* Financial summary */
-
-.dashboard-page .profit-amount {
-  margin-top: 9px;
 }
 
 .dashboard-page .profit-amount:not(.text-red-700) {
@@ -158,26 +112,70 @@
   letter-spacing: -0.035em;
 }
 
-/* Section headings */
-
 .dashboard-page h2 {
   font-size: var(--text-xl);
   font-weight: 750;
   line-height: 1.4;
+  letter-spacing: -0.025em;
 }
 
 .dashboard-page section > div > p {
   line-height: 1.6;
 }
 
-/* Quick actions */
+.dashboard-page .text-xs { font-size: var(--text-xs); }
+.dashboard-page .text-sm { font-size: var(--text-sm); }
+.dashboard-page .text-base { font-size: var(--text-lg); }
+.dashboard-page .tracking-wide { letter-spacing: 0.055em; }
+.dashboard-page .tabular-nums { font-variant-numeric: tabular-nums; }
+
+/* Muted text is darker than usual so it stays readable on translucent glass */
+.dashboard-page .text-slate-500 { color: var(--dashboard-muted); }
+
+/* ---------- Glass surfaces: header + every panel ---------- */
+
+.dashboard-page > header,
+.dashboard-page > div > section,
+.dashboard-page > section {
+  min-width: 0;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--dashboard-radius);
+  background: linear-gradient(135deg, var(--glass-strong), var(--glass));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(165%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(165%);
+  box-shadow: var(--glass-shadow);
+  transition:
+    background-color 200ms ease,
+    border-color 200ms ease,
+    box-shadow 200ms ease;
+}
+
+.dashboard-page > div > section:hover,
+.dashboard-page > section:hover {
+  border-color: rgb(255 255 255 / 95%);
+  box-shadow:
+    0 14px 40px rgb(70 48 150 / 14%),
+    inset 0 1px 0 rgb(255 255 255 / 90%);
+}
+
+.dashboard-page > header {
+  padding: clamp(18px, 2.4vw, 28px);
+}
+
+.dashboard-page > header p {
+  line-height: 1.7;
+}
+
+/* ---------- Buttons ----------
+   Nested backdrop-filter doesn't work inside a glass parent,
+   so inner controls use plain translucency instead of blur. */
 
 .dashboard-page button {
   -webkit-tap-highlight-color: transparent;
 }
 
 .dashboard-page button:focus-visible {
-  outline: 3px solid rgb(118 85 223 / 35%);
+  outline: 3px solid rgb(93 61 198 / 45%);
   outline-offset: 3px;
 }
 
@@ -193,51 +191,68 @@
 
 .dashboard-page > header button {
   min-height: 40px;
-  border-radius: 11px;
+  border-radius: 12px;
 }
 
 .dashboard-page > header button:first-child {
-  box-shadow: 0 4px 10px rgb(118 85 223 / 18%);
+  border-color: rgb(255 255 255 / 40%);
+  background: linear-gradient(135deg, #7a58e6, #5d3dc6);
+  box-shadow:
+    0 6px 16px rgb(93 61 198 / 30%),
+    inset 0 1px 0 rgb(255 255 255 / 32%);
 }
 
 .dashboard-page > header button:first-child:hover {
-  box-shadow: 0 6px 15px rgb(118 85 223 / 25%);
+  box-shadow:
+    0 9px 22px rgb(93 61 198 / 38%),
+    inset 0 1px 0 rgb(255 255 255 / 32%);
   transform: translateY(-1px);
+}
+
+.dashboard-page > header button:not(:first-child) {
+  border-color: rgb(255 255 255 / 80%);
+  background: rgb(255 255 255 / 55%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 80%);
 }
 
 .dashboard-page > header button:not(:first-child):hover {
-  background: var(--dashboard-accent-soft);
+  background: rgb(255 255 255 / 85%);
   transform: translateY(-1px);
 }
 
-/* Workspace navigation rows */
+/* ---------- Workspace rows ---------- */
 
 .dashboard-page section button.grid {
   min-height: 57px;
-  border-radius: 11px;
+  border-radius: 14px;
 }
 
 .dashboard-page section button.grid:hover {
-  background: #f8f6ff;
+  background: rgb(255 255 255 / 60%);
 }
 
 .dashboard-page section button.grid strong {
   font-variant-numeric: tabular-nums;
 }
 
-/* Icon badges */
-
-.dashboard-page .rounded-\[10px\].size-9 {
-  transition:
-    transform 180ms ease,
-    background-color 180ms ease;
+.dashboard-page .border-slate-100 {
+  border-color: var(--glass-divider);
 }
 
-.dashboard-page button:hover .rounded-\[10px\].size-9 {
-  transform: scale(1.045);
+/* ---------- Icon badges ---------- */
+
+.dashboard-page span.size-9 {
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 75%),
+    0 4px 12px rgb(70 48 150 / 10%);
+  transition: transform 180ms ease;
 }
 
-/* Revenue chart */
+.dashboard-page button:hover span.size-9 {
+  transform: scale(1.06);
+}
+
+/* ---------- Revenue chart ---------- */
 
 .dashboard-page svg {
   max-width: 100%;
@@ -249,6 +264,10 @@
 
 .dashboard-page section svg line {
   vector-effect: non-scaling-stroke;
+}
+
+.dashboard-page section svg line.stroke-slate-100 {
+  stroke: var(--glass-divider);
 }
 
 .dashboard-page section svg circle {
@@ -263,7 +282,14 @@
   cursor: crosshair;
 }
 
-/* Recent transactions */
+/* Tooltip: dark glass so it reads against the light panels */
+.dashboard-page .bg-slate-800 {
+  border: 1px solid rgb(255 255 255 / 18%);
+  background: rgb(34 31 58 / 88%);
+  box-shadow: 0 10px 28px rgb(34 25 67 / 25%);
+}
+
+/* ---------- Recent transactions ---------- */
 
 .dashboard-page .grid-cols-\[36px_minmax\(0\,1fr\)_auto\],
 .dashboard-page .sm\:grid-cols-\[36px_minmax\(0\,1fr\)_110px_120px_110px\] {
@@ -271,33 +297,40 @@
 }
 
 .dashboard-page section .border-t.border-slate-100.py-3 {
-  border-color: #f0eef5;
+  border-radius: 12px;
   transition: background-color 150ms ease;
 }
 
 .dashboard-page section .border-t.border-slate-100.py-3:hover {
-  background: #fbfaff;
+  background: rgb(255 255 255 / 55%);
 }
 
 .dashboard-page section .truncate {
   min-width: 0;
 }
 
-.dashboard-page .tabular-nums {
-  font-variant-numeric: tabular-nums;
+/* ---------- Fallbacks & accessibility ---------- */
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .dashboard-page {
+    --glass: rgb(255 255 255 / 88%);
+    --glass-strong: rgb(255 255 255 / 95%);
+  }
 }
 
-/* Small labels and metadata */
+@media (prefers-reduced-transparency: reduce) {
+  .dashboard-page {
+    --glass: rgb(255 255 255 / 96%);
+    --glass-strong: rgb(255 255 255 / 100%);
+  }
 
-.dashboard-page .tracking-wide {
-  letter-spacing: 0.055em;
+  .dashboard-page > header,
+  .dashboard-page > div > section,
+  .dashboard-page > section {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
 }
-
-.dashboard-page .text-slate-500 {
-  color: #77758d;
-}
-
-/* Respect reduced-motion preferences */
 
 @media (prefers-reduced-motion: reduce) {
   .dashboard-page *,
@@ -310,20 +343,12 @@
   }
 }
 
-/* Tablet */
+/* ---------- Tablet ---------- */
 
 @media (max-width: 1024px) {
   .dashboard-page {
+    --dashboard-radius: 19px;
     gap: 16px;
-  }
-
-  .dashboard-page > header {
-    border-radius: 19px;
-  }
-
-  .dashboard-page > div > section,
-  .dashboard-page > section {
-    border-radius: 16px;
   }
 
   .dashboard-page .profit-amount {
@@ -335,17 +360,24 @@
   }
 }
 
-/* Mobile */
+/* ---------- Mobile ---------- */
 
 @media (max-width: 640px) {
   .dashboard-page {
+    --dashboard-radius: 17px;
+    --glass-blur: 14px; /* lighter blur = smoother scrolling on phones */
     gap: 13px;
     font-size: calc(0.8125rem * var(--type-scale, 1));
   }
 
+  .dashboard-page::after {
+    top: 22%;
+    right: -2%;
+    width: 150px;
+  }
+
   .dashboard-page > header {
     padding: 19px;
-    border-radius: 17px;
   }
 
   .dashboard-page .dashboard-title {
@@ -368,11 +400,6 @@
   .dashboard-page > div > section,
   .dashboard-page > section {
     padding: 16px;
-    border-radius: 15px;
-  }
-
-  .dashboard-page > header .grid {
-    gap: 8px;
   }
 
   .dashboard-page > header button {
@@ -399,7 +426,7 @@
   }
 }
 
-/* Extra-small screens */
+/* ---------- Extra-small ---------- */
 
 @media (max-width: 380px) {
   .dashboard-page > header {

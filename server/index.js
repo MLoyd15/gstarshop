@@ -2,12 +2,15 @@ import 'dotenv/config';
 import cors from 'cors';
 import express from 'express';
 import mongoose from 'mongoose';
+import { createPayrollRouter } from './routes/payroll.js';
+import { validateEmployeePayrollData } from './services/payroll.js';
 
 const app = express();
 const port = Number(process.env.PORT) || 4000;
 const resources = [
   'suppliers', 'products', 'inventory', 'prices', 'purchases', 'excel-sheet',
   'scheduler', 'bookings', 'clients', 'income', 'expenses', 'profit', 'shareholders',
+  'employees', 'payroll-runs',
   'money-tracker', 'notepad'
 ];
 
@@ -41,6 +44,8 @@ app.use('/api', (_request, response, next) => {
   }
   next();
 });
+
+app.use('/api/payroll', createPayrollRouter(BusinessRecord, mongoose));
 
 app.get('/api/dashboard', async (_request, response, next) => {
   try {
@@ -140,12 +145,15 @@ app.post('/api/records/:resource', async (request, response, next) => {
   }
 
   try {
-    const record = await BusinessRecord.create({ resource: request.params.resource, data: request.body });
+    if (request.params.resource === 'payroll-runs') return response.status(409).json({ error: 'Use the Pay runs page to generate and manage payroll.' });
+    const data = request.params.resource === 'employees' ? validateEmployeePayrollData(request.body) : request.body;
+    const record = await BusinessRecord.create({ resource: request.params.resource, data });
     response.status(201).json({
       ...record.data, id: record._id.toString(),
       createdAt: record.createdAt, updatedAt: record.updatedAt
     });
   } catch (error) {
+    if (error.status === 400) return response.status(400).json({ error: error.message });
     next(error);
   }
 });
@@ -159,6 +167,12 @@ app.patch('/api/records/:resource/:id', async (request, response, next) => {
   }
 
   try {
+    if (request.params.resource === 'payroll-runs') return response.status(409).json({ error: 'Payroll runs can only be changed through the Pay runs page.' });
+    if (request.params.resource === 'expenses') {
+      const linked = await BusinessRecord.findOne({ _id: request.params.id, resource: 'expenses' }).lean();
+      if (linked?.data?.payrollRunId) return response.status(409).json({ error: 'Payroll linked expenses are managed with their payroll run.' });
+    }
+    if (request.params.resource === 'employees') request.body = validateEmployeePayrollData(request.body);
     const record = await BusinessRecord.findOneAndUpdate(
       { _id: request.params.id, resource: request.params.resource },
       { $set: { data: request.body, updatedAt: new Date() } },
@@ -167,6 +181,7 @@ app.patch('/api/records/:resource/:id', async (request, response, next) => {
     if (!record) return response.status(404).json({ error: 'Record not found.' });
     response.json({ ...record.data, id: record._id.toString(), createdAt: record.createdAt, updatedAt: record.updatedAt });
   } catch (error) {
+    if (error.status === 400) return response.status(400).json({ error: error.message });
     if (error instanceof mongoose.Error.CastError) {
       return response.status(400).json({ error: 'The record ID is invalid.' });
     }
@@ -179,6 +194,11 @@ app.delete('/api/records/:resource/:id', async (request, response, next) => {
     return response.status(404).json({ error: 'This business area does not exist.' });
   }
   try {
+    if (request.params.resource === 'payroll-runs') return response.status(409).json({ error: 'Payroll history is preserved; reverse the run instead.' });
+    if (request.params.resource === 'expenses') {
+      const linked = await BusinessRecord.findOne({ _id: request.params.id, resource: 'expenses' }).lean();
+      if (linked?.data?.payrollRunId) return response.status(409).json({ error: 'Payroll linked expenses are managed with their payroll run.' });
+    }
     const record = await BusinessRecord.findOneAndDelete({
       _id: request.params.id, resource: request.params.resource
     });
