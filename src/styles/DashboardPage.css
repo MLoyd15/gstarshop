@@ -1,22 +1,422 @@
-.dashboard-page { font-size: calc(1rem * var(--type-scale, 1)); }
-.dashboard-page .dashboard-title { font-size: clamp(calc(1.5rem * var(--type-scale, 1)), calc(3vw * var(--type-scale, 1)), calc(2.25rem * var(--type-scale, 1))); }
-.dashboard-page .profit-amount { font-size: clamp(calc(2.1rem * var(--type-scale, 1)), calc(4.4vw * var(--type-scale, 1)), calc(2.9rem * var(--type-scale, 1))); }
 
-/* Keep the dashboard type scale aligned with the compact business pages. */
+/* =========================================
+   G4 STICKER — DASHBOARD DESIGN SYSTEM
+   Compatible with the existing DashboardPage.jsx
+========================================= */
+
 .dashboard-page {
-  --text-xs: calc(.5625rem * var(--type-scale, 1));
-  --text-sm: calc(.625rem * var(--type-scale, 1));
-  --text-base: calc(.75rem * var(--type-scale, 1));
-  --text-lg: calc(.875rem * var(--type-scale, 1));
-  --text-xl: calc(1rem * var(--type-scale, 1));
-  --text-2xl: calc(1.2rem * var(--type-scale, 1));
+  --dashboard-accent: var(--purple, #7655df);
+  --dashboard-accent-dark: #6042c4;
+  --dashboard-accent-soft: #f4f0ff;
+  --dashboard-border: #eae8f1;
+  --dashboard-text: #242238;
+  --dashboard-muted: #858399;
+  --dashboard-surface: #ffffff;
+  --dashboard-surface-soft: #faf9fd;
+  --dashboard-radius: 18px;
+  --dashboard-shadow: 0 3px 14px rgb(34 25 67 / 3%);
+
+  --text-xs: calc(0.6875rem * var(--type-scale, 1));
+  --text-sm: calc(0.75rem * var(--type-scale, 1));
+  --text-base: calc(0.8125rem * var(--type-scale, 1));
+  --text-lg: calc(0.9375rem * var(--type-scale, 1));
+  --text-xl: calc(1.0625rem * var(--type-scale, 1));
+  --text-2xl: calc(1.25rem * var(--type-scale, 1));
   --text-3xl: calc(1.5rem * var(--type-scale, 1));
+
+  color: var(--dashboard-text);
+  font-size: calc(0.875rem * var(--type-scale, 1));
+  line-height: 1.55;
+  min-width: 0;
 }
 
+.dashboard-page *,
+.dashboard-page *::before,
+.dashboard-page *::after {
+  box-sizing: border-box;
+}
+
+/* Typography */
+
 .dashboard-page .dashboard-title {
-  font-size: clamp(calc(1.25rem * var(--type-scale, 1)), calc(2vw * var(--type-scale, 1)), calc(1.75rem * var(--type-scale, 1)));
+  font-size: clamp(
+    calc(1.35rem * var(--type-scale, 1)),
+    calc(2.2vw * var(--type-scale, 1)),
+    calc(1.9rem * var(--type-scale, 1))
+  );
+  line-height: 1.25;
+  letter-spacing: -0.045em;
+  text-wrap: balance;
 }
 
 .dashboard-page .profit-amount {
-  font-size: clamp(calc(1.75rem * var(--type-scale, 1)), calc(3vw * var(--type-scale, 1)), calc(2.25rem * var(--type-scale, 1)));
+  font-size: clamp(
+    calc(1.8rem * var(--type-scale, 1)),
+    calc(3.2vw * var(--type-scale, 1)),
+    calc(2.45rem * var(--type-scale, 1))
+  );
+  line-height: 1.15;
+  letter-spacing: -0.055em;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.dashboard-page h2 {
+  letter-spacing: -0.025em;
+}
+
+.dashboard-page .text-xs {
+  font-size: var(--text-xs);
+}
+
+.dashboard-page .text-sm {
+  font-size: var(--text-sm);
+}
+
+.dashboard-page .text-base {
+  font-size: var(--text-lg);
+}
+
+/* Main welcome header */
+
+.dashboard-page > header {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-color: #e9e2fb;
+  border-radius: 22px;
+  background:
+    radial-gradient(
+      ellipse at 100% 0%,
+      rgb(221 210 255 / 42%),
+      transparent 42%
+    ),
+    linear-gradient(135deg, #ffffff 0%, #fbf9ff 100%);
+  box-shadow: 0 5px 22px rgb(58 40 110 / 4%);
+}
+
+.dashboard-page > header::after {
+  position: absolute;
+  z-index: -1;
+  right: -48px;
+  bottom: -90px;
+  width: 220px;
+  height: 220px;
+  border: 1px solid rgb(118 85 223 / 9%);
+  border-radius: 50%;
+  content: "";
+  pointer-events: none;
+}
+
+.dashboard-page > header > div {
+  position: relative;
+  z-index: 1;
+}
+
+.dashboard-page > header p {
+  line-height: 1.7;
+}
+
+/* Dashboard cards and panels */
+
+.dashboard-page section {
+  min-width: 0;
+}
+
+.dashboard-page > div > section,
+.dashboard-page > section {
+  border-color: var(--dashboard-border);
+  border-radius: var(--dashboard-radius);
+  background: var(--dashboard-surface);
+  box-shadow: var(--dashboard-shadow);
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.dashboard-page > div > section:hover,
+.dashboard-page > section:hover {
+  border-color: #e0d9f2;
+  box-shadow: 0 6px 22px rgb(34 25 67 / 5%);
+}
+
+/* Financial summary */
+
+.dashboard-page .profit-amount {
+  margin-top: 9px;
+}
+
+.dashboard-page .profit-amount:not(.text-red-700) {
+  color: var(--dashboard-accent-dark);
+}
+
+.dashboard-page .profit-amount + div {
+  margin-top: 9px;
+}
+
+.dashboard-page .profit-amount ~ div strong {
+  letter-spacing: -0.035em;
+}
+
+/* Section headings */
+
+.dashboard-page h2 {
+  font-size: var(--text-xl);
+  font-weight: 750;
+  line-height: 1.4;
+}
+
+.dashboard-page section > div > p {
+  line-height: 1.6;
+}
+
+/* Quick actions */
+
+.dashboard-page button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dashboard-page button:focus-visible {
+  outline: 3px solid rgb(118 85 223 / 35%);
+  outline-offset: 3px;
+}
+
+.dashboard-page button.motion-safe\:transition,
+.dashboard-page button.motion-safe\:transition-colors {
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.dashboard-page > header button {
+  min-height: 40px;
+  border-radius: 11px;
+}
+
+.dashboard-page > header button:first-child {
+  box-shadow: 0 4px 10px rgb(118 85 223 / 18%);
+}
+
+.dashboard-page > header button:first-child:hover {
+  box-shadow: 0 6px 15px rgb(118 85 223 / 25%);
+  transform: translateY(-1px);
+}
+
+.dashboard-page > header button:not(:first-child):hover {
+  background: var(--dashboard-accent-soft);
+  transform: translateY(-1px);
+}
+
+/* Workspace navigation rows */
+
+.dashboard-page section button.grid {
+  min-height: 57px;
+  border-radius: 11px;
+}
+
+.dashboard-page section button.grid:hover {
+  background: #f8f6ff;
+}
+
+.dashboard-page section button.grid strong {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Icon badges */
+
+.dashboard-page .rounded-\[10px\].size-9 {
+  transition:
+    transform 180ms ease,
+    background-color 180ms ease;
+}
+
+.dashboard-page button:hover .rounded-\[10px\].size-9 {
+  transform: scale(1.045);
+}
+
+/* Revenue chart */
+
+.dashboard-page svg {
+  max-width: 100%;
+}
+
+.dashboard-page section svg text {
+  font-family: inherit;
+}
+
+.dashboard-page section svg line {
+  vector-effect: non-scaling-stroke;
+}
+
+.dashboard-page section svg circle {
+  transition: r 120ms ease;
+}
+
+.dashboard-page section svg circle:hover {
+  r: 6px;
+}
+
+.dashboard-page .touch-pan-y {
+  cursor: crosshair;
+}
+
+/* Recent transactions */
+
+.dashboard-page .grid-cols-\[36px_minmax\(0\,1fr\)_auto\],
+.dashboard-page .sm\:grid-cols-\[36px_minmax\(0\,1fr\)_110px_120px_110px\] {
+  min-width: 0;
+}
+
+.dashboard-page section .border-t.border-slate-100.py-3 {
+  border-color: #f0eef5;
+  transition: background-color 150ms ease;
+}
+
+.dashboard-page section .border-t.border-slate-100.py-3:hover {
+  background: #fbfaff;
+}
+
+.dashboard-page section .truncate {
+  min-width: 0;
+}
+
+.dashboard-page .tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Small labels and metadata */
+
+.dashboard-page .tracking-wide {
+  letter-spacing: 0.055em;
+}
+
+.dashboard-page .text-slate-500 {
+  color: #77758d;
+}
+
+/* Respect reduced-motion preferences */
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-page *,
+  .dashboard-page *::before,
+  .dashboard-page *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Tablet */
+
+@media (max-width: 1024px) {
+  .dashboard-page {
+    gap: 16px;
+  }
+
+  .dashboard-page > header {
+    border-radius: 19px;
+  }
+
+  .dashboard-page > div > section,
+  .dashboard-page > section {
+    border-radius: 16px;
+  }
+
+  .dashboard-page .profit-amount {
+    font-size: clamp(
+      calc(1.75rem * var(--type-scale, 1)),
+      calc(3.4vw * var(--type-scale, 1)),
+      calc(2.25rem * var(--type-scale, 1))
+    );
+  }
+}
+
+/* Mobile */
+
+@media (max-width: 640px) {
+  .dashboard-page {
+    gap: 13px;
+    font-size: calc(0.8125rem * var(--type-scale, 1));
+  }
+
+  .dashboard-page > header {
+    padding: 19px;
+    border-radius: 17px;
+  }
+
+  .dashboard-page .dashboard-title {
+    font-size: clamp(
+      calc(1.3rem * var(--type-scale, 1)),
+      calc(5.5vw * var(--type-scale, 1)),
+      calc(1.65rem * var(--type-scale, 1))
+    );
+    letter-spacing: -0.04em;
+  }
+
+  .dashboard-page .profit-amount {
+    font-size: clamp(
+      calc(1.65rem * var(--type-scale, 1)),
+      calc(7vw * var(--type-scale, 1)),
+      calc(2rem * var(--type-scale, 1))
+    );
+  }
+
+  .dashboard-page > div > section,
+  .dashboard-page > section {
+    padding: 16px;
+    border-radius: 15px;
+  }
+
+  .dashboard-page > header .grid {
+    gap: 8px;
+  }
+
+  .dashboard-page > header button {
+    min-height: 42px;
+    padding-inline: 10px;
+    font-size: var(--text-sm);
+  }
+
+  .dashboard-page .profit-amount ~ div {
+    gap: 22px;
+  }
+
+  .dashboard-page .profit-amount ~ div strong {
+    font-size: var(--text-xl);
+  }
+
+  .dashboard-page .text-xs {
+    font-size: calc(0.65rem * var(--type-scale, 1));
+  }
+
+  .dashboard-page section .border-t.border-slate-100.py-3 {
+    column-gap: 9px;
+    padding-block: 12px;
+  }
+}
+
+/* Extra-small screens */
+
+@media (max-width: 380px) {
+  .dashboard-page > header {
+    padding: 15px;
+  }
+
+  .dashboard-page > div > section,
+  .dashboard-page > section {
+    padding: 13px;
+  }
+
+  .dashboard-page .profit-amount ~ div {
+    gap: 14px;
+  }
+
+  .dashboard-page > header button {
+    gap: 5px;
+    padding-inline: 7px;
+  }
 }
