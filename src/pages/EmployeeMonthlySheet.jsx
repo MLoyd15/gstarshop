@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import '../styles/EmployeeMonthlySheet.css';
+import '../styles/EmployeeMonthlyOvertime.css';
 
 const money = (value) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(value) || 0);
 const monthDates = (period) => {
@@ -11,7 +12,7 @@ const id = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.rand
 
 export default function EmployeeMonthlySheet({ employee, onClose }) {
   const [period, setPeriod] = useState(new Date().toISOString().slice(0, 7));
-  const [hours, setHours] = useState({}); const [advances, setAdvances] = useState([]);
+  const [hours, setHours] = useState({}); const [overtimeHours, setOvertimeHours] = useState({}); const [advances, setAdvances] = useState([]);
   const [carryIn, setCarryIn] = useState(0); const [locked, setLocked] = useState(false);
   const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false);
   const [error, setError] = useState(''); const [notice, setNotice] = useState('');
@@ -23,6 +24,7 @@ export default function EmployeeMonthlySheet({ employee, onClose }) {
       .then((data) => {
         if (cancelled) return;
         setHours(Object.fromEntries((data.dailyEntries || []).map((entry) => [entry.date, String(entry.hours)])));
+        setOvertimeHours(Object.fromEntries((data.dailyEntries || []).filter((entry) => entry.overtimeHours).map((entry) => [entry.date, String(entry.overtimeHours)])));
         setAdvances(data.advances || []); setCarryIn(Number(data.advanceOwedBefore || 0)); setLocked(Boolean(data.locked));
       })
       .catch((e) => { if (!cancelled) setError(e.message); })
@@ -31,9 +33,12 @@ export default function EmployeeMonthlySheet({ employee, onClose }) {
   }, [employee.id, period]);
 
   const totalHours = useMemo(() => Object.values(hours).reduce((total, value) => total + (Number(value) || 0), 0), [hours]);
+  const totalOvertimeHours = useMemo(() => Object.values(overtimeHours).reduce((total, value) => total + (Number(value) || 0), 0), [overtimeHours]);
   const totalAdvances = useMemo(() => advances.reduce((total, advance) => total + (Number(advance.amount) || 0), 0), [advances]);
   const rate = Number(employee.salary || employee.baseRate) || 0;
-  const gross = Math.round(rate * totalHours * 100) / 100;
+  const overtimeRate = Number(employee.overtimeRate) || 0;
+  const overtimePay = Math.round(overtimeRate * totalOvertimeHours * 100) / 100;
+  const gross = Math.round((rate * totalHours + overtimePay) * 100) / 100;
   const extras = ['allowances', 'bonus', 'commission'].reduce((sum, key) => sum + (Number(employee[key]) || 0), 0);
   const beforeAdvance = Math.max(0, gross + extras - (Number(employee.regularDeductions) || 0));
   const advanceOwed = Math.max(0, carryIn + totalAdvances - beforeAdvance);
@@ -42,7 +47,7 @@ export default function EmployeeMonthlySheet({ employee, onClose }) {
   function addAdvance() { const today = new Date().toISOString().slice(0, 10); const date = period === today.slice(0, 7) ? today : `${period}-01`; setAdvances((items) => [...items, { id: id(), date, amount: '', note: '' }]); }
   async function save() {
     setSaving(true); setError(''); setNotice('');
-    const dailyEntries = Object.entries(hours).filter(([, value]) => Number(value) > 0).map(([date, value]) => ({ date, hours: Number(value) }));
+    const dailyEntries = [...new Set([...Object.keys(hours), ...Object.keys(overtimeHours)])].filter((date) => Number(hours[date]) > 0 || Number(overtimeHours[date]) > 0).map((date) => ({ date, hours: Number(hours[date]) || 0, overtimeHours: Number(overtimeHours[date]) || 0 }));
     const cleanAdvances = advances.filter((advance) => Number(advance.amount) > 0).map((advance) => ({ ...advance, amount: Number(advance.amount) }));
     try {
       const response = await fetch(`/api/payroll/employees/${employee.id}/sheet?period=${period}`, {
@@ -56,12 +61,12 @@ export default function EmployeeMonthlySheet({ employee, onClose }) {
 
   return <div className="timesheet-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
     <section className="timesheet-sheet" role="dialog" aria-modal="true" aria-label={`${employee.name} monthly payroll sheet`}>
-      <header className="timesheet-header"><div><span className="timesheet-eyebrow">EMPLOYEE PAYROLL</span><h2>{employee.name}</h2><p>{employee.employeeId || 'Employee'} · {money(rate)} per hour</p></div><button type="button" aria-label="Close monthly sheet" onClick={onClose}>×</button></header>
+      <header className="timesheet-header"><div><span className="timesheet-eyebrow">EMPLOYEE PAYROLL</span><h2>{employee.name}</h2><p>{employee.employeeId || 'Employee'} · {money(rate)} regular / {money(overtimeRate)} overtime per hour</p></div><button type="button" aria-label="Close monthly sheet" onClick={onClose}>×</button></header>
       <div className="timesheet-period"><label>Month<input type="month" value={period} onChange={(event) => setPeriod(event.target.value)} /></label><span>{locked ? 'Payroll run exists · sheet locked' : 'Enter hours for each day worked'}</span></div>
       {error && <div className="timesheet-alert" role="alert">{error}</div>}{notice && <div className="timesheet-success" role="status">{notice}</div>}
-      <div className="timesheet-totals">{[['Hours this month',`${totalHours} hrs`],['Gross earnings',money(gross)],['Advances paid',money(totalAdvances)],['Advance still owed',money(advanceOwed)],['Estimated take-home',money(takeHome)]].map(([label,value]) => <article key={label}><span>{label}</span><strong>{value}</strong></article>)}</div>
+      <div className="timesheet-totals">{[['Hours this month',`${totalHours} hrs`],['Overtime',`${totalOvertimeHours} hrs · ${money(overtimePay)}`],['Gross earnings',money(gross)],['Advances paid',money(totalAdvances)],['Advance still owed',money(advanceOwed)],['Estimated take-home',money(takeHome)]].map(([label,value]) => <article key={label}><span>{label}</span><strong>{value}</strong></article>)}</div>
       {loading ? <div className="timesheet-loading">Loading monthly sheet…</div> : <div className="timesheet-content">
-        <section className="timesheet-section"><div className="timesheet-section-heading"><div><h3>Daily hours</h3><p>Leave days not worked blank. Enter fractions such as 7.5 if needed.</p></div></div><div className="timesheet-days">{monthDates(period).map((date) => <label key={date}><span>{new Date(`${date}T12:00:00`).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})}</span><input aria-label={`Hours worked on ${date}`} type="number" min="0" max="24" step="0.25" placeholder="—" value={hours[date] || ''} disabled={locked} onChange={(event) => setHours((items) => ({ ...items, [date]: event.target.value }))} /><small>{money((Number(hours[date]) || 0) * rate)}</small></label>)}</div></section>
+        <section className="timesheet-section"><div className="timesheet-section-heading"><div><h3>Daily hours</h3><p>Enter regular and overtime hours separately. The employee overtime rate is {money(overtimeRate)} per hour.</p></div></div><div className="timesheet-days timesheet-days-overtime">{monthDates(period).map((date) => <label key={date}><span>{new Date(`${date}T12:00:00`).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})}</span><input aria-label={`Regular hours worked on ${date}`} type="number" min="0" max="24" step="0.25" placeholder="Regular" value={hours[date] || ''} disabled={locked} onChange={(event) => setHours((items) => ({ ...items, [date]: event.target.value }))} /><input aria-label={`Overtime hours worked on ${date}`} type="number" min="0" max="24" step="0.25" placeholder="OT" value={overtimeHours[date] || ''} disabled={locked} onChange={(event) => setOvertimeHours((items) => ({ ...items, [date]: event.target.value }))} /><small>{money((Number(hours[date]) || 0) * rate + (Number(overtimeHours[date]) || 0) * overtimeRate)}</small></label>)}</div></section>
         <section className="timesheet-section"><div className="timesheet-section-heading"><div><h3>Pay advances</h3><p>Record each advance paid. The sheet shows any amount still owed after earned pay.</p></div><button type="button" className="timesheet-add" disabled={locked} onClick={addAdvance}>＋ Add advance</button></div>
           {!advances.length ? <p className="timesheet-empty">No advances recorded this month.</p> : <div className="timesheet-advance-list">{advances.map((advance) => <div className="timesheet-advance-row" key={advance.id}><label>Date<input type="date" value={advance.date} disabled={locked} onChange={(event) => setAdvances((items) => items.map((item) => item.id === advance.id ? { ...item, date: event.target.value } : item))} /></label><label>Amount<input type="number" min="0" step="0.01" placeholder="0.00" value={advance.amount} disabled={locked} onChange={(event) => setAdvances((items) => items.map((item) => item.id === advance.id ? { ...item, amount: event.target.value } : item))} /></label><label>Note<input type="text" placeholder="Optional note" value={advance.note || ''} disabled={locked} onChange={(event) => setAdvances((items) => items.map((item) => item.id === advance.id ? { ...item, note: event.target.value } : item))} /></label><button type="button" aria-label="Remove advance" disabled={locked} onClick={() => setAdvances((items) => items.filter((item) => item.id !== advance.id))}>×</button></div>)}</div>}
         </section>

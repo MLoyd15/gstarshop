@@ -41,8 +41,9 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
       };
       const dailyEntries = (Array.isArray(req.body.dailyEntries) ? req.body.dailyEntries : []).map((entry) => {
         const hours = Number(entry.hours);
-        if (!validDate(entry.date) || !Number.isFinite(hours) || hours <= 0 || hours > 24) throw new PayrollValidationError('Each workday needs a valid date and hours between 0 and 24.');
-        return { date: entry.date, hours: Math.round(hours * 100) / 100 };
+        const overtimeHours = Number(entry.overtimeHours || 0);
+        if (!validDate(entry.date) || !Number.isFinite(hours) || !Number.isFinite(overtimeHours) || hours < 0 || overtimeHours < 0 || hours + overtimeHours <= 0 || hours + overtimeHours > 24) throw new PayrollValidationError('Each workday needs regular or overtime hours, with a combined total between 0 and 24.');
+        return { date: entry.date, hours: Math.round(hours * 100) / 100, overtimeHours: Math.round(overtimeHours * 100) / 100 };
       });
       if (new Set(dailyEntries.map((entry) => entry.date)).size !== dailyEntries.length) throw new PayrollValidationError('There can only be one hours entry per day.');
       const advances = (Array.isArray(req.body.advances) ? req.body.advances : []).map((advance) => {
@@ -52,9 +53,12 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
         return { id: String(advance.id || new mongoose.Types.ObjectId()), date: advance.date, amount, note: String(advance.note || '').trim() };
       });
       const totalHours = dailyEntries.reduce((sum, entry) => sum + entry.hours, 0);
+      const totalOvertimeHours = dailyEntries.reduce((sum, entry) => sum + entry.overtimeHours, 0);
       const totalAdvances = advances.reduce((sum, entry) => sum + entry.amount, 0);
       const rate = toMoney(employeeRecord.data.salary ?? employeeRecord.data.baseRate, 'Hourly rate');
-      const grossPay = Math.round((rate * totalHours + Number.EPSILON) * 100) / 100;
+      const overtimeRate = toMoney(employeeRecord.data.overtimeRate, 'Overtime rate', { optional: true });
+      const overtimePay = Math.round((overtimeRate * totalOvertimeHours + Number.EPSILON) * 100) / 100;
+      const grossPay = Math.round((rate * totalHours + overtimePay + Number.EPSILON) * 100) / 100;
       const regularDeductions = toMoney(employeeRecord.data.regularDeductions, 'Regular deductions', { optional: true });
       const additions = ['allowances', 'bonus', 'commission'].reduce((sum, key) => sum + toMoney(employeeRecord.data[key], key, { optional: true }), 0);
       const earningsBeforeAdvance = Math.max(0, grossPay + additions - regularDeductions);
@@ -64,7 +68,7 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
       const advanceOwed = Math.max(0, advanceOwedBefore + totalAdvances - earningsBeforeAdvance);
       const data = {
         employeeRecordId: req.params.employeeId, employee: employeeRecord.data.name, employeeId: employeeRecord.data.employeeId || '',
-        period, rate, dailyEntries, advances, totalHours, grossPay, regularDeductions, totalAdvances,
+        period, rate, overtimeRate, overtimePay, dailyEntries, advances, totalHours, totalOvertimeHours, grossPay, regularDeductions, totalAdvances,
         advanceOwedBefore, advanceApplied, advanceOwed,
         estimatedNetPay: Math.max(0, earningsBeforeAdvance - advanceApplied), updatedAt: new Date().toISOString()
       };
@@ -115,13 +119,16 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
           salaryType, baseRate: employee.salary ?? employee.baseRate,
           units: salaryType === 'daily' || salaryType === 'hourly' ? unit : 1,
           allowances: employee.allowances, bonus: employee.bonus, commission: employee.commission,
+          otherEarnings: Number(employee.otherEarnings || 0) + Number(sheet?.overtimePay || 0),
           deductions: regularDeductions + advanceDeduction
         });
+        calc.otherEarnings = toMoney(employee.otherEarnings, 'Other earnings', { optional: true });
         return [{ resource: 'payroll-runs', data: {
           period, periodEnd: payrollPeriodEnd(period).toISOString().slice(0, 10), employee: employee.name,
           employeeId: employee.employeeId || '', employeeRecordId: id, employeeSnapshot: { ...employee },
           ...calc, regularDeductions, advanceDeduction,
           advanceDate: advanceDeduction > 0 ? (advanceDatesByEmployee[id] || sheet?.advances?.at(-1)?.date || '') : '',
+          overtimeRate: sheet?.overtimeRate || 0, overtimeHours: sheet?.totalOvertimeHours || 0, overtimePay: sheet?.overtimePay || 0,
           dailyEntries: sheet?.dailyEntries || [], advances: sheet?.advances || [], advanceOwed: sheet?.advanceOwed || 0,
           amountPaid: 0, balance: calc.netPay, payments: [], status: 'draft', expenseId: null
         }}];
@@ -146,6 +153,15 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
     } catch (error) { fail(res, error); }
   });
 
+  router.delete('/runs/:id', async (req, res) => {
+    try {
+      const run = await BusinessRecord.findOne({ _id: req.params.id, resource: 'payroll-runs' });
+      if (!run) return res.status(404).json({ error: 'Payroll run not found.' });
+      if (run.data.status !== 'draft') return res.status(409).json({ error: 'Only draft payroll runs can be deleted. Reverse finalized runs instead.' });
+      await run.deleteOne();
+      res.status(204).end();
+    } catch (error) { fail(res, error); }
+  });
   router.post('/runs/:id/finalize', async (req, res) => {
     try {
       const run = await BusinessRecord.findOne({ _id: req.params.id, resource: 'payroll-runs' });

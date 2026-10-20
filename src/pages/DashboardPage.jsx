@@ -50,7 +50,7 @@ const compactCurrency = (value) => new Intl.NumberFormat('en-PH', {
   style: 'currency', currency: 'PHP', notation: 'compact', maximumFractionDigits: 1
 }).format(value);
 
-export default function DashboardPage({ onNavigate, data, compact, name = 'Jamie' }) {
+export default function DashboardPage({ onNavigate, data, compact }) {
   const today = new Date();
   const hour = today.getHours();
   const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
@@ -74,7 +74,7 @@ export default function DashboardPage({ onNavigate, data, compact, name = 'Jamie
         <div>
           <p className="mb-2 inline-flex rounded-full border border-violet-100 bg-white/80 px-3 py-1 text-xs font-semibold tracking-wide text-violet-700 shadow-sm">{compact || dateLabel}</p>
           <h1 className="font-[family-name:Manrope,sans-serif] m-0 flex items-center gap-2.5 dashboard-title font-semibold leading-tight tracking-tight text-slate-900">
-            {compact ? `Your ${compact.toLowerCase()}, at a glance` : <>Good {timeOfDay}, {name} <Butterfly className="ml-1 -mb-1 h-[26px] w-[31px] drop-shadow-[0_3px_3px_rgba(119,115,223,0.15)] max-sm:h-[22px] max-sm:w-[25px]" /></>}
+            {compact ? `Your ${compact.toLowerCase()}, at a glance` : <>Good {timeOfDay} <Butterfly className="ml-1 -mb-1 h-[26px] w-[31px] drop-shadow-[0_3px_3px_rgba(119,115,223,0.15)] max-sm:h-[22px] max-sm:w-[25px]" /></>}
           </h1>
           <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600 sm:text-base">
             {compact ? 'Everything moving your business forward, in one view.' : 'Here’s where your business stands today.'}
@@ -116,13 +116,13 @@ export default function DashboardPage({ onNavigate, data, compact, name = 'Jamie
         </section>
 
         <section className={panel} aria-label="Workspace">
-          <h2 className="font-[family-name:Manrope,sans-serif] m-0 text-base font-semibold">Your workspace</h2>
-          <p className="mt-1 text-sm text-slate-500">Counts update as you add records.</p>
+          <h2 className="font-[family-name:Manrope,sans-serif] m-0 text-base font-semibold">Operations overview</h2>
+          <p className="mt-1 text-sm text-slate-500">A quick view of the work that needs attention.</p>
           <div className="mt-3">
             <CountRow icon="bookings" tone="bookings" label="Active bookings" value={totals.bookings} onClick={() => onNavigate('bookings')} />
-            <CountRow icon="purchases" tone="purchases" label="Products" value={totals.products} onClick={() => onNavigate('products')} />
-            <CountRow icon="inventory" tone="neutral" label="Inventory items" value={totals.inventory} onClick={() => onNavigate('inventory')} />
-            <CountRow icon="suppliers" tone="neutral" label="Suppliers" value={totals.suppliers} onClick={() => onNavigate('suppliers')} />
+            <CountRow icon="suppliers" tone="neutral" label="Clients" value={totals.clients} onClick={() => onNavigate('clients')} />
+            <CountRow icon="inventory" tone="purchases" label="Raw materials" value={totals.materials} onClick={() => onNavigate('materials')} />
+            <CountRow icon="expenses" tone="expenses" label="Need reordering" value={totals.lowStockMaterials} onClick={() => onNavigate('materials')} />
           </div>
         </section>
       </div>

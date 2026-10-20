@@ -10,6 +10,7 @@ import PayrollPage from './pages/PayrollPage.jsx';
 import EmployeeMonthlySheet from './pages/EmployeeMonthlySheet.jsx';
 import EmployeesPage from './pages/EmployeesPage.jsx';
 import ClientsPage from './pages/ClientsPage.jsx';
+import MaterialsPage from './pages/MaterialsPage.jsx';
 import logo from './assets/logo.png';
 import { Icon } from './shared.jsx';
 
@@ -20,9 +21,10 @@ const sections = [
     { id: 'suppliers', label: 'Suppliers', icon: '♙' },
     { id: 'products', label: 'Products', icon: '▧' },
     { id: 'inventory', label: 'Inventory', icon: '▤' },
+    { id: 'materials', label: 'Materials', icon: '▦' },
     { id: 'prices', label: 'Prices', icon: '＄' },
     { id: 'purchases', label: 'Purchases', icon: '🛒' },
-    { id: 'excel-sheet', label: 'Excel sheet', icon: '▦', badge: 'NEW' },
+    { id: 'bookings', label: 'Bookings', icon: '▣' },
     { id: 'supplier-reports', label: 'Reports', icon: '▥' },
     { id: 'clients', label: 'Clients', icon: '◎' }
   ] },
@@ -54,7 +56,7 @@ const fieldsFor = {
   expenses: [['name', 'Description'], ['category', 'Category'], ['amount', 'Amount'], ['date', 'Date']],
   profit: [['name', 'Period'], ['income', 'Income'], ['expenses', 'Expenses'], ['amount', 'Net profit']],
   shareholders: [['name', 'Shareholder'], ['email', 'Email'], ['shares', 'Shares'], ['percentage', 'Ownership %']],
-  employees: [['employeeId', 'Employee ID'], ['name', 'Full name'], ['position', 'Position'], ['email', 'Email'], ['phone', 'Phone'], ['salary', 'Hourly rate / pay rate'], ['salaryType', 'Pay basis'], ['allowances', 'Regular allowances'], ['bonus', 'Regular bonus'], ['commission', 'Regular commission'], ['regularDeductions', 'Regular deductions'], ['effectiveDate', 'Rate effective date'], ['payFrequency', 'Pay frequency'], ['status', 'Status']],
+  employees: [['employeeId', 'Employee ID'], ['name', 'Full name'], ['position', 'Position'], ['email', 'Email'], ['phone', 'Phone'], ['salary', 'Hourly rate / pay rate'], ['overtimeRate', 'Overtime rate per hour'], ['salaryType', 'Pay basis'], ['allowances', 'Regular allowances'], ['bonus', 'Regular bonus'], ['commission', 'Regular commission'], ['regularDeductions', 'Regular deductions'], ['effectiveDate', 'Rate effective date'], ['payFrequency', 'Pay frequency'], ['status', 'Status']],
   'payroll-runs': [],
   'money-tracker': [['name', 'Description'], ['category', 'Category'], ['amount', 'Amount'], ['date', 'Date']],
   notepad: [['name', 'Title'], ['content', 'Note'], ['updated', 'Last updated']]
@@ -62,7 +64,7 @@ const fieldsFor = {
 
 const titles = {
   home: 'Main dashboard', 'supplier-dashboard': 'G4 Sticker dashboard', suppliers: 'Suppliers',
-  products: 'Products', inventory: 'Inventory', prices: 'Prices', purchases: 'Purchases',
+  products: 'Products', inventory: 'Inventory', materials: 'Materials', prices: 'Prices', purchases: 'Purchases',
   'excel-sheet': 'Excel sheet', 'supplier-reports': 'G4 Sticker reports',
   scheduler: 'Scheduler', bookings: 'Bookings', clients: 'Clients', income: 'Income', expenses: 'Expenses', profit: 'Profit',
   shareholders: 'Shareholders', employees: 'Employees', 'payroll-runs': 'Pay runs', 'money-tracker': 'Money tracker',
@@ -246,7 +248,7 @@ function App() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notificationsError, setNotificationsError] = useState('');
   const [dashboard, setDashboard] = useState({
-    totals: { income: 0, expenses: 0, incomeEntries: 0, expenseEntries: 0, bookings: 0, suppliers: 0, products: 0, inventory: 0 },
+    totals: { income: 0, expenses: 0, incomeEntries: 0, expenseEntries: 0, bookings: 0, clients: 0, materials: 0, lowStockMaterials: 0, suppliers: 0, products: 0, inventory: 0 },
     months: [],
     recent: []
   });
@@ -370,7 +372,9 @@ function App() {
     if (resource === 'payroll-runs') {
       body.netPay = Math.round(((Number(body.grossPay) || 0) - (Number(body.deductions) || 0)) * 100) / 100;
     }
-    const url = editing ? `/api/records/${resource}/${editing.id}` : `/api/records/${resource}`;
+    const url = editing
+      ? resource === 'bookings' ? `/api/bookings/${editing.id}` : `/api/records/${resource}/${editing.id}`
+      : `/api/records/${resource}`;
     setModalError('');
     try {
       const response = await fetch(url, {
@@ -395,7 +399,8 @@ function App() {
   async function deleteRecord(record) {
     if (!window.confirm(`Delete "${record[fields[0]?.[0]] || 'this record'}"? This can’t be undone.`)) return;
     try {
-      const response = await fetch(`/api/records/${resource}/${record.id}`, { method: 'DELETE' });
+      const url = resource === 'bookings' ? `/api/bookings/${record.id}` : `/api/records/${resource}/${record.id}`;
+      const response = await fetch(url, { method: 'DELETE' });
       if (!response.ok) {
         const result = await response.json();
         throw new Error(result.error || 'Could not delete this record.');
@@ -500,6 +505,8 @@ function App() {
             <DashboardPage onNavigate={navigate} data={dashboard} compact="G4 Sticker" />
           ) : active === 'settings' ? (
             <SettingsPage health={health} appearance={appearance} onAppearanceChange={setAppearance} appearanceError={appearanceError} />
+          ) : active === 'materials' ? (
+            <MaterialsPage />
           ) : active === 'bookings' ? (
             <BookingsPage active={active} title={activeLabel} fields={fields} records={filteredRecords} loading={loading}
               search={search} setSearch={setSearch} onCreate={openCreate}
@@ -535,9 +542,19 @@ function App() {
 
 function RecordModal({ title, active, fields, record, saveError, onClose, onSave }) {
   const [dateError, setDateError] = useState('');
+  const [bookingClients, setBookingClients] = useState([]);
   const [grossPay, setGrossPay] = useState(Number(record?.grossPay) || 0);
   const [deductions, setDeductions] = useState(Number(record?.deductions) || 0);
   const calculatedNetPay = Math.round((grossPay - deductions) * 100) / 100;
+  useEffect(() => {
+    if (active !== 'bookings') return undefined;
+    const controller = new AbortController();
+    fetch('/api/records/clients', { signal: controller.signal })
+      .then((response) => { if (!response.ok) throw new Error('Could not load clients.'); return response.json(); })
+      .then(setBookingClients)
+      .catch((error) => { if (error.name !== 'AbortError') setBookingClients([]); });
+    return () => controller.abort();
+  }, [active]);
   function handleSubmit(event) {
     const formData = new FormData(event.currentTarget);
     const requiredDate = fields.find(([key]) =>
@@ -557,6 +574,7 @@ function RecordModal({ title, active, fields, record, saveError, onClose, onSave
       <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>×</button></div>
       <div className="modal-fields">{fields.map(([key, label]) => (
         <RecordField key={key} active={active} keyName={key} label={label} record={record}
+          clients={bookingClients}
           grossPay={grossPay} deductions={deductions} calculatedNetPay={calculatedNetPay}
           onGrossPayChange={setGrossPay} onDeductionsChange={setDeductions} />
       ))}</div>
@@ -567,27 +585,31 @@ function RecordModal({ title, active, fields, record, saveError, onClose, onSave
   </div>;
 }
 
-function RecordField({ active, keyName: key, label, record, grossPay, deductions, calculatedNetPay, onGrossPayChange, onDeductionsChange }) {
-  const isNumeric = ['amount', 'price', 'income', 'expenses', 'stock', 'shares', 'percentage', 'salary', 'allowances', 'bonus', 'commission', 'regularDeductions', 'grossPay', 'deductions', 'netPay'].includes(key);
-  const step = ['amount', 'price', 'income', 'expenses', 'percentage', 'salary', 'allowances', 'bonus', 'commission', 'regularDeductions', 'grossPay', 'deductions', 'netPay'].includes(key) ? '0.01' : undefined;
+function RecordField({ active, keyName: key, label, record, clients = [], grossPay, deductions, calculatedNetPay, onGrossPayChange, onDeductionsChange }) {
+  const isNumeric = ['amount', 'price', 'income', 'expenses', 'stock', 'shares', 'percentage', 'salary', 'overtimeRate', 'allowances', 'bonus', 'commission', 'regularDeductions', 'grossPay', 'deductions', 'netPay'].includes(key);
+  const step = ['amount', 'price', 'income', 'expenses', 'percentage', 'salary', 'overtimeRate', 'allowances', 'bonus', 'commission', 'regularDeductions', 'grossPay', 'deductions', 'netPay'].includes(key) ? '0.01' : undefined;
   const isCalculatedNetPay = active === 'payroll-runs' && key === 'netPay';
   return <label className={key === 'content' ? 'wide-field' : ''}><span>{label}</span>
     {['content', 'notes', ...(active === 'clients' ? ['address'] : [])].includes(key)
       ? <textarea name={key} placeholder={label} defaultValue={record?.[key] || ''} rows={key === 'notes' ? 4 : 3} required={active === 'clients' ? key === 'name' : key === 'content'} />
       : key === 'category' && active === 'products'
         ? <select name={key} defaultValue={record?.[key] || ''} required><option value="" disabled>Select a product type</option>{['Sticker', 'Cap', 'Mug', 'Tarpaulin', ...(record?.[key] && !['Sticker', 'Cap', 'Mug', 'Tarpaulin'].includes(record[key]) ? [record[key]] : [])].map((category) => <option key={category} value={category}>{category}</option>)}</select>
+        : key === 'client' && active === 'bookings'
+          ? <select name={key} defaultValue={record?.[key] || ''} required><option value="" disabled>Select a client</option>{record?.[key] && !clients.some((client) => client.name === record.client) && <option value={record.client}>{record.client}</option>}{clients.map((client) => <option key={client.id} value={client.name}>{client.name}</option>)}</select>
         : key === 'payFrequency' && active === 'employees'
           ? <select name={key} defaultValue={record?.[key] || 'Monthly'}><option>Weekly</option><option>Biweekly</option><option>Semimonthly</option><option>Monthly</option></select>
           : key === 'salaryType' && active === 'employees'
             ? <select name={key} defaultValue={record?.[key] || 'hourly'}><option value="hourly">Hourly rate</option><option value="daily">Daily rate</option><option value="monthly">Monthly salary</option></select>
           : key === 'status' && active === 'employees'
             ? <select name={key} defaultValue={record?.[key] || 'Active'}><option>Active</option><option>On leave</option><option>Inactive</option></select>
+            : key === 'status' && active === 'bookings'
+              ? <select name={key} defaultValue={record?.[key] || 'Scheduled'}><option>Scheduled</option><option>In progress</option><option>On hold</option><option>Cancelled</option>{record?.[key] && !['Scheduled', 'In progress', 'On hold', 'Cancelled'].includes(record.status) && <option>{record.status}</option>}</select>
             : key === 'status' && active === 'payroll-runs'
               ? <select name={key} defaultValue={record?.[key] || 'Draft'}><option>Draft</option><option>Processing</option><option>Paid</option><option>Failed</option></select>
               : key.toLowerCase().includes('date') || key === 'updated'
                 ? <DatePicker name={key} value={record?.[key] || ''} required={key !== 'updated'} />
                 : <input name={key} placeholder={label} type={isNumeric ? 'number' : key === 'email' ? 'email' : key === 'phone' ? 'tel' : 'text'} step={step}
-                    min={['salary', 'grossPay', 'deductions'].includes(key) ? '0' : undefined}
+                    min={['salary', 'overtimeRate', 'grossPay', 'deductions'].includes(key) ? '0' : undefined}
                     value={isCalculatedNetPay ? calculatedNetPay : undefined}
                     defaultValue={isCalculatedNetPay ? undefined : record?.[key] || ''}
                     readOnly={isCalculatedNetPay}

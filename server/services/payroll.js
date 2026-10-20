@@ -78,7 +78,7 @@ export function validateEmployeePayrollData(data) {
   const salaryType = String(data.salaryType || 'monthly').toLowerCase();
   if (!SALARY_TYPES.has(salaryType)) throw new PayrollValidationError('Salary type must be monthly, daily, or hourly.');
   toMoney(data.salary ?? data.baseRate, 'Base pay rate');
-  for (const key of ['allowances', 'bonus', 'commission', 'regularDeductions']) {
+  for (const key of ['overtimeRate', 'allowances', 'bonus', 'commission', 'regularDeductions']) {
     toMoney(data[key], key === 'regularDeductions' ? 'Configured deductions' : key, { optional: true });
   }
   if (data.effectiveDate && !/^\d{4}-\d{2}-\d{2}$/.test(String(data.effectiveDate))) {

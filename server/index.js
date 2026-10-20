@@ -3,6 +3,8 @@ import cors from 'cors';
 import express from 'express';
 import mongoose from 'mongoose';
 import { createPayrollRouter } from './routes/payroll.js';
+import { createInventoryRouter } from './routes/inventory.js';
+import { createBookingsRouter } from './routes/bookings.js';
 import { validateEmployeePayrollData } from './services/payroll.js';
 
 const app = express();
@@ -10,7 +12,7 @@ const port = Number(process.env.PORT) || 4000;
 const resources = [
   'suppliers', 'products', 'inventory', 'prices', 'purchases', 'excel-sheet',
   'scheduler', 'bookings', 'clients', 'income', 'expenses', 'profit', 'shareholders',
-  'employees', 'payroll-runs', 'payroll-timesheets',
+  'employees', 'payroll-runs', 'payroll-timesheets', 'materials', 'stock-movements',
   'money-tracker', 'notepad'
 ];
 
@@ -22,6 +24,13 @@ const businessRecordSchema = new mongoose.Schema({
 });
 
 businessRecordSchema.index({ resource: 1, updatedAt: -1 });
+businessRecordSchema.index({ resource: 1, 'data.materialId': 1, 'data.date': -1 });
+businessRecordSchema.index({ resource: 1, 'data.referenceType': 1, 'data.referenceId': 1 });
+businessRecordSchema.index({ resource: 1, 'data.active': 1, 'data.supplierId': 1 });
+businessRecordSchema.index(
+  { resource: 1, 'data.idempotencyKey': 1 },
+  { unique: true, partialFilterExpression: { resource: 'stock-movements', 'data.idempotencyKey': { $type: 'string' } } }
+);
 const BusinessRecord = mongoose.model('BusinessRecord', businessRecordSchema);
 const inactiveBookingStatuses = ['cancelled', 'canceled', 'complete', 'completed'];
 
@@ -46,6 +55,8 @@ app.use('/api', (_request, response, next) => {
 });
 
 app.use('/api/payroll', createPayrollRouter(BusinessRecord, mongoose));
+app.use('/api/materials', createInventoryRouter(BusinessRecord, mongoose));
+app.use('/api/bookings', createBookingsRouter(BusinessRecord, mongoose));
 
 app.get('/api/dashboard', async (_request, response, next) => {
   try {
@@ -68,6 +79,8 @@ app.get('/api/dashboard', async (_request, response, next) => {
     const incomeRecords = records.filter((record) => record.resource === 'income');
     const expenseRecords = records.filter((record) => record.resource === 'expenses');
     const bookings = records.filter((record) => record.resource === 'bookings' && isOngoingBooking(record));
+    const materials = records.filter((record) => record.resource === 'materials');
+    const lowStockMaterials = materials.filter((record) => record.data.active !== false && Number(record.data.quantity || 0) <= Number(record.data.reorderLevel || 0));
     for (const record of [...incomeRecords, ...expenseRecords]) {
       const entryDate = new Date(record.data.date || record.createdAt);
       if (Number.isNaN(entryDate.getTime())) continue;
@@ -93,6 +106,9 @@ app.get('/api/dashboard', async (_request, response, next) => {
         incomeEntries: incomeRecords.length,
         expenseEntries: expenseRecords.length,
         bookings: bookings.length,
+        clients: records.filter((record) => record.resource === 'clients').length,
+        materials: materials.filter((record) => record.data.active !== false).length,
+        lowStockMaterials: lowStockMaterials.length,
         suppliers: records.filter((record) => record.resource === 'suppliers').length,
         products: records.filter((record) => record.resource === 'products').length,
         inventory: records.filter((record) => record.resource === 'products').length
@@ -145,9 +161,14 @@ app.post('/api/records/:resource', async (request, response, next) => {
   }
 
   try {
+    if (['materials', 'stock-movements'].includes(request.params.resource)) return response.status(409).json({ error: 'Use the Materials page to manage materials and stock movements.' });
     if (request.params.resource === 'payroll-timesheets') return response.status(409).json({ error: 'Use the employee monthly sheet to manage work hours and advances.' });
     if (request.params.resource === 'payroll-runs') return response.status(409).json({ error: 'Use the Pay runs page to generate and manage payroll.' });
-    const data = request.params.resource === 'employees' ? validateEmployeePayrollData(request.body) : request.body;
+    let data = request.params.resource === 'employees' ? validateEmployeePayrollData(request.body) : request.body;
+    if (request.params.resource === 'bookings') {
+      const { materialPlan: _plan, completion: _completion, completionHistory: _history, statusBeforeCompletion: _status, ...bookingFields } = request.body;
+      data = { ...bookingFields, materialPlan: [], completion: null, completionHistory: [] };
+    }
     const record = await BusinessRecord.create({ resource: request.params.resource, data });
     response.status(201).json({
       ...record.data, id: record._id.toString(),
@@ -168,6 +189,8 @@ app.patch('/api/records/:resource/:id', async (request, response, next) => {
   }
 
   try {
+    if (['materials', 'stock-movements'].includes(request.params.resource)) return response.status(409).json({ error: 'Use the Materials page to manage materials and stock movements.' });
+    if (request.params.resource === 'bookings') return response.status(409).json({ error: 'Use the Bookings page to edit bookings and preserve material history.' });
     if (request.params.resource === 'payroll-timesheets') return response.status(409).json({ error: 'Use the employee monthly sheet to manage work hours and advances.' });
     if (request.params.resource === 'payroll-runs') return response.status(409).json({ error: 'Payroll runs can only be changed through the Pay runs page.' });
     if (request.params.resource === 'expenses') {
@@ -196,6 +219,8 @@ app.delete('/api/records/:resource/:id', async (request, response, next) => {
     return response.status(404).json({ error: 'This business area does not exist.' });
   }
   try {
+    if (['materials', 'stock-movements'].includes(request.params.resource)) return response.status(409).json({ error: 'Use the Materials page to manage materials and stock movements.' });
+    if (request.params.resource === 'bookings') return response.status(409).json({ error: 'Use the Bookings page to delete bookings safely.' });
     if (request.params.resource === 'payroll-timesheets') return response.status(409).json({ error: 'Payroll timesheets are preserved through the employee sheet.' });
     if (request.params.resource === 'payroll-runs') return response.status(409).json({ error: 'Payroll history is preserved; reverse the run instead.' });
     if (request.params.resource === 'expenses') {
