@@ -49,6 +49,7 @@
 .material-card-actions button:hover { border-color:#45bad4; color:#fff; }
 .material-card-actions .material-receive-action { border-color:rgba(44,179,207,.42); background:rgba(0,150,190,.13); color:#8ce2f1; font-weight:700; }
 .day-mode .materials-summary article,.day-mode .materials-panel { background:rgba(255,255,255,.94); border-color:#d6e1eb; }
+.materials-report-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:16px 19px}.materials-report-grid section{min-width:0}.materials-report-grid h3,.csv-preview h3{margin:0 0 8px;font-size:13px}.materials-report-grid p,.csv-preview p{margin:5px 0;color:#9eafc4;font-size:11px}.materials-report-grid section{max-height:220px;overflow:auto}.csv-preview{padding:14px 19px;border-top:1px solid rgba(142,177,211,.16)}.csv-preview-rows{max-height:180px;overflow:auto}.csv-preview-rows p.invalid{color:#ffadb4}.materials-filters a{text-decoration:none;display:inline-flex;align-items:center}.materials-filters label.materials-primary{display:inline-flex;align-items:center;cursor:pointer}
 .day-mode .materials-toolbar h2,.day-mode .reorder-group h3,.day-mode .reorder-group article strong,.day-mode .material-card-name strong { color:#17243a; }
 .day-mode .reorder-group article,.day-mode .material-card { background:#fff; border-color:#dce5ee; }
 .day-mode .material-card-name span,.day-mode .reorder-group article small { color:#61738a; }

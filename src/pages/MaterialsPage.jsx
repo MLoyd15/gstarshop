@@ -13,6 +13,8 @@ export default function MaterialsPage() {
   const [materials, setMaterials] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [purchases, setPurchases] = useState([]);
+  const [reports, setReports] = useState(null);
+  const [importPreview, setImportPreview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -37,20 +39,42 @@ export default function MaterialsPage() {
     setLoading(true);
     setError('');
     try {
-      const [materialRows, supplierRows, purchaseRows] = await Promise.all([
+      const [materialRows, supplierRows, purchaseRows, reportRows] = await Promise.all([
         request(''),
         fetch('/api/records/suppliers').then(async (response) => {
           const data = await response.json();
           if (!response.ok) throw new Error(data.error || 'Could not load suppliers.');
           return data;
         }),
-        fetch('/api/records/purchases').then(async (response) => { const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Could not load purchases.'); return data; })
+        fetch('/api/records/purchases').then(async (response) => { const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Could not load purchases.'); return data; }),
+        request('/reports')
       ]);
       setMaterials(materialRows);
       setSuppliers(supplierRows);
       setPurchases(purchaseRows);
+      setReports(reportRows);
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
+  }
+
+  async function previewCsv(file) {
+    if (!file) return;
+    try {
+      const csv = await file.text();
+      const response = await fetch('/api/materials/import/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ csv }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Could not preview import.');
+      setImportPreview(data);
+    } catch (e) { setError(e.message); }
+  }
+
+  async function applyImport() {
+    if (!importPreview || importPreview.invalid) return;
+    await act(async () => {
+      const response = await fetch('/api/materials/import/apply', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows: importPreview.rows }) });
+      const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Import failed.');
+      setImportPreview(null);
+    }, 'CSV changes applied. Stock quantities were not changed.');
   }
 
   useEffect(() => { load(); }, []);
@@ -146,6 +170,7 @@ export default function MaterialsPage() {
     {error && <div className="materials-alert" role="alert">{error}<button onClick={() => setError('')}>Dismiss</button></div>}
     {notice && <div className="materials-success" role="status">✓ {notice}</div>}
     <div className="materials-summary"><article><span>Materials</span><strong>{materials.length}</strong></article><article><span>Low or out of stock</span><strong>{lowCount}</strong></article><article><span>Estimated inventory value</span><strong>{money(inventoryValue)}</strong></article></div>
+    <div className="materials-panel"><div className="materials-toolbar"><div><h2>Counts and reports</h2><p>Physical counts post adjustment movements; reports are derived from the stock ledger.</p></div><div className="materials-filters"><a className="materials-primary" href="/api/materials/export.csv">Export CSV</a><label className="materials-primary">Preview CSV import<input aria-label="Preview CSV import" type="file" accept=".csv,text/csv" onChange={(event) => previewCsv(event.target.files?.[0])} hidden /></label></div></div><div className="materials-report-grid"><section><h3>Waste history</h3>{reports?.waste?.length ? reports.waste.map((movement) => <p key={movement.id}>{movement.date} · {movement.materialName} · {quantity(Math.abs(movement.change))} · {movement.note}</p>) : <p>No waste movements recorded.</p>}</section><section><h3>Valuation</h3>{materials.map((material) => <p key={material.id}>{material.name} · {money(Number(material.quantity || 0) * Number(material.avgCost || 0))}</p>)}</section></div>{importPreview && <div className="csv-preview"><h3>CSV import preview</h3><p>{importPreview.valid} valid · {importPreview.invalid} invalid. Imports update material details only; stock changes require a submitted receipt or adjustment.</p><div className="csv-preview-rows">{importPreview.rows.map((row) => <p key={row.row} className={row.valid ? '' : 'invalid'}>Row {row.row}: {row.valid ? `${row.name} — valid` : row.error}</p>)}</div><button disabled={busy || importPreview.invalid > 0 || !importPreview.valid} className="materials-primary" onClick={applyImport}>Apply import</button> <button disabled={busy} onClick={() => setImportPreview(null)}>Cancel</button></div>}</div>
     <div className="materials-panel reorder-panel"><div className="materials-toolbar"><div><h2>Reorder alerts</h2><p>Materials at or below their individual reorder levels, grouped by supplier.</p></div></div>{!reorderGroups.length ? <div className="materials-empty">No materials need reordering.</div> : reorderGroups.map(([supplier, rows]) => <section className="reorder-group" key={supplier}><h3>{supplier} <span>{rows.length}</span></h3><div>{rows.map((material) => <article key={material.id}><div><strong>{material.name}</strong><small>{quantity(material.quantity)} {material.unit} on hand · reorder at {quantity(material.reorderLevel)} {material.unit}</small></div><button className="materials-primary" onClick={() => setDialog({ type: 'movement', material, movementType: 'purchase_in', movementLabel: 'Receive stock' })}>Receive</button></article>)}</div></section>)}</div>
     <div className="materials-panel">
       <div className="materials-toolbar"><div><h2>Stock on hand</h2><p>{visible.length} {visible.length === 1 ? 'material' : 'materials'} · Balances change only through recorded stock movements.</p></div><div className="materials-filters"><label><span className="sr-only">Search materials</span><input aria-label="Search materials" placeholder="Search materials…" value={search} onChange={(event) => setSearch(event.target.value)} /></label><select aria-label="Filter materials" value={filter} onChange={(event) => setFilter(event.target.value)}><option value="all">All materials</option><option value="active">Active</option><option value="low">Low stock</option><option value="inactive">Inactive</option></select><select aria-label="Sort materials" value={sort} onChange={(event) => setSort(event.target.value)}><option value="name">Name A–Z</option><option value="quantity">Lowest stock</option></select></div></div>

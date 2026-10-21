@@ -6,6 +6,27 @@ import {
 
 const serialize = (record) => ({ ...record.data, id: record._id.toString(), createdAt: record.createdAt, updatedAt: record.updatedAt });
 
+function parseCsv(source) {
+  if (typeof source !== 'string' || !source.trim()) throw new InventoryValidationError('Choose a non-empty CSV file.');
+  const lines = source.replace(/^\uFEFF/, '').split(/\r?\n/).filter((line) => line.trim());
+  const parseLine = (line) => {
+    const cells = []; let cell = ''; let quoted = false;
+    for (let i = 0; i < line.length; i += 1) {
+      if (line[i] === '"' && quoted && line[i + 1] === '"') { cell += '"'; i += 1; }
+      else if (line[i] === '"') quoted = !quoted;
+      else if (line[i] === ',' && !quoted) { cells.push(cell); cell = ''; }
+      else cell += line[i];
+    }
+    if (quoted) throw new InventoryValidationError('CSV contains an unterminated quoted field.');
+    cells.push(cell); return cells;
+  };
+  const header = parseLine(lines.shift()).map((cell) => cell.trim());
+  const required = ['id', 'name', 'category', 'unit', 'reorderLevel', 'supplierId', 'active'];
+  if (required.some((key) => !header.includes(key))) throw new InventoryValidationError(`CSV must include these columns: ${required.join(', ')}.`);
+  if (lines.length > 1000) throw new InventoryValidationError('Import at most 1,000 rows at a time.');
+  return lines.map((line) => Object.fromEntries(header.map((key, index) => [key, parseLine(line)[index] ?? ''])));
+}
+
 export function createInventoryRouter(BusinessRecord, mongoose) {
   const router = express.Router();
   const fail = (res, error) => res.status(error.status || 500).json({ error: error.message || 'Inventory action failed.' });
@@ -17,6 +38,75 @@ export function createInventoryRouter(BusinessRecord, mongoose) {
       const materials = await BusinessRecord.find(query).sort({ updatedAt: -1 }).lean();
       res.json(materials.map(serialize));
     } catch (error) { fail(res, error); }
+  });
+
+  router.get('/reports', async (_req, res) => {
+    try {
+      const [materials, movements] = await Promise.all([
+        BusinessRecord.find({ resource: 'materials' }).lean(),
+        BusinessRecord.find({ resource: 'stock-movements' }).sort({ createdAt: 1, _id: 1 }).lean()
+      ]);
+      const waste = movements.filter((row) => row.data.type === 'waste').map(serialize);
+      const movementBalances = new Map();
+      for (const movement of movements) movementBalances.set(movement.data.materialId, Number(movement.data.balanceAfter || 0));
+      res.json({
+        waste,
+        valuation: materials.map((row) => ({ id: row._id.toString(), name: row.data.name, quantity: Number(row.data.quantity || 0), unit: row.data.unit, avgCost: Number(row.data.avgCost || 0), value: Number(row.data.quantity || 0) * Number(row.data.avgCost || 0) })),
+        movementCount: movements.length,
+        ledgerBalances: materials.map((row) => ({ id: row._id.toString(), name: row.data.name, balance: Number(row.data.quantity || 0), movementBalance: movementBalances.get(row._id.toString()) ?? 0 }))
+      });
+    } catch (error) { fail(res, error); }
+  });
+
+  router.get('/export.csv', async (_req, res) => {
+    try {
+      const records = await BusinessRecord.find({ resource: 'materials' }).sort({ 'data.name': 1 }).lean();
+      const columns = ['id', 'name', 'category', 'unit', 'reorderLevel', 'supplierId', 'active'];
+      const cell = (value) => `"${String(value ?? '').replaceAll('"', '""')}"`;
+      res.type('text/csv').set('Content-Disposition', 'attachment; filename="materials.csv"').send([columns.join(','), ...records.map(({ _id, data }) => [ _id, ...columns.slice(1).map((key) => data[key]) ].map(cell).join(','))].join('\r\n'));
+    } catch (error) { fail(res, error); }
+  });
+
+  router.post('/import/preview', async (req, res) => {
+    try {
+      const rows = parseCsv(req.body?.csv);
+      const preview = [];
+      for (const [index, row] of rows.entries()) {
+        try {
+          if (!row.id || !mongoose.isValidObjectId(row.id)) throw new Error('A valid material id is required; imports do not create materials.');
+          const current = await BusinessRecord.findOne({ _id: row.id, resource: 'materials' }).lean();
+          if (!current) throw new Error('Material id not found.');
+          const changes = validateMaterial({ name: row.name, category: row.category, unit: row.unit, reorderLevel: row.reorderLevel, supplierId: row.supplierId, active: row.active === 'true' }, { partial: true });
+          if (changes.supplierId) {
+            if (!mongoose.isValidObjectId(changes.supplierId) || !await BusinessRecord.exists({ _id: changes.supplierId, resource: 'suppliers' })) throw new Error('Supplier id not found.');
+          }
+          preview.push({ row: index + 2, id: row.id, name: current.data.name, changes, valid: true });
+        } catch (error) { preview.push({ row: index + 2, name: row.name || '', valid: false, error: error.message }); }
+      }
+      res.json({ rows: preview, valid: preview.filter((row) => row.valid).length, invalid: preview.filter((row) => !row.valid).length });
+    } catch (error) { fail(res, error); }
+  });
+
+  router.post('/import/apply', async (req, res) => {
+    let session;
+    try {
+      const rows = req.body?.rows;
+      if (!Array.isArray(rows) || !rows.length || rows.some((row) => !row.valid || !mongoose.isValidObjectId(row.id) || !row.changes)) throw new InventoryValidationError('Preview and validate every import row before applying changes.');
+      if (new Set(rows.map((row) => row.id)).size !== rows.length) throw new InventoryValidationError('Duplicate material ids are not allowed in one import.');
+      session = await mongoose.startSession();
+      await session.withTransaction(async () => {
+        for (const row of rows) {
+          const current = await BusinessRecord.findOne({ _id: row.id, resource: 'materials' }).session(session).lean();
+          if (!current) throw new InventoryValidationError(`Material ${row.id} no longer exists. Refresh the preview.`, 409);
+          const changes = validateMaterial(row.changes, { partial: true });
+          if (changes.supplierId && !await BusinessRecord.exists({ _id: changes.supplierId, resource: 'suppliers' }).session(session)) throw new InventoryValidationError('Supplier not found.', 404);
+          delete changes.unit;
+          await BusinessRecord.updateOne({ _id: row.id, resource: 'materials' }, { $set: Object.fromEntries(Object.entries(changes).map(([key, value]) => [`data.${key}`, value])), $currentDate: { updatedAt: true } }, { session });
+        }
+      });
+      res.json({ applied: rows.length });
+    } catch (error) { fail(res, error); }
+    finally { await session?.endSession(); }
   });
 
   router.post('/', async (req, res) => {
@@ -127,10 +217,12 @@ export function createInventoryRouter(BusinessRecord, mongoose) {
       const date = validateBusinessDate(req.body.date);
       const referenceId = String(req.body.referenceId || '').trim();
       const referenceType = referenceId ? String(req.body.referenceType || '').trim() : '';
+      let reversalOriginal;
       if (type === 'reversal') {
         if (referenceType !== 'reversal' || !mongoose.isValidObjectId(referenceId)) throw new InventoryValidationError('Select the original movement to reverse.');
         const original = await BusinessRecord.findOne({ _id: referenceId, resource: 'stock-movements', 'data.materialId': req.params.id, 'data.type': 'purchase_in' }).lean();
         if (!original) throw new InventoryValidationError('Only a recorded receipt for this material can be reversed.', 404);
+        reversalOriginal = original;
         const reversed = await BusinessRecord.exists({ resource: 'stock-movements', 'data.type': 'reversal', 'data.referenceId': referenceId });
         if (reversed) throw new InventoryValidationError('This receipt has already been reversed.', 409);
       }
@@ -142,8 +234,9 @@ export function createInventoryRouter(BusinessRecord, mongoose) {
       await session.withTransaction(async () => {
         result = await applyStockMovement(BusinessRecord, session, req.params.id, {
           type, quantity: req.body.quantity, countedQuantity: req.body.countedQuantity,
-          unitCost: req.body.unitCost, note, date, idempotencyKey, referenceId, referenceType
-          , change: req.body.change
+          unitCost: type === 'reversal' ? reversalOriginal.data.unitCost : req.body.unitCost,
+          note, date, idempotencyKey, referenceId, referenceType,
+          change: type === 'reversal' ? -Number(reversalOriginal.data.change) : req.body.change
         });
       });
       res.status(result.duplicate ? 200 : 201).json(serialize(result.movement));
