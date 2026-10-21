@@ -11,6 +11,7 @@ const idempotencyKey = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}
 
 export default function MaterialsPage() {
   const [materials, setMaterials] = useState([]);
+  const [suggestions, setSuggestions] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [purchases, setPurchases] = useState([]);
   const [reports, setReports] = useState(null);
@@ -39,20 +40,22 @@ export default function MaterialsPage() {
     setLoading(true);
     setError('');
     try {
-      const [materialRows, supplierRows, purchaseRows, reportRows] = await Promise.all([
+      const [materialRows, supplierRows, purchaseRows, reportRows, reorderRows] = await Promise.all([
         request(''),
-        fetch('/api/records/suppliers').then(async (response) => {
+        fetch('/api/suppliers').then(async (response) => {
           const data = await response.json();
           if (!response.ok) throw new Error(data.error || 'Could not load suppliers.');
           return data;
         }),
         fetch('/api/records/purchases').then(async (response) => { const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Could not load purchases.'); return data; }),
-        request('/reports')
+        request('/reports'),
+        request('/reorder-suggestions')
       ]);
       setMaterials(materialRows);
       setSuppliers(supplierRows);
       setPurchases(purchaseRows);
       setReports(reportRows);
+      setSuggestions(reorderRows);
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   }
@@ -89,15 +92,14 @@ export default function MaterialsPage() {
     : String(a.name || '').localeCompare(String(b.name || ''))), [materials, filter, search, sort]);
   const lowCount = materials.filter((material) => material.active !== false && Number(material.quantity) <= Number(material.reorderLevel)).length;
   const reorderGroups = useMemo(() => {
-    const rows = materials.filter((material) => material.active !== false && Number(material.quantity) <= Number(material.reorderLevel));
     const groups = new Map();
-    rows.forEach((material) => {
-      const name = material.supplierNameSnapshot || 'No supplier assigned';
-      if (!groups.has(name)) groups.set(name, []);
-      groups.get(name).push(material);
+    suggestions.forEach((material) => {
+      const key = material.preferredSupplierId || 'none';
+      if (!groups.has(key)) groups.set(key, { name: material.preferredSupplierName, supplierId: material.preferredSupplierId, rows: [] });
+      groups.get(key).rows.push(material);
     });
-    return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
-  }, [materials]);
+    return [...groups.values()];
+  }, [suggestions]);
   const inventoryValue = materials.reduce((sum, material) => sum + Number(material.quantity || 0) * Number(material.avgCost || 0), 0);
 
   async function act(action, success) {
@@ -111,6 +113,26 @@ export default function MaterialsPage() {
       window.setTimeout(() => setNotice(''), 5000);
     } catch (e) { setError(e.message); }
     finally { setBusy(false); }
+  }
+
+  async function createReorderOrder(group) {
+    if (!group.supplierId) { setError('Assign a preferred supplier to these materials before creating a purchase order.'); return; }
+    await act(async () => {
+      const body = {
+        supplierId: group.supplierId, orderDate: today(), notes: 'Created from Materials reorder suggestions.',
+        lines: group.rows.map((material) => ({ materialId: material.id, qty: material.suggestedQty, unitCost: material.latestUnitCost }))
+      };
+      const response = await fetch('/api/purchases', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const order = await response.json();
+      if (!response.ok) throw new Error(order.error || 'Could not create the purchase order.');
+      try {
+        const placeResponse = await fetch(`/api/purchases/${order.id}/order`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        const result = await placeResponse.json();
+        if (!placeResponse.ok) throw new Error(result.error || 'Could not place the purchase order.');
+      } catch (error) {
+        throw new Error(`${error.message} Draft ${order.number} was saved and can be placed from Purchases.`);
+      }
+    }, 'Reorder purchase order created. Stock will change when its receipt is submitted.');
   }
 
   async function openHistory(material) {
@@ -171,7 +193,7 @@ export default function MaterialsPage() {
     {notice && <div className="materials-success" role="status">✓ {notice}</div>}
     <div className="materials-summary"><article><span>Materials</span><strong>{materials.length}</strong></article><article><span>Low or out of stock</span><strong>{lowCount}</strong></article><article><span>Estimated inventory value</span><strong>{money(inventoryValue)}</strong></article></div>
     <div className="materials-panel"><div className="materials-toolbar"><div><h2>Counts and reports</h2><p>Physical counts post adjustment movements; reports are derived from the stock ledger.</p></div><div className="materials-filters"><a className="materials-primary" href="/api/materials/export.csv">Export CSV</a><label className="materials-primary">Preview CSV import<input aria-label="Preview CSV import" type="file" accept=".csv,text/csv" onChange={(event) => previewCsv(event.target.files?.[0])} hidden /></label></div></div><div className="materials-report-grid"><section><h3>Waste history</h3>{reports?.waste?.length ? reports.waste.map((movement) => <p key={movement.id}>{movement.date} · {movement.materialName} · {quantity(Math.abs(movement.change))} · {movement.note}</p>) : <p>No waste movements recorded.</p>}</section><section><h3>Valuation</h3>{materials.map((material) => <p key={material.id}>{material.name} · {money(Number(material.quantity || 0) * Number(material.avgCost || 0))}</p>)}</section></div>{importPreview && <div className="csv-preview"><h3>CSV import preview</h3><p>{importPreview.valid} valid · {importPreview.invalid} invalid. Imports update material details only; stock changes require a submitted receipt or adjustment.</p><div className="csv-preview-rows">{importPreview.rows.map((row) => <p key={row.row} className={row.valid ? '' : 'invalid'}>Row {row.row}: {row.valid ? `${row.name} — valid` : row.error}</p>)}</div><button disabled={busy || importPreview.invalid > 0 || !importPreview.valid} className="materials-primary" onClick={applyImport}>Apply import</button> <button disabled={busy} onClick={() => setImportPreview(null)}>Cancel</button></div>}</div>
-    <div className="materials-panel reorder-panel"><div className="materials-toolbar"><div><h2>Reorder alerts</h2><p>Materials at or below their individual reorder levels, grouped by supplier.</p></div></div>{!reorderGroups.length ? <div className="materials-empty">No materials need reordering.</div> : reorderGroups.map(([supplier, rows]) => <section className="reorder-group" key={supplier}><h3>{supplier} <span>{rows.length}</span></h3><div>{rows.map((material) => <article key={material.id}><div><strong>{material.name}</strong><small>{quantity(material.quantity)} {material.unit} on hand · reorder at {quantity(material.reorderLevel)} {material.unit}</small></div><button className="materials-primary" onClick={() => setDialog({ type: 'movement', material, movementType: 'purchase_in', movementLabel: 'Receive stock' })}>Receive</button></article>)}</div></section>)}</div>
+    <div className="materials-panel reorder-panel"><div className="materials-toolbar"><div><h2>Reorder suggestions</h2><p>Below-level materials grouped by preferred supplier. Suggested quantities return stock to a practical target level.</p></div></div>{!reorderGroups.length ? <div className="materials-empty">No materials need reordering.</div> : reorderGroups.map((group) => <section className="reorder-group" key={group.supplierId || 'none'}><h3>{group.name} <span>{group.rows.length}</span></h3><div>{group.rows.map((material) => <article key={material.id}><div><strong>{material.name}</strong><small>{quantity(material.quantity)} {material.unit} on hand · reorder level {quantity(material.reorderLevel)} · suggest {quantity(material.suggestedQty)} {material.unit} · unit cost {money(material.latestUnitCost)}</small></div></article>)}</div><button className="materials-primary" disabled={busy || !group.supplierId} title={!group.supplierId ? 'Assign a supplier before creating a PO' : ''} onClick={() => createReorderOrder(group)}>Create PO</button></section>)}</div>
     <div className="materials-panel">
       <div className="materials-toolbar"><div><h2>Stock on hand</h2><p>{visible.length} {visible.length === 1 ? 'material' : 'materials'} · Balances change only through recorded stock movements.</p></div><div className="materials-filters"><label><span className="sr-only">Search materials</span><input aria-label="Search materials" placeholder="Search materials…" value={search} onChange={(event) => setSearch(event.target.value)} /></label><select aria-label="Filter materials" value={filter} onChange={(event) => setFilter(event.target.value)}><option value="all">All materials</option><option value="active">Active</option><option value="low">Low stock</option><option value="inactive">Inactive</option></select><select aria-label="Sort materials" value={sort} onChange={(event) => setSort(event.target.value)}><option value="name">Name A–Z</option><option value="quantity">Lowest stock</option></select></div></div>
       {loading ? <div className="materials-empty">Loading materials…</div> : !visible.length ? <div className="materials-empty"><strong>{materials.length ? 'No matching materials' : 'No materials yet'}</strong><p>{materials.length ? 'Change the search or stock filter.' : 'Add a raw material to start tracking stock.'}</p>{!materials.length && <button className="materials-primary" onClick={() => setDialog({ type: 'create' })}>＋ Add material</button>}</div> : <div className="material-cards">{visible.map((material) => {

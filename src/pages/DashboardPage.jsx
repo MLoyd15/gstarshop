@@ -56,7 +56,8 @@ export default function DashboardPage({ onNavigate, data, compact }) {
   const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
   const dateLabel = today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
   const { totals } = data;
-  const profit = totals.income - totals.expenses;
+  const materialCosts = Number(totals.materialCosts || 0);
+  const profit = totals.income - totals.expenses - materialCosts;
   const margin = totals.income > 0 ? Math.round((profit / totals.income) * 100) : null;
 
   return (
@@ -97,11 +98,12 @@ export default function DashboardPage({ onNavigate, data, compact }) {
               <div className={`font-[family-name:Manrope,sans-serif] mt-1 profit-amount font-semibold leading-none tracking-tight tabular-nums ${profit < 0 ? 'text-red-700' : ''}`}>
                 {profit < 0 ? '−' : ''}{currency(Math.abs(profit))}
               </div>
-              {margin !== null && <div className="mt-1.5 text-sm text-slate-500">{margin}% of revenue is kept as profit</div>}
+              {margin !== null && <div className="mt-1.5 text-sm text-slate-500">{margin}% after expenses and completed job material costs</div>}
             </div>
             <div className="flex gap-8 lg:ml-auto">
               <Figure label="Revenue" value={currency(totals.income)} note={`${totals.incomeEntries} entries`} />
               <Figure label="Expenses" value={currency(totals.expenses)} note={`${totals.expenseEntries} entries`} />
+              <Figure label="Material costs" value={currency(materialCosts)} note={`${totals.costedBookings || 0} completed jobs`} />
             </div>
           </div>
 

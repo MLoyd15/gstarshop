@@ -4,6 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f5f6f8" />
+    <script>
+      try {
+        const saved = JSON.parse(localStorage.getItem('g4-sticker-appearance') || '{}');
+        document.documentElement.dataset.theme = saved.nightMode === false ? 'light' : 'dark';
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        if (themeColor) themeColor.content = saved.nightMode === false ? '#f2f6fb' : '#05050A';
+      } catch (_) { document.documentElement.dataset.theme = 'dark'; }
+    </script>
     <meta name="description" content="G4 Sticker product, stock, and business management." />
     <title>G4 Sticker — Business management</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />

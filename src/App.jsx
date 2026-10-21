@@ -11,6 +11,10 @@ import EmployeeMonthlySheet from './pages/EmployeeMonthlySheet.jsx';
 import EmployeesPage from './pages/EmployeesPage.jsx';
 import ClientsPage from './pages/ClientsPage.jsx';
 import MaterialsPage from './pages/MaterialsPage.jsx';
+import SuppliersPage from './pages/SuppliersPage.jsx';
+import PurchasesPage from './pages/PurchasesPage.jsx';
+import SupplierPricesPage from './pages/SupplierPricesPage.jsx';
+import ProductsPage from './pages/ProductsPage.jsx';
 import logo from './assets/logo.png';
 import { Icon } from './shared.jsx';
 
@@ -20,9 +24,8 @@ const sections = [
     { id: 'supplier-dashboard', label: 'Dashboard', icon: '◫' },
     { id: 'suppliers', label: 'Suppliers', icon: '♙' },
     { id: 'products', label: 'Products', icon: '▧' },
-    { id: 'inventory', label: 'Inventory', icon: '▤' },
     { id: 'materials', label: 'Materials', icon: '▦' },
-    { id: 'prices', label: 'Prices', icon: '＄' },
+    { id: 'prices', label: 'Supplier prices', icon: '＄' },
     { id: 'purchases', label: 'Purchases', icon: '🛒' },
     { id: 'bookings', label: 'Bookings', icon: '▣' },
     { id: 'supplier-reports', label: 'Reports', icon: '▥' },
@@ -35,8 +38,7 @@ const sections = [
 ];
 
 const resourceFor = {
-  suppliers: 'suppliers', products: 'products', inventory: 'inventory', prices: 'prices',
-  purchases: 'purchases', 'excel-sheet': 'excel-sheet', scheduler: 'scheduler',
+  'excel-sheet': 'excel-sheet', scheduler: 'scheduler',
   bookings: 'bookings', clients: 'clients', income: 'income', expenses: 'expenses', profit: 'profit',
   employees: 'employees', 'payroll-runs': 'payroll-runs',
   shareholders: 'shareholders', 'money-tracker': 'money-tracker', notepad: 'notepad'
@@ -45,7 +47,6 @@ const resourceFor = {
 const fieldsFor = {
   suppliers: [['name', 'Supplier name'], ['contact', 'Contact person'], ['email', 'Email'], ['phone', 'Phone'], ['status', 'Status']],
   products: [['name', 'Product name'], ['sku', 'SKU'], ['category', 'Category'], ['price', 'Unit price'], ['stock', 'In stock']],
-  inventory: [['name', 'Product'], ['sku', 'SKU'], ['category', 'Category'], ['stock', 'In stock'], ['stockStatus', 'Stock status']],
   prices: [['name', 'Product'], ['supplier', 'Supplier'], ['price', 'Price'], ['effectiveDate', 'Effective date']],
   purchases: [['name', 'Order'], ['supplier', 'Supplier'], ['amount', 'Amount'], ['date', 'Date'], ['status', 'Status']],
   'excel-sheet': [['name', 'Sheet name'], ['category', 'Category'], ['owner', 'Owner'], ['updated', 'Last updated']],
@@ -64,7 +65,7 @@ const fieldsFor = {
 
 const titles = {
   home: 'Main dashboard', 'supplier-dashboard': 'G4 Sticker dashboard', suppliers: 'Suppliers',
-  products: 'Products', inventory: 'Inventory', materials: 'Materials', prices: 'Prices', purchases: 'Purchases',
+  products: 'Products', materials: 'Materials', prices: 'Supplier prices', purchases: 'Purchases',
   'excel-sheet': 'Excel sheet', 'supplier-reports': 'G4 Sticker reports',
   scheduler: 'Scheduler', bookings: 'Bookings', clients: 'Clients', income: 'Income', expenses: 'Expenses', profit: 'Profit',
   shareholders: 'Shareholders', employees: 'Employees', 'payroll-runs': 'Pay runs', 'money-tracker': 'Money tracker',
@@ -248,7 +249,7 @@ function App() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notificationsError, setNotificationsError] = useState('');
   const [dashboard, setDashboard] = useState({
-    totals: { income: 0, expenses: 0, incomeEntries: 0, expenseEntries: 0, bookings: 0, clients: 0, materials: 0, lowStockMaterials: 0, suppliers: 0, products: 0, inventory: 0 },
+    totals: { income: 0, expenses: 0, materialCosts: 0, costedBookings: 0, incomeEntries: 0, expenseEntries: 0, bookings: 0, clients: 0, materials: 0, lowStockMaterials: 0, suppliers: 0, products: 0, inventory: 0 },
     months: [],
     recent: []
   });
@@ -261,7 +262,9 @@ function App() {
   useEffect(() => {
     document.documentElement.style.setProperty('--purple', appearance.accent);
     document.documentElement.style.setProperty('--type-scale', String(appearance.textScale));
-    document.documentElement.classList.toggle('day-mode', !appearance.nightMode);
+    document.documentElement.dataset.theme = appearance.nightMode ? 'dark' : 'light';
+    const themeColor = document.querySelector('meta[name="theme-color"]');
+    if (themeColor) themeColor.content = appearance.nightMode ? '#05050A' : '#f2f6fb';
     try {
       window.localStorage.setItem('g4-sticker-appearance', JSON.stringify(appearance));
       setAppearanceError('');
@@ -328,16 +331,12 @@ function App() {
     const controller = new AbortController();
     setLoading(true);
     setError('');
-    fetch(`/api/records/${active === 'inventory' ? 'products' : resource}`, { signal: controller.signal })
+    fetch(`/api/records/${resource}`, { signal: controller.signal })
       .then(async (response) => {
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Could not load records.');
         return data;
       })
-      .then((data) => active === 'inventory' ? data.map((record) => {
-        const stock = Number(record.stock) || 0;
-        return { ...record, stockStatus: stock <= 0 ? 'Out of stock' : stock <= 5 ? 'Low stock' : 'In stock' };
-      }) : data)
       .then(setRecords)
       .catch((requestError) => {
         if (requestError.name !== 'AbortError') setError(requestError.message);
@@ -507,6 +506,14 @@ function App() {
             <SettingsPage health={health} appearance={appearance} onAppearanceChange={setAppearance} appearanceError={appearanceError} />
           ) : active === 'materials' ? (
             <MaterialsPage />
+          ) : active === 'suppliers' ? (
+            <SuppliersPage />
+          ) : active === 'purchases' ? (
+            <PurchasesPage />
+          ) : active === 'prices' ? (
+            <SupplierPricesPage />
+          ) : active === 'products' ? (
+            <ProductsPage />
           ) : active === 'bookings' ? (
             <BookingsPage active={active} title={activeLabel} fields={fields} records={filteredRecords} loading={loading}
               search={search} setSearch={setSearch} onCreate={openCreate}
@@ -527,10 +534,10 @@ function App() {
           ) : (
             <RecordManagementPage active={active} title={activeLabel} fields={fields} records={filteredRecords} loading={loading}
               search={search} setSearch={setSearch}
-              onCreate={active === 'inventory' ? () => navigate('products') : openCreate}
+              onCreate={openCreate}
               onEdit={openEdit} onDelete={deleteRecord}
               onSelect={active === 'employees' ? setSheetEmployee : undefined}
-              pageClass={active === 'suppliers' ? 'suppliers-page' : active === 'products' ? 'products-page' : active === 'inventory' ? 'inventory-page' : 'record-management-page'} />
+              pageClass={active === 'suppliers' ? 'suppliers-page' : active === 'products' ? 'products-page' : 'record-management-page'} />
           )}
         </div>
       </main>

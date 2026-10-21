@@ -3,66 +3,31 @@
    Dense records and dialogs stay mostly opaque for readability.
    LOAD ORDER: this file must come AFTER dashboard-glass.css. */
 
-:root {
-  /* Logo palette */
-  --brand-black: #05050A;      /* Deep Abyss Black   — canvas */
-  --brand-cyan: #00B4FF;       /* Electric Cyan      — accent, CTAs, glow */
-  --brand-royal: #0044CC;      /* Deep Royal Blue    — borders, sidebar, structure (never body text) */
-  --brand-silver: #E2E8F0;     /* Metallic Silver    — text */
-  --brand-charcoal: #121826;   /* Shadow Charcoal    — surfaces */
-
-  /* Default accent. If your Appearance settings set --purple at runtime, that still wins. */
-  --purple: var(--brand-cyan);
-  --purple-hover: #33C4FF;
-  --focus-ring: rgba(0, 180, 255, 0.35);
-
-  --background: #05050A;
-  --ink: #E2E8F0;
-  --text-primary: #E2E8F0;
-  --text-secondary: #A9B5C7;
-  --muted: #8795AA;
-  --line: rgba(226, 232, 240, 0.13);
-  --line-strong: rgba(226, 232, 240, 0.22);
-  --surface: rgba(18, 24, 38, 0.74);
-  --surface-soft: rgba(226, 232, 240, 0.08);
-  --glass-bg: rgba(18, 24, 38, 0.62);
-  --glass-bg-strong: rgba(12, 17, 29, 0.8);
-  --glass-border: rgba(0, 180, 255, 0.2);
-  --glass-blur: 20px; /* was missing: blur(var(--glass-blur)) was silently invalid */
-  --shadow-glass: 0 24px 60px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(0, 68, 204, 0.16);
-  --success-soft: rgba(44, 168, 120, 0.16);
-  --warning-soft: rgba(226, 159, 60, 0.17);
-  --danger-soft: rgba(218, 91, 108, 0.17);
-
-  /* Accent for text/borders on dark surfaces (follows --purple, so user accent choices still work) */
-  --accent-on-dark: color-mix(in srgb, var(--purple), white 16%);
-}
 
 body {
   background:
-    radial-gradient(ellipse at 50% -12%, rgba(0, 180, 255, 0.22), transparent 34rem),
-    radial-gradient(ellipse at 100% 18%, rgba(0, 68, 204, 0.34), transparent 38rem),
-    radial-gradient(ellipse at -8% 80%, rgba(0, 68, 204, 0.26), transparent 32rem),
-    linear-gradient(135deg, #05050A, #0a1020 46%, #070a14);
+    radial-gradient(ellipse at 50% -12%, var(--bg-gradient-1), transparent 34rem),
+    radial-gradient(ellipse at 100% 18%, var(--bg-gradient-2), transparent 38rem),
+    linear-gradient(135deg, var(--bg), var(--surface-strong));
   background-attachment: fixed;
 }
 
 .app-shell {
-  background: linear-gradient(120deg, rgba(7, 7, 7, 0.2), transparent 55%);
+  background: linear-gradient(120deg, var(--bg-gradient-2), transparent 55%);
 }
 
 .sidebar {
-  background: linear-gradient(180deg, rgba(0, 68, 204, 0.16), rgba(9, 15, 34, 0.86) 45%);
+  background: linear-gradient(180deg, var(--bg-gradient-2), var(--glass-bg-strong) 45%);
   border-right-color: var(--glass-border);
-  box-shadow: 12px 0 36px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-glass);
   backdrop-filter: blur(22px) saturate(125%);
   -webkit-backdrop-filter: blur(22px) saturate(125%);
 }
 
 .topbar {
-  background: rgba(10, 15, 28, 0.74);
+  background: var(--glass-bg-strong);
   border-bottom-color: var(--glass-border);
-  box-shadow: 0 3px 20px rgba(0, 0, 0, 0.16);
+  box-shadow: var(--shadow-glass);
   backdrop-filter: blur(22px) saturate(125%);
   -webkit-backdrop-filter: blur(22px) saturate(125%);
 }
@@ -102,16 +67,16 @@ body {
 
 /* ---------- Navigation ---------- */
 
-.nav-heading { color: #8795AA; }
+.nav-heading { color: var(--text-secondary); }
 .nav-item {
-  color: #C3CCDA;
+  color: var(--text-secondary);
   transition: background-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
 }
-.nav-item:hover { background: rgba(226, 232, 240, 0.1); color: #F4F8FF; }
+.nav-item:hover { background: var(--surface-soft); color: var(--text); }
 .nav-item.active {
-  background: color-mix(in srgb, var(--purple), transparent 74%);
-  color: #F4F8FF;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--purple), white 22%);
+  background: color-mix(in srgb, var(--purple), transparent 84%);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--purple), transparent 48%);
 }
 .help-card { border-color: var(--glass-border); background: rgba(226, 232, 240, 0.06); }
 .help-card strong, .profile-copy strong { color: var(--ink); }
@@ -175,7 +140,7 @@ body {
 .cp-panel {
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
-  background: rgba(18, 24, 38, 0.72);
+  background: var(--glass-bg);
   box-shadow: var(--shadow-glass);
   backdrop-filter: blur(18px) saturate(115%);
   -webkit-backdrop-filter: blur(18px) saturate(115%);
@@ -185,7 +150,7 @@ body {
 
 .records-toolbar,
 .cp-panel-head {
-  background: linear-gradient(115deg, rgba(226, 232, 240, 0.1), rgba(255, 255, 255, 0.035));
+  background: color-mix(in srgb, var(--surface-soft), var(--glass-bg) 50%);
   border-bottom-color: var(--line);
 }
 
@@ -241,25 +206,25 @@ body {
 table { min-width: 600px; }
 
 .records-page thead {
-  background: rgba(8, 14, 27, 0.98);
+  background: var(--table-head-bg);
 }
 
 .records-page th {
   height: var(--table-row-height);
-  background: rgba(8, 14, 27, 0.98);
-  color: #E2E8F0;
-  border-bottom: 1px solid rgba(0, 180, 255, 0.2);
+  background: var(--table-head-bg);
+  color: var(--text);
+  border-bottom: 1px solid var(--line-strong);
   font-size: calc(0.7rem * var(--type-scale, 1));
   font-weight: 700;
 }
 
 .records-page td {
   height: var(--table-row-height);
-  color: #DCE3EE;
+  color: var(--text);
   font-size: calc(var(--font-table) * var(--type-scale, 1));
 }
 
-.records-page tbody tr:hover { background: rgba(226, 232, 240, 0.07); }
+.records-page tbody tr:hover { background: var(--table-row-hover); }
 
 .table-footer,
 .records-toolbar { color: var(--text-secondary); }
@@ -291,8 +256,8 @@ table { min-width: 600px; }
 .accent-swatch {
   border-color: var(--line-strong);
   border-radius: var(--radius-md);
-  color: #E8EEF7;
-  background: rgba(226, 232, 240, 0.09);
+  color: var(--text);
+  background: var(--surface-soft);
 }
 
 .cancel-button:hover,
@@ -301,9 +266,9 @@ table { min-width: 600px; }
 .cp-secondary:hover,
 .appearance-reset:hover,
 .accent-swatch:hover {
-  border-color: var(--accent-on-dark);
-  color: var(--accent-on-dark);
-  background: rgba(226, 232, 240, 0.16);
+  border-color: var(--purple);
+  color: var(--text);
+  background: color-mix(in srgb, var(--purple), var(--surface) 88%);
 }
 
 /* ---------- Inputs ---------- */
@@ -319,7 +284,7 @@ table { min-width: 600px; }
   border-color: var(--line-strong);
   border-radius: var(--radius-md);
   color: var(--ink);
-  background: rgba(226, 232, 240, 0.09);
+  background: var(--input-bg);
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast);
 }
 
@@ -332,14 +297,14 @@ table { min-width: 600px; }
 .modal-fields select:focus,
 .date-picker-trigger:focus-visible {
   border-color: var(--accent-on-dark);
-  background: rgba(226, 232, 240, 0.14);
+  background: var(--input-bg);
   box-shadow: 0 0 0 4px var(--focus-ring);
 }
 
 /* ---------- Dialogs ---------- */
 
 .modal-overlay {
-  background: rgba(2, 4, 10, 0.72);
+  background: var(--overlay-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
@@ -347,25 +312,26 @@ table { min-width: 600px; }
 .record-modal,
 .calendar-popover,
 .notification-popover {
-  border-color: rgba(226, 232, 240, 0.22);
+  border-color: var(--glass-border);
   border-radius: var(--radius-xl);
-  background: rgba(14, 20, 34, 0.94);
-  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.46);
+  background: var(--glass-bg-strong);
+  color: var(--text);
+  box-shadow: var(--shadow-glass);
 }
 
 .modal-header,
-.modal-footer { background: rgba(14, 20, 34, 0.94); }
+.modal-footer { background: var(--glass-bg-strong); }
 
 .record-modal h2, .modal-fields label, .modal-close { color: var(--ink); }
-.modal-fields input::placeholder, .modal-fields textarea::placeholder { color: #8795AA; }
-.date-placeholder { color: #8795AA; }
+.modal-fields input::placeholder, .modal-fields textarea::placeholder { color: var(--muted); }
+.date-placeholder { color: var(--muted); }
 
 /* Notification and date-picker popovers must keep the dark theme inside, too. */
 .notification-popover {
   color: var(--ink);
   border-color: var(--glass-border);
-  background: rgba(8, 14, 27, 0.97);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 68, 204, 0.16);
+  background: var(--glass-bg-strong);
+  box-shadow: var(--shadow-glass);
   backdrop-filter: blur(24px) saturate(130%);
   -webkit-backdrop-filter: blur(24px) saturate(130%);
 }
@@ -486,17 +452,15 @@ table { min-width: 600px; }
 .date-picker-trigger:focus-visible,.calendar-month-nav button:focus-visible,.calendar-day:focus-visible,.calendar-footer button:focus-visible { outline: 2px solid #00B4FF; outline-offset: 2px; }
 
 select option {
-  color: #E2E8F0;
-  background: #0C1220;
+  color: var(--text);
+  background: var(--surface-strong);
 }
 
 /* ---------- Clients page ---------- */
 
 .clients-page {
-  --text: #E2E8F0;
-  --muted: #A9B5C7;
-  --border: rgba(226, 232, 240, 0.15);
-  --accent-light: color-mix(in srgb, var(--accent), transparent 76%);
+  --border: var(--line);
+  --accent-light: color-mix(in srgb, var(--purple), transparent 76%);
 }
 
 .cp-header,

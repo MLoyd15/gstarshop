@@ -5,22 +5,22 @@
 ========================================= */
 
 .dashboard-page {
-  --dashboard-accent: var(--purple, #7655df);
-  --dashboard-accent-dark: #5d3dc6;
-  --dashboard-accent-soft: rgb(255 255 255 / 60%);
-  --dashboard-text: #221f3a;
-  --dashboard-muted: #5f5d78;
+  --dashboard-accent: var(--purple, var(--text));
+  --dashboard-accent-dark: var(--text);
+  --dashboard-accent-soft: var(--text);
+  --dashboard-text: var(--text);
+  --dashboard-muted: var(--text);
   --dashboard-radius: 22px;
 
   /* Glass tuning knobs */
-  --glass: rgb(255 255 255 / 40%);
-  --glass-strong: rgb(255 255 255 / 66%);
-  --glass-border: rgb(255 255 255 / 72%);
+  --glass: var(--text);
+  --glass-strong: var(--text);
+  --glass-border: var(--text);
   --glass-blur: 20px;
   --glass-shadow:
-    0 10px 34px rgb(70 48 150 / 10%),
-    inset 0 1px 0 rgb(255 255 255 / 85%);
-  --glass-divider: rgb(110 90 180 / 11%);
+    0 10px 34px var(--text),
+    inset 0 1px 0 var(--text);
+  --glass-divider: var(--text);
 
   --text-xs: calc(0.6875rem * var(--type-scale, 1));
   --text-sm: calc(0.75rem * var(--type-scale, 1));
@@ -54,10 +54,10 @@
   content: "";
   pointer-events: none;
   background:
-    radial-gradient(ellipse 42% 30% at 90% 3%, rgb(167 139 250 / 55%), transparent 72%),
-    radial-gradient(ellipse 36% 26% at 4% 28%, rgb(244 162 207 / 42%), transparent 72%),
-    radial-gradient(ellipse 40% 28% at 72% 56%, rgb(125 211 252 / 42%), transparent 72%),
-    radial-gradient(ellipse 38% 26% at 18% 94%, rgb(167 243 208 / 40%), transparent 72%);
+    radial-gradient(ellipse 42% 30% at 90% 3%, var(--surface), transparent 72%),
+    radial-gradient(ellipse 36% 26% at 4% 28%, var(--surface), transparent 72%),
+    radial-gradient(ellipse 40% 28% at 72% 56%, var(--surface), transparent 72%),
+    radial-gradient(ellipse 38% 26% at 18% 94%, var(--surface), transparent 72%);
 }
 
 /* One crisp orb so the blur has an edge to bend */
@@ -69,7 +69,7 @@
   width: clamp(150px, 22vw, 300px);
   aspect-ratio: 1;
   border-radius: 50%;
-  background: linear-gradient(135deg, rgb(139 92 246 / 70%), rgb(236 114 182 / 58%));
+  background: linear-gradient(135deg, var(--surface), var(--surface));
   content: "";
   pointer-events: none;
 }
@@ -77,6 +77,7 @@
 /* ---------- Typography ---------- */
 
 .dashboard-page .dashboard-title {
+  color:var(--text);
   font-size: clamp(
     calc(1.35rem * var(--type-scale, 1)),
     calc(2.2vw * var(--type-scale, 1)),
@@ -195,11 +196,9 @@
 }
 
 .dashboard-page > header button:first-child {
-  border-color: rgb(255 255 255 / 40%);
-  background: linear-gradient(135deg, #7a58e6, #5d3dc6);
-  box-shadow:
-    0 6px 16px rgb(93 61 198 / 30%),
-    inset 0 1px 0 rgb(255 255 255 / 32%);
+  border-color: var(--line);
+  background: linear-gradient(135deg, var(--surface), var(--surface));
+  box-shadow: var(--shadow-glass);
 }
 
 .dashboard-page > header button:first-child:hover {
@@ -210,9 +209,9 @@
 }
 
 .dashboard-page > header button:not(:first-child) {
-  border-color: rgb(255 255 255 / 80%);
-  background: rgb(255 255 255 / 55%);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 80%);
+  border-color: var(--line);
+  background: var(--surface);
+  box-shadow: var(--shadow-glass);
 }
 
 .dashboard-page > header button:not(:first-child):hover {
@@ -284,9 +283,9 @@
 
 /* Tooltip: dark glass so it reads against the light panels */
 .dashboard-page .bg-slate-800 {
-  border: 1px solid rgb(255 255 255 / 18%);
-  background: rgb(34 31 58 / 88%);
-  box-shadow: 0 10px 28px rgb(34 25 67 / 25%);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: var(--shadow-glass);
 }
 
 /* ---------- Recent transactions ---------- */
@@ -313,15 +312,15 @@
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .dashboard-page {
-    --glass: rgb(255 255 255 / 88%);
-    --glass-strong: rgb(255 255 255 / 95%);
+    --glass: var(--text);
+    --glass-strong: var(--text);
   }
 }
 
 @media (prefers-reduced-transparency: reduce) {
   .dashboard-page {
-    --glass: rgb(255 255 255 / 96%);
-    --glass-strong: rgb(255 255 255 / 100%);
+    --glass: var(--text);
+    --glass-strong: var(--text);
   }
 
   .dashboard-page > header,

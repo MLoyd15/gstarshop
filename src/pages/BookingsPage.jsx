@@ -14,6 +14,7 @@ async function request(url, options) {
 
 export default function BookingsPage({ title, records, loading, search, setSearch, onCreate, onEdit, onDelete }) {
   const [materials, setMaterials] = useState([]);
+  const [products, setProducts] = useState([]);
   const [dialog, setDialog] = useState(null);
   const [lines, setLines] = useState([]);
   const [busy, setBusy] = useState(false);
@@ -24,9 +25,12 @@ export default function BookingsPage({ title, records, loading, search, setSearc
   const [refresh, setRefresh] = useState(0);
   const [statusFilter, setStatusFilter] = useState('all');
   const [sort, setSort] = useState('latest');
+  const [recipeProductId, setRecipeProductId] = useState('');
+  const [recipeQuantity, setRecipeQuantity] = useState(1);
 
   useEffect(() => {
     request('/api/materials?active=true').then(setMaterials).catch((e) => setError(e.message));
+    request('/api/products').then(setProducts).catch((e) => setError(e.message));
   }, [refresh]);
   const visible = useMemo(() => records
     .filter((record) => Object.values(record).some((value) => String(value ?? '').toLowerCase().includes(search.toLowerCase())))
@@ -38,6 +42,7 @@ export default function BookingsPage({ title, records, loading, search, setSearc
   function openMaterials(booking) {
     setError(''); setDialog({ type: 'plan', booking });
     setLines((booking.materialPlan || []).map((line) => ({ ...line })));
+    setRecipeProductId(''); setRecipeQuantity(1);
   }
   function addLine() {
     const material = materials.find((item) => !lines.some((line) => line.materialId === item.id));
@@ -48,6 +53,23 @@ export default function BookingsPage({ title, records, loading, search, setSearc
     setLines((booking.materialPlan || []).map((line) => ({ ...line, usedQuantity: String(line.plannedQuantity), wasteQuantity: '0' })));
   }
   function updateLine(index, patch) { setLines((previous) => previous.map((line, i) => i === index ? { ...line, ...patch } : line)); }
+  function addProductRecipe() {
+    const product = products.find((item) => item.id === recipeProductId);
+    const multiplier = Number(recipeQuantity);
+    if (!product?.recipe?.length) { setError('Choose a product that has a material recipe.'); return; }
+    if (!Number.isFinite(multiplier) || multiplier <= 0) { setError('Enter a product quantity greater than zero.'); return; }
+    setError('');
+    setLines((previous) => {
+      const next = previous.map((line) => ({ ...line }));
+      for (const recipeLine of product.recipe) {
+        const quantity = Number(recipeLine.qtyPerUnit) * multiplier;
+        const existing = next.find((line) => line.materialId === recipeLine.materialId);
+        if (existing) existing.plannedQuantity = Number(existing.plannedQuantity || 0) + quantity;
+        else next.push({ lineId: crypto.randomUUID(), materialId: recipeLine.materialId, materialName: recipeLine.materialName, unit: recipeLine.unit, plannedQuantity: quantity });
+      }
+      return next;
+    });
+  }
   async function submit(url, body) {
     setBusy(true); setError('');
     try {
@@ -79,7 +101,7 @@ export default function BookingsPage({ title, records, loading, search, setSearc
     </section>
     {dialog && <div className="booking-modal-backdrop" role="presentation"><section className="booking-modal" role="dialog" aria-modal="true" aria-labelledby="booking-modal-title">
       <header><div><span className="eyebrow">{dialog.booking.name || 'Booking'}</span><h2 id="booking-modal-title">{dialog.type === 'plan' ? 'Planned materials' : dialog.type === 'complete' ? 'Complete job' : 'Correct completed job'}</h2></div><button type="button" onClick={() => setDialog(null)} aria-label="Close">×</button></header>
-      {dialog.type === 'plan' && <><p>Planned quantities are saved with the booking and do not change stock.</p>{lines.map((line, index) => <div className="booking-material-line" key={line.lineId}><select value={line.materialId} onChange={(e) => updateLine(index, { materialId: e.target.value })}><option value="">Select material</option>{materials.map((m) => <option key={m.id} value={m.id}>{m.name} ({m.unit})</option>)}</select><input aria-label="Planned quantity" type="number" min="0.001" step="0.001" value={line.plannedQuantity} onChange={(e) => updateLine(index, { plannedQuantity: e.target.value })} placeholder="Planned qty"/><button type="button" onClick={() => setLines((prev) => prev.filter((_, i) => i !== index))}>Remove</button></div>)}<button type="button" className="secondary-button" onClick={addLine}>＋ Add material</button></>}
+      {dialog.type === 'plan' && <><p>Planned quantities are saved with the booking and do not change stock.</p><div className="booking-recipe-picker"><label>Product recipe<select value={recipeProductId} onChange={(e) => setRecipeProductId(e.target.value)}><option value="">Select a product recipe</option>{products.filter((product) => product.recipe?.length).map((product) => <option key={product.id} value={product.id}>{product.name} · {money(product.unitCost)} material cost / {product.unit}</option>)}</select></label><label>Quantity<input aria-label="Product quantity" type="number" min="0.001" step="0.001" value={recipeQuantity} onChange={(e) => setRecipeQuantity(e.target.value)} /></label><button type="button" className="secondary-button" onClick={addProductRecipe}>Add recipe to plan</button>{recipeProductId && products.find((product) => product.id === recipeProductId) && <small>Recipe estimate: {money(Number(products.find((product) => product.id === recipeProductId).unitCost || 0) * Number(recipeQuantity || 0))} for this quantity</small>}</div>{lines.map((line, index) => <div className="booking-material-line" key={line.lineId}><select value={line.materialId} onChange={(e) => updateLine(index, { materialId: e.target.value })}><option value="">Select material</option>{materials.map((m) => <option key={m.id} value={m.id}>{m.name} ({m.unit})</option>)}</select><input aria-label="Planned quantity" type="number" min="0.001" step="0.001" value={line.plannedQuantity} onChange={(e) => updateLine(index, { plannedQuantity: e.target.value })} placeholder="Planned qty"/><button type="button" onClick={() => setLines((prev) => prev.filter((_, i) => i !== index))}>Remove</button></div>)}<button type="button" className="secondary-button" onClick={addLine}>＋ Add material</button></>}
       {dialog.type === 'complete' && <><p>Enter actual quantities. Stock is deducted now using each material’s current average cost.</p>{lines.map((line, index) => <div className="booking-actual-line" key={line.lineId}><strong>{line.materialName} <small>({line.unit})</small></strong><label>Used<input type="number" min="0" step="0.001" value={line.usedQuantity} onChange={(e) => updateLine(index, { usedQuantity: e.target.value })}/></label><label>Waste<input type="number" min="0" step="0.001" value={line.wasteQuantity} onChange={(e) => updateLine(index, { wasteQuantity: e.target.value })}/></label></div>)}<label className="booking-full-field">Completion date<input type="date" value={date} onChange={(e) => setDate(e.target.value)}/></label><div className="booking-cost-preview">Estimated material cost <strong>{money(estimated)}</strong></div></>}
       {dialog.type === 'reverse' && <><p>This restores all quantities deducted by this completion and adds linked reversing movements to stock history.</p><label className="booking-check"><input type="checkbox" checked={confirmReturned} onChange={(e) => setConfirmReturned(e.target.checked)}/>I confirm all recorded material is physically returned and reusable.</label><label className="booking-full-field">Correction reason<textarea value={reason} onChange={(e) => setReason(e.target.value)} maxLength="500"/></label><label className="booking-full-field">Correction date<input type="date" value={date} onChange={(e) => setDate(e.target.value)}/></label></>}
       {error && <p className="booking-form-error">{error}</p>}

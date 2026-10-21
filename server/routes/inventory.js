@@ -3,6 +3,7 @@ import {
   InventoryValidationError, MOVEMENT_TYPES, applyStockMovement, toQuantity, toUnitCost,
   validateBusinessDate, validateMaterial
 } from '../services/inventory.js';
+import { buildReorderSuggestions } from '../services/purchasing.js';
 
 const serialize = (record) => ({ ...record.data, id: record._id.toString(), createdAt: record.createdAt, updatedAt: record.updatedAt });
 
@@ -37,6 +38,17 @@ export function createInventoryRouter(BusinessRecord, mongoose) {
       if (req.query.active !== undefined) query['data.active'] = req.query.active !== 'false';
       const materials = await BusinessRecord.find(query).sort({ updatedAt: -1 }).lean();
       res.json(materials.map(serialize));
+    } catch (error) { fail(res, error); }
+  });
+
+  router.get('/reorder-suggestions', async (_req, res) => {
+    try {
+      const [materials, suppliers, prices] = await Promise.all([
+        BusinessRecord.find({ resource: 'materials', 'data.active': { $ne: false } }).lean(),
+        BusinessRecord.find({ resource: 'suppliers', 'data.status': { $ne: 'inactive' } }).sort({ 'data.name': 1 }).lean(),
+        BusinessRecord.find({ resource: 'supplier-prices' }).sort({ 'data.effectiveDate': -1, createdAt: -1 }).lean()
+      ]);
+      res.json(buildReorderSuggestions(materials, suppliers, prices));
     } catch (error) { fail(res, error); }
   });
 

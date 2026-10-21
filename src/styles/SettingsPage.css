@@ -4,14 +4,14 @@
 .appearance-panel { margin-bottom: 16px; padding: 20px; }
 .appearance-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
 .appearance-heading .settings-symbol { margin-bottom: 11px; background: var(--accent-soft); color: var(--purple); }
-.appearance-heading h2 { margin: 0 0 5px; color: #38384d; font: 700 calc(14px * var(--type-scale)) Manrope; }
-.appearance-heading p, .appearance-control > p { margin: 0; color: #9292a2; font-size: calc(9px * var(--type-scale)); line-height: 1.6; }
-.appearance-reset { flex: 0 0 auto; padding: 7px 10px; border: 1px solid #ededf1; border-radius: 6px; background: white; color: #77778b; font-size: calc(9px * var(--type-scale)); cursor: pointer; }
+.appearance-heading h2 { margin: 0 0 5px; color: var(--text); font: 700 calc(14px * var(--type-scale)) Manrope; }
+.appearance-heading p, .appearance-control > p { margin: 0; color: var(--text); font-size: calc(9px * var(--type-scale)); line-height: 1.6; }
+.appearance-reset { flex: 0 0 auto; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--text); font-size: calc(9px * var(--type-scale)); cursor: pointer; }
 .appearance-reset:hover { border-color: color-mix(in srgb, var(--purple), white 65%); color: var(--purple); }
 .appearance-error { margin: 12px 0 0; color: #a7504c; font-size: calc(9px * var(--type-scale)); }
-.appearance-options { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(230px, .7fr); gap: 26px; margin-top: 20px; padding-top: 17px; border-top: 1px solid #f0f0f3; }
+.appearance-options { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(230px, .7fr); gap: 26px; margin-top: 20px; padding-top: 17px; border-top: 1px solid var(--line); }
 .appearance-control { min-width: 0; margin: 0; padding: 0; border: 0; }
-.appearance-control legend { margin-bottom: 4px; color: #48485d; font-size: calc(10px * var(--type-scale)); font-weight: 700; }
+.appearance-control legend { margin-bottom: 4px; color: var(--text); font-size: calc(10px * var(--type-scale)); font-weight: 700; }
 .accent-options { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 13px; }
 .accent-swatch, .custom-accent { display: inline-flex; min-width: 66px; align-items: center; justify-content: center; gap: 6px; padding: 6px 8px; border: 1px solid #eeeef2; border-radius: 7px; background: #fff; color: #69697c; font-size: calc(8px * var(--type-scale)); cursor: pointer; }
 .accent-swatch:hover, .custom-accent:hover { border-color: color-mix(in srgb, var(--purple), white 60%); }
@@ -21,20 +21,20 @@
 .custom-accent input { width: 15px; height: 15px; padding: 0; border: 0; background: transparent; cursor: pointer; }
 .custom-accent input::-webkit-color-swatch-wrapper { padding: 0; }
 .custom-accent input::-webkit-color-swatch { border: 0; border-radius: 50%; }
-.text-size-slider { display: flex; align-items: center; gap: 9px; margin-top: 14px; color: #77778a; }
+.text-size-slider { display: flex; align-items: center; gap: 9px; margin-top: 14px; color: var(--text); }
 .text-size-slider > span { font-size: calc(11px * var(--type-scale, 1)); }
 .text-size-slider > strong { font-size: calc(17px * var(--type-scale, 1)); }
 .text-size-slider input { min-width: 60px; flex: 1; accent-color: var(--purple); }
 .text-size-slider output { min-width: 36px; color: var(--purple); font-size: calc(9px * var(--type-scale)); font-weight: 700; text-align: right; }
 .settings-card { padding: 19px; }
-.settings-symbol { display: grid; width: 32px; height: 32px; place-items: center; margin-bottom: 14px; border-radius: 9px; background: #ecf8f3; color: #4ea180; }
+.settings-symbol { display: grid; width: 32px; height: 32px; place-items: center; margin-bottom: 14px; border-radius: 9px; background: var(--surface); color: var(--text); }
 .settings-symbol.lavender { background: var(--accent-soft); }
-.settings-card h2 { margin: 0 0 5px; color: #38384d; font: 700 calc(13px * var(--type-scale)) Manrope; }
-.settings-card > p { margin-bottom: 17px; color: #9999a8; font-size: calc(10px * var(--type-scale)); }
-.settings-detail { display: flex; justify-content: space-between; padding: 11px 0; border-top: 1px solid #f0f0f3; color: #9393a1; font-size: calc(9px * var(--type-scale)); }
-.settings-detail strong { color: #5d5d70; font-size: calc(9px * var(--type-scale)); font-weight: 600; }
-.settings-detail strong.connected-text { color: #49a27e; }
-.settings-detail strong.disconnected-text { color: #cb8b3b; }
+.settings-card h2 { margin: 0 0 5px; color: var(--text); font: 700 calc(13px * var(--type-scale)) Manrope; }
+.settings-card > p { margin-bottom: 17px; color: var(--text); font-size: calc(10px * var(--type-scale)); }
+.settings-detail { display: flex; justify-content: space-between; padding: 11px 0; border-top: 1px solid var(--line); color: var(--text); font-size: calc(9px * var(--type-scale)); }
+.settings-detail strong { color: var(--text); font-size: calc(9px * var(--type-scale)); font-weight: 600; }
+.settings-detail strong.connected-text { color: var(--text); }
+.settings-detail strong.disconnected-text { color: var(--text); }
 @media (max-width: 800px) {
   .appearance-options { grid-template-columns: 1fr; gap: 18px; } }
 @media (max-width: 620px) {
