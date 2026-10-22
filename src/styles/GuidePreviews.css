@@ -1,0 +1,169 @@
+.guide-mock-frame {
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  background: var(--surface-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.guide-mock-label {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 11px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+.guide-mock-label > span { color: var(--purple); font-size: 13px; }
+
+.guide-mock-window {
+  container: guide-mock-window / inline-size;
+  overflow: hidden;
+  min-height: 0;
+  padding: 12px;
+  background: var(--bg);
+}
+
+.guide-mock-stage {
+  width: 660px;
+  zoom: .78;
+  color: var(--text);
+  pointer-events: none;
+}
+
+@container guide-mock-window (max-width: 620px) {
+  .guide-mock-stage { zoom: .7; }
+}
+
+@container guide-mock-window (max-width: 500px) {
+  .guide-mock-stage { zoom: .59; }
+}
+
+@container guide-mock-window (max-width: 405px) {
+  .guide-mock-stage { zoom: .43; }
+}
+
+@container guide-mock-window (max-width: 340px) {
+  .guide-mock-stage { zoom: .38; }
+}
+
+.guide-mock-stage :is(button, input, select, textarea) { pointer-events: none !important; }
+.guide-mock-stage .materials-page,
+.guide-mock-stage .payroll-page { max-width: none; margin: 0; padding: 0; }
+.guide-mock-stage .materials-heading,
+.guide-mock-stage .payroll-heading { margin: 0 0 14px; }
+.guide-mock-stage .materials-heading h1,
+.guide-mock-stage .payroll-heading h1 { margin: 4px 0; font-size: 24px; }
+.guide-mock-stage .materials-heading p,
+.guide-mock-stage .payroll-heading p { font-size: 10px; }
+.guide-mock-stage .materials-panel,
+.guide-mock-stage .payroll-panel { box-shadow: none; }
+.guide-mock-stage .materials-toolbar,
+.guide-mock-stage .payroll-toolbar { padding: 12px 14px; }
+.guide-mock-stage .materials-toolbar h2,
+.guide-mock-stage .payroll-toolbar h2 { font-size: 14px; }
+.guide-mock-stage .materials-toolbar p,
+.guide-mock-stage .payroll-toolbar p { font-size: 9px; }
+.guide-mock-stage .materials-table-wrap { overflow: hidden; }
+.guide-mock-stage .materials-table-wrap table { white-space: normal; }
+.guide-mock-stage .materials-table-wrap th,
+.guide-mock-stage .materials-table-wrap td { padding: 9px 10px; font-size: 10px; }
+.guide-mock-stage .materials-table-wrap th { font-size: 8px; }
+.guide-mock-stage .materials-table-wrap td small { font-size: 8px; }
+.guide-mock-stage .materials-dialog,
+.guide-mock-stage .booking-modal,
+.guide-mock-stage .payroll-dialog { width: 100%; max-width: none; max-height: none; overflow: visible; padding: 18px; box-shadow: none; }
+.guide-mock-stage .materials-dialog h2,
+.guide-mock-stage .booking-modal h2,
+.guide-mock-stage .payroll-dialog h2 { font-size: 17px; }
+.guide-mock-stage .materials-dialog-heading { align-items: center; }
+.guide-mock-stage .materials-form-grid { gap: 9px; }
+.guide-mock-stage .materials-form-grid label,
+.guide-mock-stage .booking-modal label { font-size: 10px; }
+.guide-mock-stage .materials-form-grid input,
+.guide-mock-stage .materials-form-grid select,
+.guide-mock-stage .booking-modal input,
+.guide-mock-stage .booking-modal select,
+.guide-mock-stage .booking-modal textarea { min-height: 34px; padding: 7px 9px; font-size: 10px; }
+.guide-mock-stage .product-cost-preview { display: flex; flex-wrap: wrap; gap: 12px; }
+.guide-mock-stage .product-cost-preview span { font-size: 10px; }
+.guide-mock-stage .booking-modal { background: var(--panel, var(--surface)); }
+.guide-mock-stage .booking-modal header { margin-bottom: 8px; }
+.guide-mock-stage .booking-modal > p { margin: 8px 0 12px; font-size: 10px; }
+.guide-mock-stage .booking-recipe-picker { grid-template-columns: minmax(0, 2fr) 100px auto; gap: 8px; padding: 10px; }
+.guide-mock-stage .booking-actual-line { grid-template-columns: minmax(150px, 1fr) minmax(90px, 130px) minmax(90px, 130px); }
+.guide-mock-stage .guide-mock-actual-heading { display: grid; grid-template-columns: minmax(130px, 1.4fr) repeat(3, minmax(85px, 1fr)); gap: 10px; padding: 0 0 5px; border-bottom: 1px solid var(--line); color: var(--text-secondary); font-size: 9px; font-weight: 700; }
+.guide-mock-stage .guide-mock-actual-line { grid-template-columns: minmax(130px, 1.4fr) repeat(3, minmax(85px, 1fr)); }
+.guide-mock-stage .guide-mock-actual-line-secondary { align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); color: var(--text-secondary); font-size: 10px; }
+.guide-mock-stage .guide-mock-planned { color: var(--text-secondary); font-size: 10px; }
+.guide-mock-stage .booking-full-field { margin: 10px 0; }
+.guide-mock-stage .booking-full-field textarea { min-height: 64px; }
+.guide-mock-stage .booking-modal footer { margin-top: 13px; }
+.guide-mock-stage .payroll-heading { align-items: flex-end; }
+.guide-mock-stage .payroll-heading-actions { gap: 8px; }
+.guide-mock-stage .payroll-heading-actions label { font-size: 9px; }
+.guide-mock-stage .payroll-heading-actions input { padding: 7px 9px; font-size: 10px; }
+.guide-mock-stage .payroll-primary { padding: 8px 10px; font-size: 10px; }
+.guide-mock-stage .payroll-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin: 10px 0; }
+.guide-mock-stage .payroll-summary article { padding: 9px; }
+.guide-mock-stage .payroll-summary article span { margin-bottom: 4px; font-size: 8px; }
+.guide-mock-stage .payroll-summary article strong { font-size: 13px; }
+.guide-mock-stage .payroll-table-wrap { overflow: hidden; }
+.guide-mock-stage .payroll-page table { width: 100%; min-width: 0; }
+.guide-mock-stage .payroll-page th,
+.guide-mock-stage .payroll-page td { padding: 8px 7px; font-size: 9px; }
+.guide-mock-stage .payroll-row-actions { flex-wrap: wrap; }
+.guide-mock-stage .payroll-row-actions button { padding: 5px 7px; font-size: 8px; }
+.guide-mock-stage .guide-mock-payrun-next { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); font-size: 10px; }
+.guide-mock-stage .guide-mock-payrun-next > span:first-child { color: var(--text-secondary); }
+.guide-mock-stage .guide-mock-payrun-next button { padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); font-size: 9px; }
+
+.guide-callout-anchor { position: relative; display: inline-block; vertical-align: middle; }
+.guide-callout-badge {
+  position: absolute;
+  z-index: 2;
+  top: -9px;
+  right: -9px;
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  background: var(--purple);
+  color: var(--on-accent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--purple), transparent 48%);
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.guide-mock-stage .materials-status.out-of-stock { background: var(--danger-soft); color: var(--danger); }
+.guide-mock-stage .materials-status.low { background: var(--warning-soft); color: var(--warning); }
+.guide-mock-material-cost-note { padding: 10px 2px 0; color: var(--text-secondary); font-size: 10px; }
+.guide-mock-receive-lines { margin-top: 12px; box-shadow: none; }
+.guide-mock-stage .guide-mock-receive-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0; padding: 12px; border-bottom: 1px solid var(--line); color: var(--text); font-size: 10px; }
+.guide-mock-stage .guide-mock-receive-line > span { display: grid; gap: 4px; }
+.guide-mock-stage .guide-mock-receive-line small { color: var(--text-secondary); font-size: 9px; }
+.guide-mock-stage .guide-mock-receive-line input { width: 100px; }
+.guide-mock-stage .guide-mock-field { display: grid; gap: 6px; color: var(--text-secondary); font-size: 10px; }
+.guide-mock-stage .guide-mock-line-total { align-self: center; color: var(--text-secondary); font-size: 10px; }
+.guide-mock-material-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 12px; }
+.guide-mock-material-cards .material-card { min-width: 0; padding: 12px; }
+.guide-mock-material-cards .material-card-heading { gap: 7px; }
+.guide-mock-material-cards .material-card-name { min-width: 0; }
+.guide-mock-material-cards .material-card-name strong { font-size: 11px; }
+.guide-mock-material-cards .material-card-name span { font-size: 8px; }
+.guide-mock-material-cards .material-stock-highlight { margin: 10px 0 8px; padding: 8px; }
+.guide-mock-material-cards .material-card-extras { gap: 7px; }
+.guide-mock-material-cards .material-card-extras strong { font-size: 9px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .guide-callout-badge { box-shadow: none; }
+}

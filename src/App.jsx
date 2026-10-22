@@ -15,6 +15,7 @@ import SuppliersPage from './pages/SuppliersPage.jsx';
 import PurchasesPage from './pages/PurchasesPage.jsx';
 import SupplierPricesPage from './pages/SupplierPricesPage.jsx';
 import ProductsPage from './pages/ProductsPage.jsx';
+import GuidePage from './pages/GuidePage.jsx';
 import logo from './assets/logo.png';
 import { Icon } from './shared.jsx';
 
@@ -29,7 +30,8 @@ const sections = [
     { id: 'purchases', label: 'Purchases', icon: '🛒' },
     { id: 'bookings', label: 'Bookings', icon: '▣' },
     { id: 'supplier-reports', label: 'Reports', icon: '▥' },
-    { id: 'clients', label: 'Clients', icon: '◎' }
+    { id: 'clients', label: 'Clients', icon: '◎' },
+    { id: 'guide', label: 'Learn the flow', icon: '?' }
   ] },
   { heading: 'Payroll system', items: [
     { id: 'employees', label: 'Employees', icon: '♙' },
@@ -69,7 +71,7 @@ const titles = {
   'excel-sheet': 'Excel sheet', 'supplier-reports': 'G4 Sticker reports',
   scheduler: 'Scheduler', bookings: 'Bookings', clients: 'Clients', income: 'Income', expenses: 'Expenses', profit: 'Profit',
   shareholders: 'Shareholders', employees: 'Employees', 'payroll-runs': 'Pay runs', 'money-tracker': 'Money tracker',
-  notepad: 'Notepad', settings: 'Settings'
+  notepad: 'Notepad', settings: 'Settings', guide: 'Learn the flow'
 };
 
 const defaultAppearance = { accent: '#6967d9', textScale: 1.15, nightMode: true };
@@ -448,11 +450,11 @@ function App() {
           </button>
         </nav>
         <div className="sidebar-bottom">
-          <div className="help-card">
-            <div className="help-icon">✳</div>
-            <div><strong>Need a hand?</strong><span>We’re here to help.</span></div>
-            <span aria-hidden="true">↗</span>
-          </div>
+          <button type="button" className="help-card" aria-label="Open Learn the flow guide" onClick={() => navigate('guide')}>
+            <span className="help-icon" aria-hidden="true">✳</span>
+            <span className="help-card-copy"><strong>Need a hand?</strong><span>Learn how the workflow fits together.</span></span>
+            <span className="help-card-arrow" aria-hidden="true">↗</span>
+          </button>
           <div className="profile-button">
             <div className="profile-avatar">JD</div>
             <div className="profile-copy"><strong>Jamie Davis</strong><span>Workspace admin</span></div>
@@ -467,8 +469,10 @@ function App() {
           <div className="breadcrumbs"><span>Workspace</span><span className="crumb-slash">/</span><strong>{activeLabel}</strong></div>
           <div className="topbar-actions">
             <span className={`connection-status ${health}`}><span className="status-dot" />{health === 'connected' ? 'All systems live' : health === 'checking' ? 'Connecting…' : 'Offline'}</span>
-            <button className="icon-button search-shortcut" aria-label="Search" onClick={() => document.querySelector('.global-search')?.focus()}>⌕</button>
-            <label className="global-search"><span>⌕</span><input placeholder="Search anything..." aria-label="Search records" value={search} onChange={(event) => setSearch(event.target.value)} /><kbd>⌘ K</kbd></label>
+            {active !== 'guide' && <>
+              <button className="icon-button search-shortcut" aria-label="Search" onClick={() => document.querySelector('.global-search')?.focus()}>⌕</button>
+              <label className="global-search"><span>⌕</span><input placeholder="Search anything..." aria-label="Search records" value={search} onChange={(event) => setSearch(event.target.value)} /><kbd>⌘ K</kbd></label>
+            </>}
             <div className="notification-wrap">
               <button className={`icon-button notification-button ${notificationsOpen ? 'is-open' : ''}`}
                 aria-label={`Notifications${notifications.count ? `, ${notifications.count} ongoing bookings` : ''}`}
@@ -497,6 +501,8 @@ function App() {
           {notice && <div className="success-banner">✓ &nbsp;{notice}</div>}
           {active === 'home' ? (
             <DashboardPage onNavigate={navigate} data={dashboard} />
+          ) : active === 'guide' ? (
+            <GuidePage onNavigate={navigate} />
           ) : active === 'clients' ? (
             <ClientsPage clients={filteredRecords} loading={loading} search={search} setSearch={setSearch}
               onCreate={openCreate} onEdit={openEdit} onDelete={deleteRecord} />

@@ -1,0 +1,30 @@
+import '../../../styles/MaterialsPage.css';
+import MockFrame from '../MockFrame.jsx';
+import Callout from '../Callout.jsx';
+import { purchaseOrder, php } from '../mockData.js';
+
+function PurchaseReceivePreview() {
+  return (
+    <MockFrame variant="guide-mock-purchase">
+      <section className="materials-page">
+        <div className="materials-dialog">
+          <div className="materials-dialog-heading"><div><h2>Receive {purchaseOrder.number}</h2><p>Stock changes only after this receipt is submitted.</p></div><button type="button" aria-label="Close">×</button></div>
+          <label className="guide-mock-field">Received date<input type="date" value={purchaseOrder.orderDate} readOnly /></label>
+          <div className="materials-panel guide-mock-receive-lines">
+            <div className="materials-toolbar"><div><h2>Items to receive</h2><p>Ordered by {purchaseOrder.supplierName}</p></div></div>
+            {purchaseOrder.lines.map((line, index) => {
+              const row = <label className="guide-mock-receive-line" key={line.materialId}>
+                <span><strong>{line.materialName}</strong><small>Remaining {line.qty} {index === 0 ? 'm' : 'm'} · {php(line.unitCost)} per unit</small></span>
+                <input type="number" value={line.qty} readOnly aria-label={`Quantity received for ${line.materialName}`} />
+              </label>;
+              return index === 0 ? <Callout key={line.materialId} n={1}>{row}</Callout> : row;
+            })}
+          </div>
+          <div className="materials-dialog-actions"><button type="button" className="secondary-button">Cancel</button><Callout n={2}><button type="button" className="primary-button">Submit receipt</button></Callout></div>
+        </div>
+      </section>
+    </MockFrame>
+  );
+}
+
+export default PurchaseReceivePreview;

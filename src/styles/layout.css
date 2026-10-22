@@ -30,12 +30,15 @@
 .nav-badge { margin-left: auto; padding: 2px 5px; border-radius: 4px; background: var(--accent-soft); color: var(--purple); font-size: calc(7px * var(--type-scale)); font-weight: 700; letter-spacing: .4px; }
 .nav-divider { height: 1px; margin: 1px 8px 11px; background: var(--surface); }
 .sidebar-bottom { flex: 0 0 auto; }
-.help-card { display: flex; align-items: center; gap: 9px; padding: 11px 8px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); }
-.help-icon { display: grid; width: 27px; height: 27px; place-items: center; border-radius: 8px; background: var(--accent-soft); color: var(--purple); font-size: calc(16px * var(--type-scale)); }
-.help-card > div:nth-child(2) { display: flex; flex-direction: column; gap: 3px; }
-.help-card strong { color: var(--text); font-size: calc(10px * var(--type-scale)); }
-.help-card span { color: var(--text); font-size: calc(9px * var(--type-scale)); }
-.help-card button { margin-left: auto; border: 0; background: none; color: var(--text); font-size: calc(15px * var(--type-scale)); cursor: pointer; }
+.help-card { display: flex; width: 100%; align-items: center; gap: 10px; padding: 12px 10px; border: 1px solid var(--line); border-radius: 12px; color: var(--text); text-align: left; cursor: pointer; transition: border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast); }
+.help-card:hover { transform: translateY(-1px); }
+.help-card:focus-visible { outline: 2px solid var(--purple); outline-offset: 3px; }
+.help-icon { display: grid; width: 32px; height: 32px; flex: 0 0 32px; place-items: center; border-radius: 10px; background: var(--accent-soft); color: var(--purple); font-size: calc(17px * var(--type-scale)); }
+.help-card-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 3px; }
+.help-card strong { color: var(--text); font-size: calc(11px * var(--type-scale)); line-height: 1.25; }
+.help-card-copy > span { color: var(--text-secondary); font-size: calc(9px * var(--type-scale)); line-height: 1.35; }
+.help-card-arrow { flex: 0 0 auto; color: var(--text-secondary); font-size: calc(15px * var(--type-scale)); transition: color var(--transition-fast), transform var(--transition-fast); }
+.help-card:hover .help-card-arrow { color: var(--purple); transform: translate(2px, -2px); }
 .profile-button { width: 100%; display: flex; align-items: center; margin-top: 11px; padding: 9px 4px 2px; border: 0; border-top: 1px solid var(--line); background: none; text-align: left; cursor: pointer; }
 .profile-avatar, .top-avatar { display: grid; width: 31px; height: 31px; place-items: center; border-radius: 50%; background: var(--surface); color: var(--text); font-size: calc(10px * var(--type-scale)); font-weight: 700; }
 .profile-menu { margin-left: auto; color: var(--text); letter-spacing: 1px; }
