@@ -10,6 +10,7 @@
     "build": "vite build",
     "test": "node --test",
     "migrate:product-stock": "node server/scripts/migrate-product-stock.js",
+    "seed:sample-data": "node server/scripts/seed-sample-data.js",
     "start": "node server/index.js"
   },
   "dependencies": {

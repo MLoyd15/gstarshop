@@ -32,6 +32,37 @@ export function createInventoryRouter(BusinessRecord, mongoose) {
   const router = express.Router();
   const fail = (res, error) => res.status(error.status || 500).json({ error: error.message || 'Inventory action failed.' });
 
+  router.get('/categories', async (_req, res) => {
+    try {
+      const [categoryRecords, materials] = await Promise.all([
+        BusinessRecord.find({ resource: 'material-categories' }).sort({ 'data.name': 1 }).lean(),
+        BusinessRecord.find({ resource: 'materials' }, { 'data.category': 1 }).lean()
+      ]);
+      const names = new Map();
+      for (const record of [...categoryRecords, ...materials]) {
+        const name = String(record.data.name ?? record.data.category ?? '').trim();
+        if (name && !names.has(name.toLocaleLowerCase())) names.set(name.toLocaleLowerCase(), { id: record._id?.toString() || null, name });
+      }
+      res.json([...names.values()].sort((a, b) => a.name.localeCompare(b.name)));
+    } catch (error) { fail(res, error); }
+  });
+
+  router.post('/categories', async (req, res) => {
+    try {
+      const name = String(req.body?.name ?? '').trim();
+      if (!name) throw new InventoryValidationError('Enter a category name.');
+      if (name.length > 80) throw new InventoryValidationError('Category name must be 80 characters or fewer.');
+      const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const duplicate = await BusinessRecord.findOne({ $or: [
+        { resource: 'material-categories', 'data.name': { $regex: `^${escaped}$`, $options: 'i' } },
+        { resource: 'materials', 'data.category': { $regex: `^${escaped}$`, $options: 'i' } }
+      ] }).lean();
+      if (duplicate) throw new InventoryValidationError('That material category already exists.', 409);
+      const [record] = await BusinessRecord.create([{ resource: 'material-categories', data: { name } }]);
+      res.status(201).json(serialize(record));
+    } catch (error) { fail(res, error); }
+  });
+
   router.get('/', async (req, res) => {
     try {
       const query = { resource: 'materials' };

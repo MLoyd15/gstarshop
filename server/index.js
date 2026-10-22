@@ -15,7 +15,7 @@ const resources = [
   'suppliers', 'products', 'inventory', 'prices', 'purchases', 'purchase-orders', 'purchase-order-counters', 'supplier-prices', 'excel-sheet',
   'scheduler', 'bookings', 'clients', 'income', 'expenses', 'profit', 'shareholders',
   'employees', 'payroll-runs', 'payroll-timesheets', 'materials', 'stock-movements',
-  'money-tracker', 'notepad'
+  'money-tracker', 'notepad', 'material-categories'
 ];
 
 const businessRecordSchema = new mongoose.Schema({

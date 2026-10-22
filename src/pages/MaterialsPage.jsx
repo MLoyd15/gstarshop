@@ -11,6 +11,7 @@ const idempotencyKey = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}
 
 export default function MaterialsPage() {
   const [materials, setMaterials] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [purchases, setPurchases] = useState([]);
@@ -24,6 +25,7 @@ export default function MaterialsPage() {
   const [filter, setFilter] = useState('all');
   const [sort, setSort] = useState('name');
   const [dialog, setDialog] = useState(null);
+  const [categoryDialog, setCategoryDialog] = useState(false);
 
   async function request(path, method = 'GET', body) {
     const response = await fetch(`/api/materials${path}`, {
@@ -40,8 +42,9 @@ export default function MaterialsPage() {
     setLoading(true);
     setError('');
     try {
-      const [materialRows, supplierRows, purchaseRows, reportRows, reorderRows] = await Promise.all([
+      const [materialRows, categoryRows, supplierRows, purchaseRows, reportRows, reorderRows] = await Promise.all([
         request(''),
+        request('/categories'),
         fetch('/api/suppliers').then(async (response) => {
           const data = await response.json();
           if (!response.ok) throw new Error(data.error || 'Could not load suppliers.');
@@ -52,6 +55,7 @@ export default function MaterialsPage() {
         request('/reorder-suggestions')
       ]);
       setMaterials(materialRows);
+      setCategories(categoryRows);
       setSuppliers(supplierRows);
       setPurchases(purchaseRows);
       setReports(reportRows);
@@ -162,6 +166,21 @@ export default function MaterialsPage() {
     act(() => request(dialog.type === 'edit' ? `/${dialog.material.id}` : '', dialog.type === 'edit' ? 'PATCH' : 'POST', body), dialog.type === 'edit' ? 'Material details saved.' : 'Material added.');
   }
 
+  async function saveCategory(event) {
+    event.preventDefault();
+    const form = Object.fromEntries(new FormData(event.currentTarget));
+    setBusy(true);
+    setError('');
+    try {
+      await request('/categories', 'POST', { name: form.name });
+      await load();
+      setCategoryDialog(false);
+      setNotice('Material category added.');
+      window.setTimeout(() => setNotice(''), 5000);
+    } catch (e) { setError(e.message); }
+    finally { setBusy(false); }
+  }
+
   function saveMovement(event) {
     event.preventDefault();
     const form = Object.fromEntries(new FormData(event.currentTarget));
@@ -188,18 +207,19 @@ export default function MaterialsPage() {
   }
 
   return <section className="materials-page">
-    <header className="materials-heading"><div><div className="materials-eyebrow">RAW MATERIALS</div><h1>Materials</h1><p>Track stock levels, suppliers, and the supplies used on customer orders.</p></div><button className="materials-primary" onClick={() => setDialog({ type: 'create' })}>＋ Add material</button></header>
+    <header className="materials-heading"><div><div className="materials-eyebrow">RAW MATERIALS</div><h1>Materials</h1><p>Track stock levels, suppliers, and the supplies used on customer orders.</p></div><div className="materials-header-actions"><button className="materials-secondary" onClick={() => setCategoryDialog(true)}>＋ Add category</button><button className="materials-primary" onClick={() => setDialog({ type: 'create' })}>＋ Add material</button></div></header>
     {error && <div className="materials-alert" role="alert">{error}<button onClick={() => setError('')}>Dismiss</button></div>}
     {notice && <div className="materials-success" role="status">✓ {notice}</div>}
     <div className="materials-summary"><article><span>Materials</span><strong>{materials.length}</strong></article><article><span>Low or out of stock</span><strong>{lowCount}</strong></article><article><span>Estimated inventory value</span><strong>{money(inventoryValue)}</strong></article></div>
     <div className="materials-panel"><div className="materials-toolbar"><div><h2>Counts and reports</h2><p>Physical counts post adjustment movements; reports are derived from the stock ledger.</p></div><div className="materials-filters"><a className="materials-primary" href="/api/materials/export.csv">Export CSV</a><label className="materials-primary">Preview CSV import<input aria-label="Preview CSV import" type="file" accept=".csv,text/csv" onChange={(event) => previewCsv(event.target.files?.[0])} hidden /></label></div></div><div className="materials-report-grid"><section><h3>Waste history</h3>{reports?.waste?.length ? reports.waste.map((movement) => <p key={movement.id}>{movement.date} · {movement.materialName} · {quantity(Math.abs(movement.change))} · {movement.note}</p>) : <p>No waste movements recorded.</p>}</section><section><h3>Valuation</h3>{materials.map((material) => <p key={material.id}>{material.name} · {money(Number(material.quantity || 0) * Number(material.avgCost || 0))}</p>)}</section></div>{importPreview && <div className="csv-preview"><h3>CSV import preview</h3><p>{importPreview.valid} valid · {importPreview.invalid} invalid. Imports update material details only; stock changes require a submitted receipt or adjustment.</p><div className="csv-preview-rows">{importPreview.rows.map((row) => <p key={row.row} className={row.valid ? '' : 'invalid'}>Row {row.row}: {row.valid ? `${row.name} — valid` : row.error}</p>)}</div><button disabled={busy || importPreview.invalid > 0 || !importPreview.valid} className="materials-primary" onClick={applyImport}>Apply import</button> <button disabled={busy} onClick={() => setImportPreview(null)}>Cancel</button></div>}</div>
-    <div className="materials-panel reorder-panel"><div className="materials-toolbar"><div><h2>Reorder suggestions</h2><p>Below-level materials grouped by preferred supplier. Suggested quantities return stock to a practical target level.</p></div></div>{!reorderGroups.length ? <div className="materials-empty">No materials need reordering.</div> : reorderGroups.map((group) => <section className="reorder-group" key={group.supplierId || 'none'}><h3>{group.name} <span>{group.rows.length}</span></h3><div>{group.rows.map((material) => <article key={material.id}><div><strong>{material.name}</strong><small>{quantity(material.quantity)} {material.unit} on hand · reorder level {quantity(material.reorderLevel)} · suggest {quantity(material.suggestedQty)} {material.unit} · unit cost {money(material.latestUnitCost)}</small></div></article>)}</div><button className="materials-primary" disabled={busy || !group.supplierId} title={!group.supplierId ? 'Assign a supplier before creating a PO' : ''} onClick={() => createReorderOrder(group)}>Create PO</button></section>)}</div>
     <div className="materials-panel">
       <div className="materials-toolbar"><div><h2>Stock on hand</h2><p>{visible.length} {visible.length === 1 ? 'material' : 'materials'} · Balances change only through recorded stock movements.</p></div><div className="materials-filters"><label><span className="sr-only">Search materials</span><input aria-label="Search materials" placeholder="Search materials…" value={search} onChange={(event) => setSearch(event.target.value)} /></label><select aria-label="Filter materials" value={filter} onChange={(event) => setFilter(event.target.value)}><option value="all">All materials</option><option value="active">Active</option><option value="low">Low stock</option><option value="inactive">Inactive</option></select><select aria-label="Sort materials" value={sort} onChange={(event) => setSort(event.target.value)}><option value="name">Name A–Z</option><option value="quantity">Lowest stock</option></select></div></div>
       {loading ? <div className="materials-empty">Loading materials…</div> : !visible.length ? <div className="materials-empty"><strong>{materials.length ? 'No matching materials' : 'No materials yet'}</strong><p>{materials.length ? 'Change the search or stock filter.' : 'Add a raw material to start tracking stock.'}</p>{!materials.length && <button className="materials-primary" onClick={() => setDialog({ type: 'create' })}>＋ Add material</button>}</div> : <div className="material-cards">{visible.map((material) => {
-        const low = material.active !== false && Number(material.quantity) <= Number(material.reorderLevel);
+        const quantityOnHand = Number(material.quantity || 0);
+        const outOfStock = material.active !== false && quantityOnHand <= 0;
+        const low = material.active !== false && quantityOnHand <= Number(material.reorderLevel);
         return <article className="material-card" key={material.id}>
-          <header className="material-card-heading"><span className="material-avatar">{String(material.name || 'M').trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() || '').join('')}</span><div className="material-card-name"><strong>{material.name}</strong><span>{material.category || 'Uncategorized'}{material.rollWidth > 0 ? ` · ${material.rollWidth} ${material.rollWidthUnit} wide` : ''}</span></div><span className={`materials-status ${material.active === false ? 'inactive' : low ? 'low' : 'active'}`}>{material.active === false ? 'Inactive' : low ? 'Low stock' : 'In stock'}</span></header>
+          <header className="material-card-heading"><span className="material-avatar">{String(material.name || 'M').trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() || '').join('')}</span><div className="material-card-name"><strong>{material.name}</strong><span>{material.category || 'Uncategorized'}{material.rollWidth > 0 ? ` · ${material.rollWidth} ${material.rollWidthUnit} wide` : ''}</span></div><span className={`materials-status ${material.active === false ? 'inactive' : outOfStock ? 'out-of-stock' : low ? 'low' : 'active'}`}>{material.active === false ? 'Inactive' : outOfStock ? 'Out of stock' : low ? 'Low stock' : 'In stock'}</span></header>
           <div className="material-stock-highlight"><span>On hand</span><strong>{quantity(material.quantity)} <small>{material.unit}</small></strong><span className="material-reorder-copy">Reorder at {quantity(material.reorderLevel)} {material.unit}</span></div>
           <div className="material-card-extras"><div><span>Supplier</span><strong>{material.supplierNameSnapshot || 'No supplier'}</strong></div><div><span>Average cost</span><strong>{money(material.avgCost)} / {material.unit}</strong></div><div><span>Stock value</span><strong>{money(Number(material.quantity || 0) * Number(material.avgCost || 0))}</strong></div></div>
           <footer className="material-card-actions"><button className="material-receive-action" onClick={() => setDialog({ type: 'movement', material, movementType: 'purchase_in', movementLabel: 'Receive stock' })}>Receive</button><button onClick={() => setDialog({ type: 'movement', material, movementType: 'job_use', movementLabel: 'Record use' })}>Use</button><button onClick={() => setDialog({ type: 'movement', material, movementType: 'waste', movementLabel: 'Record waste' })}>Waste</button><button onClick={() => setDialog({ type: 'movement', material, movementType: 'adjustment', movementLabel: 'Adjust count' })}>Adjust</button><button onClick={() => setDialog({ type: 'movement', material, movementType: 'return_in', movementLabel: 'Return to stock' })}>Return</button><button onClick={() => openHistory(material)}>History</button><button onClick={() => setDialog({ type: 'edit', material })}>Edit</button><button onClick={() => window.confirm(`${material.active === false ? 'Activate' : 'Deactivate'} ${material.name}?`) && act(() => request(`/${material.id}`, 'PATCH', { active: material.active === false }), material.active === false ? 'Material activated.' : 'Material deactivated.')}>{material.active === false ? 'Activate' : 'Deactivate'}</button></footer>
@@ -207,11 +227,13 @@ export default function MaterialsPage() {
       })}</div>}
     </div>
 
+    <div className="materials-panel reorder-panel"><div className="materials-toolbar"><div><h2>Reorder suggestions</h2><p>Below-level materials grouped by preferred supplier. Suggested quantities return stock to a practical target level.</p></div></div>{!reorderGroups.length ? <div className="materials-empty">No materials need reordering.</div> : reorderGroups.map((group) => <section className="reorder-group" key={group.supplierId || 'none'}><h3>{group.name} <span>{group.rows.length}</span></h3><div>{group.rows.map((material) => <article key={material.id}><div><strong>{material.name}</strong><small>{quantity(material.quantity)} {material.unit} on hand · reorder level {quantity(material.reorderLevel)} · suggest {quantity(material.suggestedQty)} {material.unit} · unit cost {money(material.latestUnitCost)}</small></div></article>)}</div><button className="materials-primary" disabled={busy || !group.supplierId} title={!group.supplierId ? 'Assign a supplier before creating a PO' : ''} onClick={() => createReorderOrder(group)}>Create PO</button></section>)}</div>
+
     {dialog && <div className="materials-overlay" onMouseDown={(event) => event.target === event.currentTarget && !busy && setDialog(null)}><section className={`materials-dialog ${dialog.type === 'history' ? 'history' : ''}`} role="dialog" aria-modal="true">
       {(dialog.type === 'create' || dialog.type === 'edit') && <form onSubmit={saveMaterial}>
         <h2>{dialog.type === 'edit' ? 'Edit material details' : 'Add material'}</h2><p>Quantity and average cost are maintained by the stock ledger.</p>
         <label>Name<input name="name" required maxLength="120" defaultValue={dialog.material?.name || ''} /></label>
-        <label>Category<input name="category" maxLength="80" placeholder="Vinyl, laminate, ink…" defaultValue={dialog.material?.category || ''} /></label>
+        <label>Category<select name="category" required defaultValue={dialog.material?.category || ''}><option value="">Choose category</option>{categories.map((category) => <option value={category.name} key={category.name}>{category.name}</option>)}</select></label>
         <div className="materials-form-row"><label>Base unit<input name="unit" required maxLength="24" placeholder="m, pc, bottle…" defaultValue={dialog.material?.unit || ''} /></label><label>Reorder level<input name="reorderLevel" type="number" min="0" max="99999999" step="0.001" defaultValue={dialog.material?.reorderLevel ?? 0} /></label></div>
         <div className="materials-form-row"><label>Roll width (optional)<input name="rollWidth" type="number" min="0" step="0.001" defaultValue={dialog.material?.rollWidth || ''} /></label><label>Width unit<select name="rollWidthUnit" defaultValue={dialog.material?.rollWidthUnit || 'ft'}><option value="ft">feet</option><option value="m">meters</option><option value="in">inches</option><option value="cm">centimeters</option><option value="mm">millimeters</option></select></label></div>
         <label>Supplier<select name="supplierId" defaultValue={dialog.material?.supplierId || ''}><option value="">No supplier selected</option>{suppliers.map((supplier) => <option value={supplier.id} key={supplier.id}>{supplier.name}</option>)}</select></label>
@@ -235,5 +257,6 @@ export default function MaterialsPage() {
 
         {dialog.type === 'history' && <><h2>Stock movement history</h2><p><strong>{dialog.material.name}</strong> · Current balance: {quantity(dialog.material.quantity)} {dialog.material.unit}</p>{dialog.historyError ? <div className="materials-alert" role="alert">{dialog.historyError}</div> : dialog.movements === null ? <div className="materials-empty">Loading movement history…</div> : !dialog.movements.length ? <div className="materials-empty">No movements recorded.</div> : <div className="materials-history-list">{dialog.movements.map((movement) => <article key={movement.id}><div><strong>{movement.type.replace('_', ' ')}</strong><time>{movement.date}</time></div><div><span className={movement.change < 0 ? 'negative' : 'positive'}>{movement.change > 0 ? '+' : ''}{quantity(movement.change)} {dialog.material.unit}</span><span>Balance: {quantity(movement.balanceAfter)} {dialog.material.unit}</span></div><p>{movement.note || '—'}</p><small>{money(movement.totalCost)} at {money(movement.unitCost)} / {dialog.material.unit}</small>{movement.type === 'purchase_in' && <button onClick={() => setDialog({ type: 'movement', material: dialog.material, movementType: 'reversal', movementLabel: 'Reverse receipt', originalMovement: movement })}>Reverse receipt</button>}</article>)}</div>}<footer><button type="button" onClick={() => setDialog(null)}>Close</button></footer></>}
     </section></div>}
+    {categoryDialog && <div className="materials-overlay" onMouseDown={(event) => event.target === event.currentTarget && !busy && setCategoryDialog(false)}><form className="materials-dialog category-dialog" role="dialog" aria-modal="true" onSubmit={saveCategory}><h2>Add material category</h2><p>Create a category to use when adding or editing materials.</p><label>Category name<input name="name" required maxLength="80" autoFocus placeholder="Vinyl, laminate, ink…" /></label><footer><button type="button" disabled={busy} onClick={() => setCategoryDialog(false)}>Cancel</button><button className="materials-primary" disabled={busy}>{busy ? 'Saving…' : 'Add category'}</button></footer></form></div>}
   </section>;
 }

@@ -152,6 +152,18 @@ export function createPurchasesRouter(BusinessRecord, mongoose) {
     try { res.json(serialize(await getOrder(req.params.id))); }
     catch (error) { fail(res, error); }
   });
+  router.delete('/purchases/:id', async (req, res) => {
+    try {
+      const order = await getOrder(req.params.id);
+      const hasReceivedQuantity = order.data.lines?.some((line) => Number(line.receivedQty || 0) > 0);
+      const hasReceipts = order.data.receipts?.length > 0;
+      if (order.data.status !== 'draft' || hasReceivedQuantity || hasReceipts) {
+        throw new InventoryValidationError('Only a draft purchase order with no receipts can be deleted. Cancel ordered purchase orders to keep their history.', 409);
+      }
+      await order.deleteOne();
+      res.status(204).end();
+    } catch (error) { fail(res, error); }
+  });
   router.patch('/purchases/:id', async (req, res) => {
     try {
       const order = await getOrder(req.params.id);
