@@ -107,7 +107,7 @@ function GuidePage({ onNavigate }) {
         <div className="guide-detail-columns">
           <section>
             <h3>What happens in the system</h3>
-            <ul>{selected.whatHappens.map((item) => <li key={item}>{item}</li>)}</ul>
+            <ol>{selected.whatHappens.map((item) => <li key={item}>{item}</li>)}</ol>
           </section>
           <section className="guide-mistakes">
             <h3>Common mistakes</h3>

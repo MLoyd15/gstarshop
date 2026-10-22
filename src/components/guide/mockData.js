@@ -23,8 +23,8 @@ export const products = [
 export const purchaseOrder = {
   number: 'PO-000042', supplierName: 'Sample Supply Co', status: 'ordered', orderDate: '2026-10-20',
   lines: [
-    { materialId: materials[0].id, materialName: materials[0].name, qty: '20', receivedQty: '0', unitCost: 180 },
-    { materialId: materials[1].id, materialName: materials[1].name, qty: '12', receivedQty: '0', unitCost: 95 }
+    { materialId: materials[0].id, materialName: materials[0].name, unit: materials[0].unit, qty: '20', receivedQty: '0', unitCost: 180 },
+    { materialId: materials[1].id, materialName: materials[1].name, unit: materials[1].unit, qty: '12', receivedQty: '0', unitCost: 95 }
   ], subtotal: 4740
 };
 

@@ -1,6 +1,6 @@
 
 .records-page { min-height: calc(100vh - 125px); }
-.settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }
+.settings-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 15px; }
 .appearance-panel { margin-bottom: 16px; padding: 20px; }
 .appearance-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
 .appearance-heading .settings-symbol { margin-bottom: 11px; background: var(--accent-soft); color: var(--purple); }
@@ -35,6 +35,12 @@
 .settings-detail strong { color: var(--text); font-size: calc(9px * var(--type-scale)); font-weight: 600; }
 .settings-detail strong.connected-text { color: var(--text); }
 .settings-detail strong.disconnected-text { color: var(--text); }
+.guide-settings-card { display: flex; flex-direction: column; align-items: flex-start; }
+.guide-settings-progress { margin: 0 0 17px; color: var(--text-secondary); font-size: calc(10px * var(--type-scale)); }
+.guide-settings-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
+.guide-settings-actions button { min-height: 34px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: var(--text); font: inherit; font-size: calc(9px * var(--type-scale)); font-weight: 700; cursor: pointer; }
+.guide-settings-actions button:first-child { border-color: var(--purple); background: var(--purple); color: var(--on-accent); }
+.guide-settings-actions button:hover { border-color: var(--purple); }
 @media (max-width: 800px) {
   .appearance-options { grid-template-columns: 1fr; gap: 18px; } }
 @media (max-width: 620px) {

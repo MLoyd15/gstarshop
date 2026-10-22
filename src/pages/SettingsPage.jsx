@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { flowSteps } from '../data/flowSteps.js';
 import '../styles/SettingsPage.css';
 const defaultAppearance={accent:'#6967d9',textScale:1.15,nightMode:true};
 const accentPresets=[{label:'Violet',value:'#6967d9'},{label:'Ocean',value:'#2878c7'},{label:'Forest',value:'#26836b'},{label:'Coral',value:'#d46a70'},{label:'Amber',value:'#bd7d28'}];
@@ -5,7 +7,30 @@ const accentPresets=[{label:'Violet',value:'#6967d9'},{label:'Ocean',value:'#287
 
 
 
-export default function SettingsPage({ health, appearance, onAppearanceChange, appearanceError }) {
+const guideProgressKey = 'g4-sticker-guide-progress';
+
+function readGuideProgress() {
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(guideProgressKey) || '[]');
+    return Array.isArray(saved) ? saved.filter((id) => flowSteps.some((step) => step.id === id)).length : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export default function SettingsPage({ health, appearance, onAppearanceChange, appearanceError, onNavigate }) {
+  const [guideProgress, setGuideProgress] = useState(readGuideProgress);
+
+  function resetGuideProgress() {
+    if (!window.confirm('Reset your Learn the flow progress?')) return;
+    try {
+      window.localStorage.setItem(guideProgressKey, '[]');
+    } catch (error) {
+      console.error('Could not reset guide progress:', error);
+    }
+    setGuideProgress(0);
+  }
+
   return <div className="records-page settings-page"><div className="welcome-row records-welcome"><div><div className="eyebrow"><span className="eyebrow-line" />PREFERENCES</div><h1>Settings</h1><p>Manage your workspace and account preferences.</p></div></div>
     <section className="panel appearance-panel">
       <div className="appearance-heading"><div><div className="settings-symbol">✦</div><h2>Make it yours</h2><p>Personalize the look of G4 Sticker. Changes apply immediately and are saved on this device.</p></div>
@@ -50,7 +75,8 @@ export default function SettingsPage({ health, appearance, onAppearanceChange, a
         </fieldset>
       </div>
     </section>
-    <div className="settings-grid"><section className="panel settings-card"><div className="settings-symbol">◈</div><h2>Workspace</h2><p>G4 Sticker</p><div className="settings-detail"><span>Plan</span><strong>Business plan</strong></div><div className="settings-detail"><span>Database</span><strong className={health === 'connected' ? 'connected-text' : 'disconnected-text'}>{health === 'connected' ? 'Connected' : health === 'checking' ? 'Checking…' : 'Not connected'}</strong></div></section>
-    <section className="panel settings-card"><div className="settings-symbol lavender">♙</div><h2>Your profile</h2><p>Jamie Davis · Workspace admin</p><div className="settings-detail"><span>Account</span><strong>Personal workspace</strong></div><div className="settings-detail"><span>Notifications</span><strong>Enabled</strong></div></section></div>
+    <div className="settings-grid"><section className="panel settings-card"><div className="settings-symbol">◈</div><h2>Workspace</h2><p>G4 Sticker</p><div className="settings-detail"><span>Database</span><strong className={health === 'connected' ? 'connected-text' : 'disconnected-text'}>{health === 'connected' ? 'Connected' : health === 'checking' ? 'Checking…' : 'Not connected'}</strong></div></section>
+    <section className="panel settings-card"><div className="settings-symbol lavender">♙</div><h2>Your profile</h2><p>G4 Sticker admin</p><div className="settings-detail"><span>Account</span><strong>Personal workspace</strong></div></section>
+    <section className="panel settings-card guide-settings-card"><div className="settings-symbol">↗</div><h2>Learn the flow</h2><p className="guide-settings-progress" aria-live="polite">{guideProgress} of {flowSteps.length} steps viewed</p><div className="guide-settings-actions"><button type="button" onClick={() => onNavigate('guide')}>Open the guide</button><button type="button" onClick={resetGuideProgress}>Reset guide progress</button></div></section></div>
   </div>;
 }

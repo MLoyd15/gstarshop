@@ -24,7 +24,8 @@
 
 .guide-mock-window {
   container: guide-mock-window / inline-size;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   min-height: 0;
   padding: 12px;
   background: var(--bg);
@@ -32,25 +33,17 @@
 
 .guide-mock-stage {
   width: 660px;
-  zoom: .78;
+  zoom: .85;
   color: var(--text);
   pointer-events: none;
 }
 
-@container guide-mock-window (max-width: 620px) {
-  .guide-mock-stage { zoom: .7; }
+@media (max-width: 500px) {
+  .guide-mock-stage { zoom: .6; }
 }
 
-@container guide-mock-window (max-width: 500px) {
-  .guide-mock-stage { zoom: .59; }
-}
-
-@container guide-mock-window (max-width: 405px) {
-  .guide-mock-stage { zoom: .43; }
-}
-
-@container guide-mock-window (max-width: 340px) {
-  .guide-mock-stage { zoom: .38; }
+.guide-mock-stage :is(h1, h2, h3, h4, p, small, th, td, label, button, input, select, textarea, span, strong, em, a, li, legend) {
+  font-size: max(14px, 1em) !important;
 }
 
 .guide-mock-stage :is(button, input, select, textarea) { pointer-events: none !important; }
@@ -148,9 +141,10 @@
 .guide-mock-stage .materials-status.low { background: var(--warning-soft); color: var(--warning); }
 .guide-mock-material-cost-note { padding: 10px 2px 0; color: var(--text-secondary); font-size: 10px; }
 .guide-mock-receive-lines { margin-top: 12px; box-shadow: none; }
-.guide-mock-stage .guide-mock-receive-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0; padding: 12px; border-bottom: 1px solid var(--line); color: var(--text); font-size: 10px; }
+.guide-mock-stage .guide-mock-receive-line { display: grid; grid-template-columns: minmax(0, 1fr) 100px; align-items: center; gap: 12px; margin: 0; padding: 12px; border-bottom: 1px solid var(--line); color: var(--text); font-size: 14px; }
 .guide-mock-stage .guide-mock-receive-line > span { display: grid; gap: 4px; }
-.guide-mock-stage .guide-mock-receive-line small { color: var(--text-secondary); font-size: 9px; }
+.guide-mock-stage .guide-mock-receive-line small { color: var(--text-secondary); font-size: 14px; }
+.guide-mock-stage .guide-mock-receive-line .guide-callout-anchor { width: 100%; }
 .guide-mock-stage .guide-mock-receive-line input { width: 100px; }
 .guide-mock-stage .guide-mock-field { display: grid; gap: 6px; color: var(--text-secondary); font-size: 10px; }
 .guide-mock-stage .guide-mock-line-total { align-self: center; color: var(--text-secondary); font-size: 10px; }

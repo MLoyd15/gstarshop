@@ -13,11 +13,10 @@ function PurchaseReceivePreview() {
           <div className="materials-panel guide-mock-receive-lines">
             <div className="materials-toolbar"><div><h2>Items to receive</h2><p>Ordered by {purchaseOrder.supplierName}</p></div></div>
             {purchaseOrder.lines.map((line, index) => {
-              const row = <label className="guide-mock-receive-line" key={line.materialId}>
-                <span><strong>{line.materialName}</strong><small>Remaining {line.qty} {index === 0 ? 'm' : 'm'} · {php(line.unitCost)} per unit</small></span>
-                <input type="number" value={line.qty} readOnly aria-label={`Quantity received for ${line.materialName}`} />
+              return <label className="guide-mock-receive-line" key={line.materialId}>
+                <span><strong>{line.materialName}</strong><small>Remaining {line.qty} {line.unit} · {php(line.unitCost)} per unit</small></span>
+                {index === 0 ? <Callout n={1}><input type="number" value={line.qty} readOnly aria-label={`Quantity received for ${line.materialName}`} /></Callout> : <input type="number" value={line.qty} readOnly aria-label={`Quantity received for ${line.materialName}`} />}
               </label>;
-              return index === 0 ? <Callout key={line.materialId} n={1}>{row}</Callout> : row;
             })}
           </div>
           <div className="materials-dialog-actions"><button type="button" className="secondary-button">Cancel</button><Callout n={2}><button type="button" className="primary-button">Submit receipt</button></Callout></div>

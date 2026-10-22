@@ -509,7 +509,7 @@ function App() {
           ) : ['supplier-dashboard', 'supplier-reports'].includes(active) ? (
             <DashboardPage onNavigate={navigate} data={dashboard} compact="G4 Sticker" />
           ) : active === 'settings' ? (
-            <SettingsPage health={health} appearance={appearance} onAppearanceChange={setAppearance} appearanceError={appearanceError} />
+            <SettingsPage health={health} appearance={appearance} onAppearanceChange={setAppearance} appearanceError={appearanceError} onNavigate={navigate} />
           ) : active === 'materials' ? (
             <MaterialsPage />
           ) : active === 'suppliers' ? (

@@ -44,7 +44,7 @@ export const flowSteps = [
       'Receive all or part of the order. Each receipt adds stock and records the supplier price.',
       'After all items are received, record one or more payments. A fully paid order is marked paid.',
       'Order statuses include draft, ordered, partially received, received, paid, and cancelled.',
-      'A receipt can be reversed with a reason, unless the order is fully paid. Reverse payment first in that case.'
+      "A receipt can be reversed with a reason, unless the order is fully paid. A fully paid order's receipt cannot be reversed."
     ],
     commonMistakes: ['Expecting stock to increase when the order is created. Stock changes on receipt.', 'Trying to pay before all items are received.'],
     goTo: 'purchases', goToLabel: 'Purchases',
@@ -61,7 +61,7 @@ export const flowSteps = [
     summary: 'Add a booking, then plan the materials the job will need.',
     whatHappens: [
       'Create a booking and add its material plan.',
-      'For each line, choose an active material and enter the planned quantity. The plan is entered as material quantities; it is not automatically calculated from a product recipe.'
+      'Add a product recipe and quantity to fill the plan, then adjust the lines if needed.'
     ],
     commonMistakes: ['Trying to complete a job before adding a material plan.', 'Planning with an inactive or unavailable material.'],
     goTo: 'bookings', goToLabel: 'Bookings',
