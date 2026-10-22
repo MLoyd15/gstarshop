@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Butterfly } from '../shared.jsx';
 import '../styles/DashboardPage.css';
 
@@ -44,21 +44,43 @@ function IconBadge({ name, tone }) {
 }
 
 const currency = (value) => new Intl.NumberFormat('en-PH', {
-  style: 'currency', currency: 'PHP', maximumFractionDigits: 0
+  style: 'currency', currency: 'PHP', maximumFractionDigits: 2
 }).format(value);
 const compactCurrency = (value) => new Intl.NumberFormat('en-PH', {
   style: 'currency', currency: 'PHP', notation: 'compact', maximumFractionDigits: 1
 }).format(value);
 
-export default function DashboardPage({ onNavigate, data, compact }) {
+const CHART_SERIES = [
+  { key: 'income', label: 'Income', color: 'var(--purple,#6c5ce7)' },
+  { key: 'expenses', label: 'Expenses', color: '#f97316' },
+  { key: 'payrollPaid', label: 'Payroll paid', color: '#0ea5e9' },
+  { key: 'materialCosts', label: 'Material costs', color: '#10b981' }
+];
+
+function readChartPreferences() {
+  try {
+    const saved = JSON.parse(window.localStorage.getItem('g4-sticker-chart-preferences') || '{}');
+    return {
+      series: Array.isArray(saved.series) ? saved.series.filter((key) => CHART_SERIES.some((item) => item.key === key)) : ['income', 'expenses'],
+      type: saved.type === 'bar' ? 'bar' : 'line'
+    };
+  } catch { return { series: ['income', 'expenses'], type: 'line' }; }
+}
+
+export default function DashboardPage({ onNavigate, data, compact, loading = false, period, onPeriodChange, chartMonths = 6, onChartMonthsChange }) {
   const today = new Date();
   const hour = today.getHours();
   const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
   const dateLabel = today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-  const { totals } = data;
-  const materialCosts = Number(totals.materialCosts || 0);
-  const profit = totals.income - totals.expenses - materialCosts;
-  const margin = totals.income > 0 ? Math.round((profit / totals.income) * 100) : null;
+  const { totals, payroll, comparison } = data;
+  const [chartPreferences, setChartPreferences] = useState(readChartPreferences);
+  useEffect(() => {
+    try { window.localStorage.setItem('g4-sticker-chart-preferences', JSON.stringify(chartPreferences)); }
+    catch { /* Chart selection remains available for the current session. */ }
+  }, [chartPreferences]);
+  const currentPeriod = period || data.period;
+  const periodLabel = new Date(`${currentPeriod}-01T00:00:00`).toLocaleDateString('en-PH', { month: 'long', year: 'numeric' });
+  const previousLabel = data.previousPeriod ? new Date(`${data.previousPeriod}-01T00:00:00`).toLocaleDateString('en-PH', { month: 'short', year: 'numeric' }) : 'previous month';
 
   return (
     <div className="dashboard-page grid gap-5 text-slate-800">
@@ -90,44 +112,81 @@ export default function DashboardPage({ onNavigate, data, compact }) {
         </div>
       </header>}
 
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]">
+      <div className="grid items-start gap-4 lg:grid-cols-1">
         <section className={panel} aria-label="Financial summary">
-          <div className="flex flex-wrap items-end gap-x-10 gap-y-5">
-            <div>
-              <div className="text-sm text-slate-500">Net profit, all time</div>
-              <div className={`font-[family-name:Manrope,sans-serif] mt-1 profit-amount font-semibold leading-none tracking-tight tabular-nums ${profit < 0 ? 'text-red-700' : ''}`}>
-                {profit < 0 ? '−' : ''}{currency(Math.abs(profit))}
-              </div>
-              {margin !== null && <div className="mt-1.5 text-sm text-slate-500">{margin}% after expenses and completed job material costs</div>}
-            </div>
-            <div className="flex gap-8 lg:ml-auto">
-              <Figure label="Revenue" value={currency(totals.income)} note={`${totals.incomeEntries} entries`} />
-              <Figure label="Expenses" value={currency(totals.expenses)} note={`${totals.expenseEntries} entries`} />
-              <Figure label="Material costs" value={currency(materialCosts)} note={`${totals.costedBookings || 0} completed jobs`} />
-            </div>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div><h2 className="font-[family-name:Manrope,sans-serif] m-0 text-base font-semibold">Financial overview</h2><p className="mt-1 text-sm text-slate-500">Recorded activity for {periodLabel}</p></div>
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-600">Month<input className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm" type="month" value={currentPeriod} onChange={(event) => onPeriodChange?.(event.target.value)} /></label>
           </div>
+          {loading ? <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Loading financial summary">{Array.from({ length: 4 }, (_, index) => <div key={index} className="h-[88px] animate-pulse rounded-xl bg-slate-100" />)}</div> : <>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <MetricCard label="Income recorded" value={currency(totals.income)} detail={`${totals.incomeEntries} entries`} onClick={() => onNavigate('income')} />
+              <MetricCard label="Expenses recorded" value={currency(totals.expenses)} detail={`${totals.expenseEntries} entries · payroll listed separately`} onClick={() => onNavigate('expenses')} />
+              <MetricCard label="Payroll paid this month" value={currency(totals.payrollPaid)} detail="From dated pay-run payment records" onClick={() => onNavigate('payroll-runs')} />
+              <MetricCard label="Job material costs" value={currency(totals.materialCosts)} detail="Completed jobs · average cost" onClick={() => onNavigate('bookings')} />
+            </div>
+            <div className="mt-4 rounded-xl border border-slate-200 p-3.5">
+              <div className="mb-2 flex items-center justify-between"><h3 className="m-0 text-sm font-semibold text-slate-800">Expense categories</h3><button className={`text-xs font-semibold text-[color:var(--purple)] hover:underline ${focusRing}`} onClick={() => onNavigate('expenses')}>View expenses</button></div>
+              {Object.keys(totals.expenseCategories || {}).length ? <div className="grid gap-2">{Object.entries(totals.expenseCategories).sort((a, b) => b[1] - a[1]).map(([category, amount]) => {
+                const maxCategory = Math.max(...Object.values(totals.expenseCategories));
+                const percent = maxCategory > 0 ? Math.max(4, Number(amount) / maxCategory * 100) : 0;
+                return <div key={category} className="grid grid-cols-[minmax(95px,.7fr)_minmax(70px,1.5fr)_auto] items-center gap-3 text-xs"><span className="truncate text-slate-600">{category}</span><span className="h-2 overflow-hidden rounded-full bg-slate-100"><span className="block h-full rounded-full bg-[color:var(--purple)]" style={{ width: `${percent}%` }} /></span><strong className="tabular-nums text-slate-700">{currency(amount)}</strong></div>;
+              })}</div> : <p className="mb-0 mt-1 text-xs text-slate-500">No non-payroll expenses recorded for this month.</p>}
+            </div>
+            <p className="mb-0 mt-3 rounded-lg bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">Profit and customer balances aren’t reported because invoice allocations aren’t tracked and expenses may overlap material costs. Supplier payment due dates aren’t recorded.</p>
+          </>}
 
-          <div className="mb-1.5 mt-6 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-500">
-            <span>Last 6 months</span>
-            <span className="flex gap-4">
-              <span className="inline-flex items-center gap-1.5"><i className="block w-[18px] rounded border-t-[3px] border-[color:var(--purple)]" />Income</span>
-              <span className="inline-flex items-center gap-1.5"><i className="block w-[18px] border-t-2 border-dashed border-slate-400" />Expenses</span>
-            </span>
+          <div className="dashboard-chart-toolbar mt-5">
+            <div className="dashboard-chart-series" aria-label="Choose chart data">{CHART_SERIES.map((item) => <label key={item.key} className="dashboard-chart-toggle"><input type="checkbox" checked={chartPreferences.series.includes(item.key)} onChange={() => setChartPreferences((previous) => ({ ...previous, series: previous.series.includes(item.key) ? previous.series.filter((key) => key !== item.key) : [...previous.series, item.key] }))} /><i style={{ '--series-color': item.color }} />{item.label}</label>)}</div>
+            <div className="dashboard-chart-options">
+              <label>Window<select value={chartMonths} onChange={(event) => onChartMonthsChange?.(Number(event.target.value))}><option value={3}>3 months</option><option value={6}>6 months</option><option value={12}>12 months</option></select></label>
+              <div className="dashboard-chart-type" role="group" aria-label="Chart type"><button type="button" aria-pressed={chartPreferences.type === 'line'} onClick={() => setChartPreferences((previous) => ({ ...previous, type: 'line' }))}>Line</button><button type="button" aria-pressed={chartPreferences.type === 'bar'} onClick={() => setChartPreferences((previous) => ({ ...previous, type: 'bar' }))}>Bar</button></div>
+            </div>
           </div>
-          <RevenueChart months={data.months} />
+          <p className="dashboard-chart-caption">Monthly totals through {periodLabel}. Toggle series, choose a window, and hover a month for exact amounts.</p>
+          {loading ? <div className="h-64 animate-pulse rounded-xl bg-slate-50" /> : <RevenueChart months={data.months} selectedSeries={chartPreferences.series} chartType={chartPreferences.type} />}
+          {!loading && <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[520px] border-collapse text-left text-xs">
+              <caption className="sr-only">Selected and previous month financial comparison</caption>
+              <thead><tr className="border-b border-slate-200 text-slate-500"><th className="py-2 pr-3 font-medium">Period</th><th className="py-2 pr-3 font-medium">Income</th><th className="py-2 pr-3 font-medium">Other expenses</th><th className="py-2 pr-3 font-medium">Payroll paid</th><th className="py-2 font-medium">Material costs</th></tr></thead>
+              <tbody>{[[periodLabel, comparison.current], [previousLabel, comparison.previous]].map(([label, row]) => <tr key={label} className="border-b border-slate-100 last:border-0"><th className="py-2 pr-3 font-medium text-slate-700">{label}</th><td className="py-2 pr-3 tabular-nums">{currency(row.income)}</td><td className="py-2 pr-3 tabular-nums">{currency(row.expenses)}</td><td className="py-2 pr-3 tabular-nums">{currency(row.payrollPaid)}</td><td className="py-2 tabular-nums">{currency(row.materialCosts)}</td></tr>)}</tbody>
+            </table>
+          </div>}
         </section>
 
-        <section className={panel} aria-label="Workspace">
-          <h2 className="font-[family-name:Manrope,sans-serif] m-0 text-base font-semibold">Operations overview</h2>
-          <p className="mt-1 text-sm text-slate-500">A quick view of the work that needs attention.</p>
-          <div className="mt-3">
-            <CountRow icon="bookings" tone="bookings" label="Active bookings" value={totals.bookings} onClick={() => onNavigate('bookings')} />
-            <CountRow icon="suppliers" tone="neutral" label="Clients" value={totals.clients} onClick={() => onNavigate('clients')} />
-            <CountRow icon="inventory" tone="purchases" label="Raw materials" value={totals.materials} onClick={() => onNavigate('materials')} />
-            <CountRow icon="expenses" tone="expenses" label="Need reordering" value={totals.lowStockMaterials} onClick={() => onNavigate('materials')} />
-          </div>
+        <section className={panel} aria-label="Business operations charts">
+          <div className="mb-4"><h2 className="font-[family-name:Manrope,sans-serif] m-0 text-base font-semibold">Business pulse</h2><p className="mt-1 text-sm text-slate-500">Bookings, material levels, and purchasing at a glance.</p></div>
+          {loading ? <div className="h-28 animate-pulse rounded-xl bg-slate-100" aria-label="Loading operations charts" /> : <div className="grid gap-4 md:grid-cols-3">
+            <MiniBarChart title="Bookings" items={[{ label: 'Active', value: data.operationCharts?.bookings?.active || 0, color: 'bg-[color:var(--purple)]' }, { label: 'Completed', value: data.operationCharts?.bookings?.completed || 0, color: 'bg-emerald-500' }]} onClick={() => onNavigate('bookings')} />
+            <MiniBarChart title="Material stock" items={[{ label: 'Healthy', value: data.operationCharts?.materials?.healthy || 0, color: 'bg-emerald-500' }, { label: 'Low', value: data.operationCharts?.materials?.low || 0, color: 'bg-amber-500' }, { label: 'Out', value: data.operationCharts?.materials?.out || 0, color: 'bg-rose-500' }]} onClick={() => onNavigate('materials')} />
+            <MiniBarChart title="Purchasing" items={[{ label: 'Awaiting receipt', value: data.operationCharts?.purchasing?.awaitingReceipt || 0, color: 'bg-sky-500' }, { label: 'Balance due', value: data.operationCharts?.purchasing?.balanceDue || 0, color: 'bg-amber-500' }]} onClick={() => onNavigate('purchases')} />
+          </div>}
         </section>
       </div>
+
+      <section className={panel} aria-label="Attention needed">
+        <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-[family-name:Manrope,sans-serif] m-0 text-base font-semibold">Needs attention</h2><p className="mt-1 text-sm text-slate-500">Counts by area · select a group to review the records.</p></div><span className="rounded-full bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700">{data.attention?.length || 0} open items</span></div>
+        {loading ? <div className="mt-4 h-16 animate-pulse rounded-xl bg-slate-100" aria-label="Loading action counts" /> : <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">{[
+          { kind: 'booking', title: 'Bookings', sub: 'dates & material plans', target: 'bookings' },
+          { kind: 'purchase', title: 'Purchasing', sub: 'receipts & balances', target: 'purchases' },
+          { kind: 'inventory', title: 'Inventory', sub: 'low or out of stock', target: 'materials' },
+          { kind: 'payroll', title: 'Payroll', sub: 'drafts & unpaid runs', target: 'payroll-runs' }
+        ].map((group) => { const records = (data.attention || []).filter((item) => item.kind === group.kind); const count = records.length; const popoverId = `attention-${group.kind}-details`; return <div className="dashboard-attention-card" key={group.kind}><button type="button" aria-describedby={popoverId} className={`w-full rounded-xl border border-slate-200 px-3 py-3 text-left hover:border-[color:var(--purple)] hover:bg-violet-50/40 ${focusRing}`} onClick={() => onNavigate(group.target)}><span className="flex items-baseline justify-between gap-2"><strong className="text-sm font-semibold text-slate-700">{group.title}</strong><span className="font-[family-name:Manrope,sans-serif] text-xl font-bold tabular-nums text-[color:var(--purple)]">{count}</span></span><small className="mt-1 block truncate text-xs text-slate-500">{group.sub} · hover for details</small></button><span className="dashboard-attention-popover" id={popoverId} role="tooltip"><strong>{group.title} · {count} {count === 1 ? 'item' : 'items'}</strong>{count ? <span className="dashboard-attention-popover-list">{records.slice(0, 5).map((item) => <span key={item.key}><b>{item.label}</b><small>{item.detail}</small></span>)}{count > 5 && <small>+ {count - 5} more · open the page to review</small>}</span> : <small>No open items.</small>}</span></div>; })}</div>}
+        {!loading && <p className="mb-0 mt-3 text-xs text-slate-500">Customer balances can’t be calculated without invoice allocations. Supplier balances have no due dates in purchase records.</p>}
+      </section>
+
+      <section className={panel} aria-label="Payroll overview">
+        <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-[family-name:Manrope,sans-serif] m-0 text-base font-semibold">Payroll overview · {periodLabel}</h2><p className="mt-1 text-sm text-slate-500">Saved pay runs for this period. Drafts are excluded from paid expense totals.</p></div><button className={`text-sm font-semibold text-[color:var(--purple)] hover:underline ${focusRing}`} onClick={() => onNavigate('payroll-runs')}>Open pay runs →</button></div>
+        {loading ? <div className="mt-4 h-20 animate-pulse rounded-xl bg-slate-100" /> : <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+          <PayrollMetric label="Employees in pay runs" value={payroll.employeeCount} detail={`${payroll.runCount} saved runs`} />
+          <PayrollMetric label="Run status" value={`${payroll.draftCount + payroll.finalizedCount + payroll.partiallyPaidCount} open`} detail={`${payroll.draftCount} draft · ${payroll.finalizedCount} finalized · ${payroll.partiallyPaidCount} part-paid`} />
+          <PayrollMetric label="Gross payroll" value={currency(payroll.gross)} detail={`${currency(payroll.overtime)} overtime`} />
+          <PayrollMetric label="Deductions" value={currency(payroll.deductions)} detail="From saved pay runs" />
+          <PayrollMetric label="Net payroll" value={currency(payroll.net)} detail="For selected pay period" />
+          <PayrollMetric label="Paid" value={currency(payroll.paid)} detail={`${payroll.paidCount} fully paid runs`} />
+          <PayrollMetric label="Finalized balance due" value={currency(payroll.outstandingFinalized)} detail="Finalized or partly paid" />
+        </div>}
+      </section>
 
       <section className={panel} aria-label="Recent transactions">
         <div className="flex items-start justify-between gap-3">
@@ -135,9 +194,6 @@ export default function DashboardPage({ onNavigate, data, compact }) {
             <h2 className="font-[family-name:Manrope,sans-serif] m-0 text-base font-semibold">Recent transactions</h2>
             <p className="mt-1 text-sm text-slate-500">Your latest income, expenses, bookings and purchases.</p>
           </div>
-          <button className={`py-1 text-sm font-medium text-[color:var(--purple)] hover:underline ${focusRing}`} onClick={() => onNavigate('money-tracker')}>
-            View all transactions
-          </button>
         </div>
 
         {data.recent.length ? (
@@ -150,7 +206,7 @@ export default function DashboardPage({ onNavigate, data, compact }) {
               const label = t.type.charAt(0).toUpperCase() + t.type.slice(1);
               const tone = TONES[t.type] ? t.type : 'income';
               return (
-                <div className={`${txGrid} border-t border-slate-100 py-3 text-sm`} key={t.id}>
+                <button type="button" className={`${txGrid} w-full border-t border-slate-100 py-3 text-left text-sm hover:bg-slate-50 ${focusRing}`} key={t.id} onClick={() => onNavigate(t.type === 'purchases' ? 'purchases' : t.type)} aria-label={`Open ${label.toLowerCase()} records`}>
                   <IconBadge name={tone} tone={tone} />
                   <span className="truncate font-medium">{t.name}</span>
                   <span className="hidden text-slate-500 sm:block">{label}</span>
@@ -158,7 +214,7 @@ export default function DashboardPage({ onNavigate, data, compact }) {
                     {new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                   </span>
                   <span className={`text-right font-semibold tabular-nums ${t.type === 'income' ? 'text-emerald-700' : ''}`}>{sign}{currency(t.amount)}</span>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -185,6 +241,22 @@ function Figure({ label, value, note }) {
   );
 }
 
+function MetricCard({ label, value, detail, onClick }) {
+  return <button type="button" onClick={onClick} className={`min-w-0 rounded-xl border border-slate-200 bg-white p-3.5 text-left hover:border-[color:var(--purple)] hover:bg-violet-50/40 ${focusRing}`}>
+    <span className="block text-xs font-medium text-slate-500">{label}</span>
+    <strong className="mt-1 block truncate font-[family-name:Manrope,sans-serif] text-lg font-semibold tabular-nums text-slate-900">{value}</strong>
+    <small className="mt-1 block truncate text-[11px] text-slate-500">{detail}</small>
+  </button>;
+}
+
+function PayrollMetric({ label, value, detail }) {
+  return <article className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3.5">
+    <span className="block text-xs font-medium text-slate-500">{label}</span>
+    <strong className="mt-1 block truncate font-[family-name:Manrope,sans-serif] text-lg font-semibold tabular-nums text-slate-900">{value}</strong>
+    <small className="mt-1 block truncate text-[11px] text-slate-500">{detail}</small>
+  </article>;
+}
+
 function CountRow({ icon, tone, label, value, onClick }) {
   return (
     <button
@@ -199,11 +271,20 @@ function CountRow({ icon, tone, label, value, onClick }) {
   );
 }
 
-/* Responsive line chart: measured width (no stretched SVG), axis labels aligned with
-   gridlines, and a hover/touch readout for each month. */
-function RevenueChart({ months }) {
+function MiniBarChart({ title, items, onClick }) {
+  const max = Math.max(1, ...items.map((item) => Number(item.value) || 0));
+  return <button type="button" className={`rounded-xl border border-slate-200 p-3.5 text-left hover:border-[color:var(--purple)] hover:bg-violet-50/30 ${focusRing}`} onClick={onClick} aria-label={`Open ${title.toLowerCase()} records`}>
+    <h3 className="m-0 text-sm font-semibold text-slate-800">{title}</h3>
+    <div className="mt-3 grid gap-3">{items.map((item) => <div key={item.label}>
+      <div className="mb-1 flex justify-between gap-2 text-xs"><span className="truncate text-slate-500">{item.label}</span><strong className="tabular-nums text-slate-700">{item.value}</strong></div>
+      <span className="block h-2 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label={item.label} aria-valuemin="0" aria-valuemax={max} aria-valuenow={item.value}><span className={`block h-full rounded-full ${item.color}`} style={{ width: `${Math.max(0, Number(item.value) / max * 100)}%` }} /></span>
+    </div>)}</div>
+  </button>;
+}
+
+/* Responsive chart with selectable financial series and exact month readouts. */
+function RevenueChart({ months, selectedSeries, chartType }) {
   const wrapRef = useRef(null);
-  const gradId = useId().replace(/:/g, '');
   const [width, setWidth] = useState(640);
   const [hover, setHover] = useState(null);
 
@@ -216,33 +297,32 @@ function RevenueChart({ months }) {
   }, []);
 
   const n = months.length;
-  const H = 240;
-  const pad = { l: 52, r: 14, t: 14, b: 28 };
+  const H = 300;
+  const pad = { l: 66, r: 16, t: 18, b: 34 };
   const iw = width - pad.l - pad.r;
   const ih = H - pad.t - pad.b;
-  const rawMax = Math.max(0, ...months.flatMap((m) => [m.income, m.expenses]));
+  const activeSeries = CHART_SERIES.filter((item) => selectedSeries.includes(item.key));
+  const rawMax = Math.max(0, ...months.flatMap((month) => activeSeries.map((item) => Number(month[item.key]) || 0)));
 
-  if (!n || rawMax === 0) {
-    return <div ref={wrapRef} className="pt-6 text-sm text-slate-500">Income and expenses will chart here once you add entries.</div>;
+  if (!n || !activeSeries.length) {
+    return <div ref={wrapRef} className="dashboard-chart-empty">{n ? 'Select at least one data series to display.' : 'No financial data is available for this window.'}</div>;
   }
 
-  // Round the axis up to a clean step so gridline labels read like $2K, $4K, $6K…
-  const base = 10 ** Math.floor(Math.log10(rawMax / 4));
-  const step = [1, 2, 2.5, 5, 10].map((f) => f * base).find((s) => s * 4 >= rawMax);
-  const tickCount = Math.ceil(rawMax / step);
+  const base = 10 ** Math.floor(Math.log10((rawMax || 1) / 4));
+  const axisMax = rawMax || 1;
+  const step = [1, 2, 2.5, 5, 10].map((f) => f * base).find((s) => s * 4 >= axisMax);
+  const tickCount = Math.ceil(axisMax / step);
   const max = step * tickCount;
   const ticks = Array.from({ length: tickCount + 1 }, (_, i) => step * i);
 
   const x = (i) => pad.l + (n < 2 ? iw / 2 : (i / (n - 1)) * iw);
   const y = (v) => pad.t + ih - (v / max) * ih;
-  const smooth = (key) => months.map((m, i) => {
-    const px = x(i), py = y(m[key]);
+  const smooth = (key) => months.map((month, i) => {
+    const px = x(i), py = y(Number(month[key]) || 0);
     if (i === 0) return `M${px},${py}`;
     const cx = (x(i - 1) + px) / 2;
-    return `C${cx},${y(months[i - 1][key])} ${cx},${py} ${px},${py}`;
+    return `C${cx},${y(Number(months[i - 1][key]) || 0)} ${cx},${py} ${px},${py}`;
   }).join(' ');
-
-  const incomePath = smooth('income');
   const onMove = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const idx = n < 2 ? 0 : Math.round(((e.clientX - rect.left - pad.l) / iw) * (n - 1));
@@ -250,41 +330,34 @@ function RevenueChart({ months }) {
   };
   const active = hover === null ? n - 1 : hover;
   const m = months[active];
-  const accent = 'var(--purple,#6c5ce7)';
+  const barWidth = Math.min(25, (iw / n * 0.76) / activeSeries.length);
 
   return (
     <div className="relative" ref={wrapRef}>
       <svg className="block w-full touch-pan-y" width={width} height={H} viewBox={`0 0 ${width} ${H}`} role="img"
-        aria-label={`Income and expenses over the last ${n} months`}
+        aria-label={`${chartType === 'bar' ? 'Bar' : 'Line'} chart comparing ${activeSeries.map((item) => item.label).join(', ')} over ${n} months`}
         onPointerMove={onMove} onPointerLeave={() => setHover(null)}>
-        <defs>
-          <linearGradient id={gradId} x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor={accent} stopOpacity=".18" />
-            <stop offset="100%" stopColor={accent} stopOpacity="0" />
-          </linearGradient>
-        </defs>
         {ticks.map((t) => (
           <g key={t}>
             <line x1={pad.l} x2={width - pad.r} y1={y(t)} y2={y(t)} className="stroke-slate-100" />
             <text x={pad.l - 10} y={y(t) + 4} textAnchor="end" className="fill-slate-500 text-xs tabular-nums">{compactCurrency(t)}</text>
           </g>
         ))}
-        {n > 1 && <path d={`${incomePath} L${x(n - 1)},${y(0)} L${x(0)},${y(0)} Z`} fill={`url(#${gradId})`} />}
-        <path d={smooth('expenses')} fill="none" className="stroke-slate-400" strokeWidth="2" strokeDasharray="5 5" strokeLinecap="round" />
-        <path d={incomePath} fill="none" stroke={accent} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
         {hover !== null && <line x1={x(active)} x2={x(active)} y1={pad.t} y2={y(0)} className="stroke-slate-300" />}
-        <circle cx={x(active)} cy={y(m.expenses)} r="4" fill="#fff" className="stroke-slate-400" strokeWidth="2" />
-        <circle cx={x(active)} cy={y(m.income)} r="5" fill="#fff" stroke={accent} strokeWidth="3" />
+        {activeSeries.map((series, seriesIndex) => chartType === 'bar'
+          ? months.map((month, index) => <rect key={`${series.key}-${month.key}`} x={x(index) - (activeSeries.length * barWidth) / 2 + seriesIndex * barWidth} y={y(Number(month[series.key]) || 0)} width={Math.max(2, barWidth - 2)} height={Math.max(0, y(0) - y(Number(month[series.key]) || 0))} rx="3" fill={series.color} opacity={index === active ? 1 : 0.78} />)
+          : <g key={series.key}><path d={smooth(series.key)} fill="none" stroke={series.color} strokeWidth={series.key === 'income' ? 3 : 2.5} strokeLinecap="round" strokeLinejoin="round" />{months.map((month, index) => <circle key={month.key} cx={x(index)} cy={y(Number(month[series.key]) || 0)} r={index === active ? 4.5 : 2.8} fill="var(--surface,#fff)" stroke={series.color} strokeWidth="2" />)}</g>)}
         {months.map((mo, i) => (
           <text key={mo.key} x={x(i)} y={H - 8} textAnchor="middle"
             className={`text-xs ${i === active ? 'fill-slate-800 font-semibold' : 'fill-slate-500'}`}>{mo.label}</text>
         ))}
       </svg>
+      <table className="sr-only"><caption>Exact selected financial amounts for each month in the chart</caption><thead><tr><th>Month</th>{activeSeries.map((item) => <th key={item.key}>{item.label}</th>)}</tr></thead><tbody>{months.map((month) => <tr key={month.key}><th>{month.key}</th>{activeSeries.map((item) => <td key={item.key}>{currency(month[item.key] || 0)}</td>)}</tr>)}</tbody></table>
       {hover !== null && (
         <div className="pointer-events-none absolute top-0 -translate-x-1/2 whitespace-nowrap rounded-[10px] bg-slate-800 px-3 py-2 text-xs leading-relaxed text-white"
           style={{ left: Math.min(width - 70, Math.max(70, x(active))) }}>
-          <b className="mb-0.5 block font-semibold">{m.label}</b>
-          Income {currency(m.income)}<br />Expenses {currency(m.expenses)}
+          <b className="mb-0.5 block font-semibold">{m.key}</b>
+          {activeSeries.map((item) => <span key={item.key} className="flex items-center justify-between gap-4"><span>{item.label}</span><strong>{currency(m[item.key] || 0)}</strong></span>)}
         </div>
       )}
     </div>

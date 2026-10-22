@@ -8,6 +8,8 @@ import { createBookingsRouter } from './routes/bookings.js';
 import { createPurchasesRouter } from './routes/purchases.js';
 import { createProductsRouter } from './routes/products.js';
 import { validateEmployeePayrollData } from './services/payroll.js';
+import { buildDashboardSummary } from './services/dashboard.js';
+import { validateFinancialEntry } from './services/financial.js';
 
 const app = express();
 const port = Number(process.env.PORT) || 4000;
@@ -15,7 +17,7 @@ const resources = [
   'suppliers', 'products', 'inventory', 'prices', 'purchases', 'purchase-orders', 'purchase-order-counters', 'supplier-prices', 'excel-sheet',
   'scheduler', 'bookings', 'clients', 'income', 'expenses', 'profit', 'shareholders',
   'employees', 'payroll-runs', 'payroll-timesheets', 'materials', 'stock-movements',
-  'money-tracker', 'notepad', 'material-categories'
+  'notepad', 'material-categories'
 ];
 
 const businessRecordSchema = new mongoose.Schema({
@@ -67,80 +69,15 @@ app.use('/api/bookings', createBookingsRouter(BusinessRecord, mongoose));
 app.use('/api', createPurchasesRouter(BusinessRecord, mongoose));
 app.use('/api/products', createProductsRouter(BusinessRecord, mongoose));
 
-app.get('/api/dashboard', async (_request, response, next) => {
+app.get('/api/dashboard', async (request, response, next) => {
   try {
-    const records = await BusinessRecord.find().sort({ createdAt: -1 }).lean();
-    const now = new Date();
-    const months = Array.from({ length: 6 }, (_, index) => {
-      const date = new Date(now.getFullYear(), now.getMonth() - 5 + index, 1);
-      return {
-        key: `${date.getFullYear()}-${date.getMonth()}`,
-        label: date.toLocaleDateString('en-US', { month: 'short' }),
-        income: 0,
-        expenses: 0,
-        materialCosts: 0
-      };
-    });
-    const monthByKey = new Map(months.map((month) => [month.key, month]));
-    const amountOf = (record) => {
-      const amount = Number(record.data.amount);
-      return Number.isFinite(amount) ? amount : 0;
-    };
-    const incomeRecords = records.filter((record) => record.resource === 'income');
-    const expenseRecords = records.filter((record) => record.resource === 'expenses');
-    const bookings = records.filter((record) => record.resource === 'bookings' && isOngoingBooking(record));
-    const costedBookings = records.filter((record) => record.resource === 'bookings' && record.data.completion?.status === 'completed');
-    const materials = records.filter((record) => record.resource === 'materials');
-    const lowStockMaterials = materials.filter((record) => record.data.active !== false && Number(record.data.quantity || 0) <= Number(record.data.reorderLevel || 0));
-    for (const record of [...incomeRecords, ...expenseRecords]) {
-      const entryDate = new Date(record.data.date || record.createdAt);
-      if (Number.isNaN(entryDate.getTime())) continue;
-      const month = monthByKey.get(`${entryDate.getFullYear()}-${entryDate.getMonth()}`);
-      if (month) month[record.resource] += amountOf(record);
-    }
-    for (const record of costedBookings) {
-      const completionDate = record.data.completion.completionDate || record.data.completion.completedAt || record.updatedAt;
-      const entryDate = new Date(completionDate);
-      if (Number.isNaN(entryDate.getTime())) continue;
-      const month = monthByKey.get(`${entryDate.getFullYear()}-${entryDate.getMonth()}`);
-      if (month) month.materialCosts += Number(record.data.completion.materialCost || 0);
-    }
-
-    const recent = records
-      .filter((record) => ['income', 'expenses', 'purchases', 'bookings'].includes(record.resource))
-      .slice(0, 5)
-      .map((record) => ({
-        id: record._id.toString(),
-        name: record.data.name || record.data.description || record.resource,
-        type: record.resource,
-        date: record.data.date || record.createdAt,
-        amount: amountOf(record)
-      }));
-
-    response.json({
-      totals: {
-        income: incomeRecords.reduce((total, record) => total + amountOf(record), 0),
-        expenses: expenseRecords.reduce((total, record) => total + amountOf(record), 0),
-        materialCosts: costedBookings.reduce((total, record) => total + Number(record.data.completion.materialCost || 0), 0),
-        costedBookings: costedBookings.length,
-        incomeEntries: incomeRecords.length,
-        expenseEntries: expenseRecords.length,
-        bookings: bookings.length,
-        clients: records.filter((record) => record.resource === 'clients').length,
-        materials: materials.filter((record) => record.data.active !== false).length,
-        lowStockMaterials: lowStockMaterials.length,
-        suppliers: records.filter((record) => record.resource === 'suppliers').length,
-        products: records.filter((record) => record.resource === 'products').length,
-        inventory: records.filter((record) => record.resource === 'products').length
-      },
-      months,
-      recent
-    });
+    const resourcesForDashboard = ['income', 'expenses', 'bookings', 'payroll-runs', 'clients', 'materials', 'suppliers', 'products', 'purchase-orders'];
+    const records = await BusinessRecord.find({ resource: { $in: resourcesForDashboard } }).select('resource data createdAt updatedAt').lean();
+    response.json(buildDashboardSummary(records, request.query.period, new Date(), request.query.months));
   } catch (error) {
     next(error);
   }
 });
-
 app.get('/api/notifications', async (_request, response, next) => {
   try {
     const bookings = await BusinessRecord.find({ resource: 'bookings' }).sort({ createdAt: -1 }).lean();
@@ -185,7 +122,9 @@ app.post('/api/records/:resource', async (request, response, next) => {
     if (['materials', 'stock-movements'].includes(request.params.resource)) return response.status(409).json({ error: 'Use the Materials page to manage materials and stock movements.' });
     if (request.params.resource === 'payroll-timesheets') return response.status(409).json({ error: 'Use the employee monthly sheet to manage work hours and advances.' });
     if (request.params.resource === 'payroll-runs') return response.status(409).json({ error: 'Use the Pay runs page to generate and manage payroll.' });
-    let data = request.params.resource === 'employees' ? validateEmployeePayrollData(request.body) : request.body;
+    let data = ['income', 'expenses'].includes(request.params.resource)
+      ? validateFinancialEntry(request.body)
+      : request.params.resource === 'employees' ? validateEmployeePayrollData(request.body) : request.body;
     if (request.params.resource === 'bookings') {
       const { materialPlan: _plan, completion: _completion, completionHistory: _history, statusBeforeCompletion: _status, ...bookingFields } = request.body;
       data = { ...bookingFields, materialPlan: [], completion: null, completionHistory: [] };
@@ -219,6 +158,7 @@ app.patch('/api/records/:resource/:id', async (request, response, next) => {
       const linked = await BusinessRecord.findOne({ _id: request.params.id, resource: 'expenses' }).lean();
       if (linked?.data?.payrollRunId) return response.status(409).json({ error: 'Payroll linked expenses are managed with their payroll run.' });
     }
+    if (['income', 'expenses'].includes(request.params.resource)) request.body = validateFinancialEntry(request.body);
     if (request.params.resource === 'employees') request.body = validateEmployeePayrollData(request.body);
     const record = await BusinessRecord.findOneAndUpdate(
       { _id: request.params.id, resource: request.params.resource },

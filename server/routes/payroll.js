@@ -1,6 +1,6 @@
 import express from 'express';
 import {
-  calculatePayroll, normalizePayrollPeriod, payrollPeriodEnd,
+  addPayrollPayment, calculatePayroll, normalizePayrollPeriod, payrollPeriodEnd,
   PayrollValidationError, toMoney, validPayrollPeriod
 } from '../services/payroll.js';
 
@@ -174,38 +174,43 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
   });
 
   router.post('/runs/:id/payments', async (req, res) => {
+    let session;
     try {
-      const run = await BusinessRecord.findOne({ _id: req.params.id, resource: 'payroll-runs' });
-      if (!run) return res.status(404).json({ error: 'Payroll run not found.' });
-      if (!['finalized', 'partially-paid'].includes(run.data.status)) return res.status(409).json({ error: 'Finalize this payroll run before recording payment.' });
       const amount = toMoney(req.body.amount, 'Payment amount');
-      if (!amount || amount > Number(run.data.balance)) throw new PayrollValidationError('Payment must be greater than zero and no more than the outstanding balance.');
-      const date = String(req.body.date || ''); if (Number.isNaN(Date.parse(date))) throw new PayrollValidationError('Enter a valid payment date.');
-      const paymentId = String(req.body.paymentId || new mongoose.Types.ObjectId());
-      const existingPayment = (run.data.payments || []).find((entry) => entry.id === paymentId);
-      if (existingPayment) return res.json(serialize(run));
+      const date = String(req.body.date || '');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date))) throw new PayrollValidationError('Enter a valid payment date.');
+      const paymentId = String(req.body.paymentId || '').trim();
+      if (!paymentId || paymentId.length > 128) throw new PayrollValidationError('A valid payment ID is required so repeated requests cannot record the same payment twice.');
       const payment = { id: paymentId, amount, date, method: String(req.body.method || 'Manual'), reference: String(req.body.reference || '').trim(), notes: String(req.body.notes || '').trim(), source: 'manual', recordedAt: new Date().toISOString() };
       if (req.body.source === 'externally-confirmed') {
         if (!payment.reference) throw new PayrollValidationError('An external payment reference is required.');
         payment.source = 'externally-confirmed';
-        if ((run.data.payments || []).some((p) => p.reference === payment.reference)) throw new PayrollValidationError('This payment reference has already been recorded.');
       }
-      const amountPaid = Number(run.data.amountPaid || 0) + amount;
-      let expense = await BusinessRecord.findOne({ resource: 'expenses', 'data.payrollPaymentId': paymentId });
-      if (!expense) expense = await BusinessRecord.findOne({ resource: 'expenses', 'data.payrollRunId': run._id.toString(), 'data.expenseKind': { $in: ['payroll-payment', 'payroll-accrual'] } });
-      const expenseData = {
-        name: `Payroll payment ${run.data.period} — ${run.data.employee}`, category: 'Payroll', amount: amountPaid,
-        date, payrollRunId: run._id.toString(), payrollPaymentId: paymentId, expenseKind: 'payroll-payment',
-        paymentMethod: payment.method, paymentReference: payment.reference
-      };
-      if (expense) { expense.data = { ...expense.data, ...expenseData }; expense.updatedAt = new Date(); await expense.save(); }
-      else [expense] = await BusinessRecord.create([{ resource: 'expenses', data: expenseData }]);
-      run.data = { ...run.data, payments: [...(run.data.payments || []), payment], amountPaid, balance: Number(run.data.balance) - amount, expenseId: expense._id.toString() };
-      run.data.status = run.data.balance <= 0 ? 'paid' : 'partially-paid';
-      run.updatedAt = new Date(); await run.save(); res.json(serialize(run));
-    } catch (error) { fail(res, error); }
-  });
+      session = await mongoose.startSession();
+      let updatedRun;
+      await session.withTransaction(async () => {
+        const run = await BusinessRecord.findOne({ _id: req.params.id, resource: 'payroll-runs' }).session(session);
+        if (!run) throw Object.assign(new Error('Payroll run not found.'), { status: 404 });
+        const result = addPayrollPayment(run.data, payment);
+        if (result.duplicate) { updatedRun = run; return; }
 
+        let expense = await BusinessRecord.findOne({ resource: 'expenses', 'data.payrollPaymentId': paymentId }).session(session);
+        if (!expense) expense = await BusinessRecord.findOne({ resource: 'expenses', 'data.payrollRunId': run._id.toString(), 'data.expenseKind': { $in: ['payroll-payment', 'payroll-accrual'] } }).session(session);
+        const expenseData = {
+          name: `Payroll payment ${run.data.period} — ${run.data.employee}`, category: 'Payroll', amount: result.runData.amountPaid,
+          date, payrollRunId: run._id.toString(), payrollPaymentId: paymentId, expenseKind: 'payroll-payment',
+          paymentMethod: payment.method, paymentReference: payment.reference
+        };
+        if (expense) { expense.data = { ...expense.data, ...expenseData }; expense.updatedAt = new Date(); await expense.save({ session }); }
+        else [expense] = await BusinessRecord.create([{ resource: 'expenses', data: expenseData }], { session });
+        run.data = { ...result.runData, expenseId: expense._id.toString() };
+        run.updatedAt = new Date(); await run.save({ session });
+        updatedRun = run;
+      });
+      res.json(serialize(updatedRun));
+    } catch (error) { fail(res, error); }
+    finally { await session?.endSession(); }
+  });
   router.post('/runs/:id/reverse', async (req, res) => {
     try {
       const run = await BusinessRecord.findOne({ _id: req.params.id, resource: 'payroll-runs' });

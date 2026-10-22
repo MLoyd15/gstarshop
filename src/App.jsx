@@ -43,7 +43,7 @@ const resourceFor = {
   'excel-sheet': 'excel-sheet', scheduler: 'scheduler',
   bookings: 'bookings', clients: 'clients', income: 'income', expenses: 'expenses', profit: 'profit',
   employees: 'employees', 'payroll-runs': 'payroll-runs',
-  shareholders: 'shareholders', 'money-tracker': 'money-tracker', notepad: 'notepad'
+  shareholders: 'shareholders', notepad: 'notepad'
 };
 
 const fieldsFor = {
@@ -61,7 +61,6 @@ const fieldsFor = {
   shareholders: [['name', 'Shareholder'], ['email', 'Email'], ['shares', 'Shares'], ['percentage', 'Ownership %']],
   employees: [['employeeId', 'Employee ID'], ['name', 'Full name'], ['position', 'Position'], ['email', 'Email'], ['phone', 'Phone'], ['salary', 'Hourly rate / pay rate'], ['overtimeRate', 'Overtime rate per hour'], ['salaryType', 'Pay basis'], ['allowances', 'Regular allowances'], ['bonus', 'Regular bonus'], ['commission', 'Regular commission'], ['regularDeductions', 'Regular deductions'], ['effectiveDate', 'Rate effective date'], ['payFrequency', 'Pay frequency'], ['status', 'Status']],
   'payroll-runs': [],
-  'money-tracker': [['name', 'Description'], ['category', 'Category'], ['amount', 'Amount'], ['date', 'Date']],
   notepad: [['name', 'Title'], ['content', 'Note'], ['updated', 'Last updated']]
 };
 
@@ -70,7 +69,7 @@ const titles = {
   products: 'Products', materials: 'Materials', prices: 'Supplier prices', purchases: 'Purchases',
   'excel-sheet': 'Excel sheet', 'supplier-reports': 'G4 Sticker reports',
   scheduler: 'Scheduler', bookings: 'Bookings', clients: 'Clients', income: 'Income', expenses: 'Expenses', profit: 'Profit',
-  shareholders: 'Shareholders', employees: 'Employees', 'payroll-runs': 'Pay runs', 'money-tracker': 'Money tracker',
+  shareholders: 'Shareholders', employees: 'Employees', 'payroll-runs': 'Pay runs',
   notepad: 'Notepad', settings: 'Settings', guide: 'Learn the flow'
 };
 
@@ -246,14 +245,21 @@ function App() {
   const [health, setHealth] = useState('checking');
   const [notice, setNotice] = useState('');
   const [appearance, setAppearance] = useState(readAppearance);
+  const [dashboardPeriod, setDashboardPeriod] = useState(new Date().toISOString().slice(0, 7));
+  const [dashboardMonths, setDashboardMonths] = useState(6);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
   const [appearanceError, setAppearanceError] = useState('');
   const [notifications, setNotifications] = useState({ count: 0, bookings: [] });
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notificationsError, setNotificationsError] = useState('');
   const [dashboard, setDashboard] = useState({
-    totals: { income: 0, expenses: 0, materialCosts: 0, costedBookings: 0, incomeEntries: 0, expenseEntries: 0, bookings: 0, clients: 0, materials: 0, lowStockMaterials: 0, suppliers: 0, products: 0, inventory: 0 },
+    period: new Date().toISOString().slice(0, 7), previousPeriod: '',
+    totals: { income: 0, expenses: 0, payrollPaid: 0, materialCosts: 0, expenseCategories: {}, incomeEntries: 0, expenseEntries: 0, bookings: 0, clients: 0, materials: 0, lowStockMaterials: 0, suppliers: 0, products: 0 },
+    comparison: { current: { income: 0, expenses: 0, payrollPaid: 0, materialCosts: 0 }, previous: { income: 0, expenses: 0, payrollPaid: 0, materialCosts: 0 } },
+    payroll: { runCount: 0, employeeCount: 0, draftCount: 0, finalizedCount: 0, partiallyPaidCount: 0, paidCount: 0, gross: 0, overtime: 0, deductions: 0, net: 0, paid: 0, outstandingFinalized: 0 },
+    financialLimits: { salesRevenueTrackedSeparately: false, customerReceivablesTracked: false, profitReliable: false },
     months: [],
-    recent: []
+    recent: [], attention: [], operationCharts: { bookings: { active: 0, completed: 0 }, materials: { healthy: 0, low: 0, out: 0 }, purchasing: { awaitingReceipt: 0, balanceDue: 0 } }
   });
 
   const allItems = useMemo(() => sections.flatMap((section) => section.items), []);
@@ -311,7 +317,8 @@ function App() {
   useEffect(() => {
     if (!['home', 'supplier-dashboard', 'supplier-reports'].includes(active)) return;
     const controller = new AbortController();
-    fetch('/api/dashboard', { signal: controller.signal })
+    setDashboardLoading(true);
+    fetch(`/api/dashboard?period=${dashboardPeriod}&months=${dashboardMonths}`, { signal: controller.signal })
       .then(async (response) => {
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Could not load dashboard data.');
@@ -320,9 +327,10 @@ function App() {
       .then(setDashboard)
       .catch((requestError) => {
         if (requestError.name !== 'AbortError') setError(requestError.message);
-      });
+      })
+      .finally(() => { if (!controller.signal.aborted) setDashboardLoading(false); });
     return () => controller.abort();
-  }, [active]);
+  }, [active, dashboardPeriod, dashboardMonths]);
 
   useEffect(() => {
     if (!resource) {
@@ -440,7 +448,7 @@ function App() {
             </div>
           ))}
           <div className="nav-divider" />
-          {[{ id: 'money-tracker', label: 'Money tracker', icon: '＄' }, { id: 'notepad', label: 'Notepad', icon: '▤' }].map((item) => (
+          {[{ id: 'notepad', label: 'Notepad', icon: '▤' }].map((item) => (
             <button key={item.id} className={`nav-item ${active === item.id ? 'active' : ''}`} onClick={() => navigate(item.id)}>
               <Icon>{item.icon}</Icon><span className="nav-label">{item.label}</span>
             </button>
@@ -500,14 +508,14 @@ function App() {
           {error && <div className="error-banner"><span>!</span><div><strong>Couldn’t load your data</strong><p>{error} Check your server and MongoDB connection, then refresh.</p></div><button onClick={() => setError('')} aria-label="Dismiss error">×</button></div>}
           {notice && <div className="success-banner">✓ &nbsp;{notice}</div>}
           {active === 'home' ? (
-            <DashboardPage onNavigate={navigate} data={dashboard} />
+            <DashboardPage onNavigate={navigate} data={dashboard} loading={dashboardLoading} period={dashboardPeriod} onPeriodChange={setDashboardPeriod} chartMonths={dashboardMonths} onChartMonthsChange={setDashboardMonths} />
           ) : active === 'guide' ? (
             <GuidePage onNavigate={navigate} />
           ) : active === 'clients' ? (
             <ClientsPage clients={filteredRecords} loading={loading} search={search} setSearch={setSearch}
               onCreate={openCreate} onEdit={openEdit} onDelete={deleteRecord} />
           ) : ['supplier-dashboard', 'supplier-reports'].includes(active) ? (
-            <DashboardPage onNavigate={navigate} data={dashboard} compact="G4 Sticker" />
+            <DashboardPage onNavigate={navigate} data={dashboard} loading={dashboardLoading} period={dashboardPeriod} onPeriodChange={setDashboardPeriod} chartMonths={dashboardMonths} onChartMonthsChange={setDashboardMonths} compact="G4 Sticker" />
           ) : active === 'settings' ? (
             <SettingsPage health={health} appearance={appearance} onAppearanceChange={setAppearance} appearanceError={appearanceError} onNavigate={navigate} />
           ) : active === 'materials' ? (

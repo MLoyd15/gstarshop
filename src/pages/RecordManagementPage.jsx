@@ -12,7 +12,7 @@ const money = (value) => new Intl.NumberFormat('en-PH', { style: 'currency', cur
 
 
 export default function RecordManagementPage({ active, title, fields, records, loading, search, setSearch, onCreate, onEdit, onDelete, onSelect, pageClass = '' }) {
-  const lower = active === 'income' || active === 'expenses' || active === 'profit' || active === 'money-tracker';
+  const lower = active === 'income' || active === 'expenses' || active === 'profit';
   const isInventory = active === 'inventory';
   const totalStock = records.reduce((total, record) => total + (Number(record.stock) || 0), 0);
   const lowStockCount = records.filter((record) => Number(record.stock) <= 5).length;

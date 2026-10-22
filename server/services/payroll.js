@@ -9,6 +9,47 @@ export class PayrollValidationError extends Error {
   }
 }
 
+export class PayrollConflictError extends PayrollValidationError {
+  constructor(message) {
+    super(message);
+    this.name = 'PayrollConflictError';
+    this.status = 409;
+  }
+}
+
+export function addPayrollPayment(runData, payment) {
+  const payments = runData.payments || [];
+  const existing = payments.find((entry) => entry.id === payment.id);
+  if (existing) {
+    const sameRequest = ['amount', 'date', 'method', 'reference', 'notes', 'source']
+      .every((key) => String(existing[key] ?? '') === String(payment[key] ?? ''));
+    if (sameRequest) return { runData, duplicate: true };
+    throw new PayrollConflictError('This payment ID was already used for a different payment.');
+  }
+  if (!['finalized', 'partially-paid'].includes(runData.status)) {
+    throw new PayrollConflictError('Finalize this payroll run before recording payment.');
+  }
+  const paymentCents = Math.round(Number(payment.amount) * 100);
+  const currentBalance = Number(runData.balance ?? (Number(runData.netPay) - Number(runData.amountPaid || 0)));
+  const balanceCents = Math.round(currentBalance * 100);
+  if (!Number.isSafeInteger(paymentCents) || paymentCents <= 0 || !Number.isSafeInteger(balanceCents) || paymentCents > balanceCents) {
+    throw new PayrollValidationError('Payment must be greater than zero and no more than the outstanding balance.');
+  }
+  if (payment.source === 'externally-confirmed' && payments.some((entry) => entry.reference === payment.reference)) {
+    throw new PayrollConflictError('This payment reference has already been recorded.');
+  }
+  const amountPaid = (Math.round(Number(runData.amountPaid || 0) * 100) + paymentCents) / 100;
+  const balance = Math.max(0, balanceCents - paymentCents) / 100;
+  const nextRunData = {
+    ...runData,
+    payments: [...payments, payment],
+    amountPaid,
+    balance,
+    status: balance <= 0 ? 'paid' : 'partially-paid'
+  };
+  return { runData: nextRunData, duplicate: false };
+}
+
 export function toMoney(value, label = 'Amount', { optional = false } = {}) {
   if ((value === '' || value === null || value === undefined) && optional) return 0;
   const text = String(value ?? '').trim();
