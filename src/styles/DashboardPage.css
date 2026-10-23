@@ -101,6 +101,17 @@
 .dashboard-v2 .dashboard-v2-payroll-grid .text-slate-900,
 .dashboard-v2 .dashboard-v2-payroll-grid .text-slate-700 { color: var(--text); }
 .dashboard-v2 .dashboard-v2-link { padding: 3px 0; border: 0; color: var(--purple); background: transparent; font-size: .8rem; font-weight: 600; cursor: pointer; }
+.dashboard-v2-payroll-row { display: grid; grid-template-columns: minmax(0, 3fr) minmax(220px, 1fr); gap: 1px; border: 1px solid var(--line); background: var(--line); }
+.dashboard-v2 .dashboard-v2-quick-actions { padding: 12px; }
+.dashboard-v2 .dashboard-v2-quick-actions .dashboard-v2-card-heading { padding-bottom: 6px; }
+.dashboard-v2-action-list { display: grid; }
+.dashboard-v2 .dashboard-v2-action { display: grid; grid-template-columns: 18px minmax(0, 1fr) 15px; align-items: center; gap: 8px; min-width: 0; padding: 8px 2px; border: 0; border-top: 1px solid var(--line); color: var(--text); background: transparent; text-align: left; cursor: pointer; }
+.dashboard-v2 .dashboard-v2-action:hover { background: var(--surface-strong); }
+.dashboard-v2 .dashboard-v2-action > svg:first-child { color: var(--text-secondary); }
+.dashboard-v2 .dashboard-v2-action > svg:last-child { color: var(--muted); }
+.dashboard-v2 .dashboard-v2-action > span { display: grid; min-width: 0; gap: 2px; }
+.dashboard-v2 .dashboard-v2-action strong { overflow: hidden; font-size: .67rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.dashboard-v2 .dashboard-v2-action small { overflow: hidden; color: var(--muted); font-size: .59rem; text-overflow: ellipsis; white-space: nowrap; }
 
 @media (max-width: 1000px) {
   .dashboard-v2-bottom { grid-template-columns: minmax(0, 1.5fr) minmax(220px, 1fr); }
@@ -116,6 +127,7 @@
   .dashboard-v2 .dashboard-v2-activity { grid-column: auto; }
   .dashboard-v2 .dashboard-v2-activity-list { grid-template-columns: minmax(0, 1fr); }
   .dashboard-v2 .dashboard-v2-payroll-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dashboard-v2-payroll-row { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 440px) {
   .dashboard-v2 .dashboard-toolbar { display: grid; }

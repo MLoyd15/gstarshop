@@ -23,6 +23,7 @@ const ICONS = {
   plus: 'M12 5v14M5 12h14',
   income: 'M7 17L17 7M9 7h8v8',
   expenses: 'M7 7l10 10M17 9v8H9',
+  settings: 'M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.7 2.94-.08-.02a1.7 1.7 0 0 0-1.75.62l-.05.07h-3.4l-.03-.08a1.7 1.7 0 0 0-1.43-1.16l-.09-.01-1.7-2.94.06-.06A1.7 1.7 0 0 0 9.8 14.5l-.08-.02v-3.4l.08-.03a1.7 1.7 0 0 0 1.16-1.43l.01-.09 2.94-1.7.06.06a1.7 1.7 0 0 0 1.88.34l.08-.03 2.94 1.7-.02.08a1.7 1.7 0 0 0 .62 1.75l.07.05v3.4l-.08.03a1.7 1.7 0 0 0-1.16 1.43z',
   bookings: 'M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z',
   purchases: 'M4 8l8-4 8 4-8 4-8-4zM4 8v8l8 4 8-4V8M12 12v8',
   suppliers: 'M16 19v-1.5a3.5 3.5 0 0 0-3.5-3.5h-4A3.5 3.5 0 0 0 5 17.5V19M10.5 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19 19v-1.5a3.5 3.5 0 0 0-2.5-3.35M15.5 5.2a3 3 0 0 1 0 5.6',
@@ -163,10 +164,25 @@ export default function DashboardPage({ onNavigate, data, compact, loading = fal
         </section>
       </div>
 
-      <section className="dashboard-v2-card dashboard-v2-payroll" aria-label="Payroll overview">
-        <div className="dashboard-v2-card-heading"><div><h2>Payroll overview · {periodLabel}</h2><p>Saved pay runs for this period. Drafts are excluded from paid expense totals.</p></div><button className="dashboard-v2-link" onClick={() => onNavigate('payroll-runs')}>Open pay runs →</button></div>
-        <div className="dashboard-v2-payroll-grid"><PayrollMetric label="Employees in pay runs" value={payroll.employeeCount} detail={`${payroll.runCount} saved runs`} /><PayrollMetric label="Run status" value={`${payroll.draftCount + payroll.finalizedCount + payroll.partiallyPaidCount} open`} detail={`${payroll.draftCount} draft · ${payroll.finalizedCount} finalized · ${payroll.partiallyPaidCount} part-paid`} /><PayrollMetric label="Gross payroll" value={currency(payroll.gross)} detail={`${currency(payroll.overtime)} overtime`} /><PayrollMetric label="Deductions" value={currency(payroll.deductions)} detail="From saved pay runs" /><PayrollMetric label="Net payroll" value={currency(payroll.net)} detail="For selected pay period" /><PayrollMetric label="Paid" value={currency(payroll.paid)} detail={`${payroll.paidCount} fully paid runs`} /><PayrollMetric label="Finalized balance due" value={currency(payroll.outstandingFinalized)} detail="Finalized or partly paid" /></div>
-      </section>
+      <div className="dashboard-v2-payroll-row">
+        <section className="dashboard-v2-card dashboard-v2-payroll" aria-label="Payroll overview">
+          <div className="dashboard-v2-card-heading"><div><h2>Payroll overview · {periodLabel}</h2><p>Saved pay runs for this period. Drafts are excluded from paid expense totals.</p></div><button className="dashboard-v2-link" onClick={() => onNavigate('payroll-runs')}>Review payroll →</button></div>
+          <div className="dashboard-v2-payroll-grid"><PayrollMetric label="Employees in pay runs" value={payroll.employeeCount} detail={`${payroll.runCount} saved runs`} /><PayrollMetric label="Run status" value={`${payroll.draftCount + payroll.finalizedCount + payroll.partiallyPaidCount} open`} detail={`${payroll.draftCount} draft · ${payroll.finalizedCount} finalized · ${payroll.partiallyPaidCount} part-paid`} /><PayrollMetric label="Gross payroll" value={currency(payroll.gross)} detail={`${currency(payroll.overtime)} overtime`} /><PayrollMetric label="Deductions" value={currency(payroll.deductions)} detail="From saved pay runs" /><PayrollMetric label="Net payroll" value={currency(payroll.net)} detail="For selected pay period" /><PayrollMetric label="Paid" value={currency(payroll.paid)} detail={`${payroll.paidCount} fully paid runs`} /><PayrollMetric label="Finalized balance due" value={currency(payroll.outstandingFinalized)} detail="Finalized or partly paid" /></div>
+        </section>
+        <section className="dashboard-v2-card dashboard-v2-quick-actions" aria-label="Quick actions">
+          <div className="dashboard-v2-card-heading"><div><h2>Quick actions</h2><p>Shortcuts to common tasks.</p></div></div>
+          <div className="dashboard-v2-action-list">
+            {[
+              { icon: 'plus', title: 'Add product', description: 'Create a new product.', target: 'products' },
+              { icon: 'bookings', title: 'Review bookings', description: 'Plan and complete jobs.', target: 'bookings' },
+              { icon: 'purchases', title: 'Review purchases', description: 'Check orders and receipts.', target: 'purchases' },
+              { icon: 'settings', title: 'Store settings', description: 'Manage appearance settings.', target: 'settings' }
+            ].map((action) => <button type="button" className="dashboard-v2-action" key={action.title} onClick={() => onNavigate(action.target)}>
+              <Glyph name={action.icon} size={16} /><span><strong>{action.title}</strong><small>{action.description}</small></span><Glyph name="chevron" size={15} />
+            </button>)}
+          </div>
+        </section>
+      </div>
     </div>
   );
 }
