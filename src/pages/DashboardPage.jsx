@@ -68,10 +68,6 @@ function readChartPreferences() {
 }
 
 export default function DashboardPage({ onNavigate, data, compact, loading = false, period, onPeriodChange, chartMonths = 6, onChartMonthsChange }) {
-  const today = new Date();
-  const hour = today.getHours();
-  const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
-  const dateLabel = today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
   const { totals, payroll, comparison } = data;
   const [chartPreferences, setChartPreferences] = useState(readChartPreferences);
   useEffect(() => {
@@ -82,148 +78,94 @@ export default function DashboardPage({ onNavigate, data, compact, loading = fal
   const periodLabel = new Date(`${currentPeriod}-01T00:00:00`).toLocaleDateString('en-PH', { month: 'long', year: 'numeric' });
   const previousLabel = data.previousPeriod ? new Date(`${data.previousPeriod}-01T00:00:00`).toLocaleDateString('en-PH', { month: 'short', year: 'numeric' }) : 'previous month';
 
+  const deltaFor = (current, previous) => previous ? ((current - previous) / Math.abs(previous)) * 100 : null;
+  const stats = [
+    { label: 'Income recorded', value: currency(totals.income), count: `${totals.incomeEntries} entries`, current: comparison.current.income, previous: comparison.previous.income, target: 'income' },
+    { label: 'Expenses recorded', value: currency(totals.expenses), count: `${totals.expenseEntries} entries`, current: comparison.current.expenses, previous: comparison.previous.expenses, target: 'expenses' },
+    { label: 'Payroll paid', value: currency(totals.payrollPaid), count: 'From dated pay-run payments', current: comparison.current.payrollPaid, previous: comparison.previous.payrollPaid, target: 'payroll-runs' },
+    { label: 'Job material costs', value: currency(totals.materialCosts), count: 'Completed jobs', current: comparison.current.materialCosts, previous: comparison.previous.materialCosts, target: 'bookings' }
+  ];
+  const attentionGroups = [
+    { kind: 'booking', title: 'Bookings', target: 'bookings' },
+    { kind: 'purchase', title: 'Purchasing', target: 'purchases' },
+    { kind: 'inventory', title: 'Inventory', target: 'materials' },
+    { kind: 'payroll', title: 'Payroll', target: 'payroll-runs' }
+  ];
+  const recent = data.recent || [];
+  const attention = data.attention || [];
+  const heading = compact || 'Business overview';
+
   return (
-    <div className="dashboard-page grid gap-5 text-slate-800">
-      {compact && <section className="dashboard-quick-actions" aria-label="Quick actions">
-        <div className="grid w-full grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-2.5">
-          <button className={`${btnPrimary} w-full justify-center`} onClick={() => onNavigate('income')}><Glyph name="plus" size={16} />Record income</button>
-          <button className={`${btn} w-full justify-center`} onClick={() => onNavigate('bookings')}><Glyph name="bookings" size={16} />New booking</button>
-          <button className={`${btn} w-full justify-center`} onClick={() => onNavigate('products')}><Glyph name="purchases" size={16} />Add product</button>
-          <button className={`${btn} w-full justify-center`} onClick={() => onNavigate('suppliers')}><Glyph name="suppliers" size={16} />Add supplier</button>
+    <div className="dashboard-page dashboard-v2">
+      <div className="dashboard-toolbar">
+        <div><h1>{heading}</h1><p>Recorded activity for {periodLabel}</p></div>
+        <div className="dashboard-toolbar-actions">
+          <label className="dashboard-period-control">Month<input type="month" value={currentPeriod} onChange={(event) => onPeriodChange?.(event.target.value)} /></label>
+          <button className={btnPrimary} onClick={() => onNavigate('income')}><Glyph name="plus" size={16} />Record income</button>
         </div>
-      </section>}
-      {!compact && <header className="rounded-2xl border border-violet-100 bg-gradient-to-br from-white via-white to-violet-50 p-5 shadow-sm sm:p-7">
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-        <div>
-          <p className="mb-2 inline-flex rounded-full border border-violet-100 bg-white/80 px-3 py-1 text-xs font-semibold tracking-wide text-violet-700 shadow-sm">{compact || dateLabel}</p>
-          <h1 className="font-[family-name:Manrope,sans-serif] m-0 flex items-center gap-2.5 dashboard-title font-semibold leading-tight tracking-tight text-slate-900">
-            {compact ? `Your ${compact.toLowerCase()}, at a glance` : <>Good {timeOfDay} <Butterfly className="ml-1 -mb-1 h-[26px] w-[31px] drop-shadow-[0_3px_3px_rgba(119,115,223,0.15)] max-sm:h-[22px] max-sm:w-[25px]" /></>}
-          </h1>
-          <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600 sm:text-base">
-            {compact ? 'Everything moving your business forward, in one view.' : 'Here’s where your business stands today.'}
-          </p>
-        </div>
-        <div className="grid w-full grid-cols-2 gap-2 sm:gap-2.5 xl:w-auto xl:min-w-[360px]">
-          <button className={`${btnPrimary} w-full justify-center`} onClick={() => onNavigate('income')}><Glyph name="plus" size={16} />Record income</button>
-          <button className={`${btn} w-full justify-center`} onClick={() => onNavigate('bookings')}><Glyph name="bookings" size={16} />New booking</button>
-          <button className={`${btn} w-full justify-center`} onClick={() => onNavigate('products')}><Glyph name="purchases" size={16} />Add product</button>
-          <button className={`${btn} w-full justify-center`} onClick={() => onNavigate('suppliers')}><Glyph name="suppliers" size={16} />Add supplier</button>
-        </div>
-        </div>
-      </header>}
+      </div>
 
-      <div className="grid items-start gap-4 lg:grid-cols-1">
-        <section className={panel} aria-label="Financial summary">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div><h2 className="font-[family-name:Manrope,sans-serif] m-0 text-base font-semibold">Financial overview</h2><p className="mt-1 text-sm text-slate-500">Recorded activity for {periodLabel}</p></div>
-            <label className="flex items-center gap-2 text-sm font-medium text-slate-600">Month<input className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm" type="month" value={currentPeriod} onChange={(event) => onPeriodChange?.(event.target.value)} /></label>
-          </div>
-          {loading ? <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Loading financial summary">{Array.from({ length: 4 }, (_, index) => <div key={index} className="h-[88px] animate-pulse rounded-xl bg-slate-100" />)}</div> : <>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <MetricCard label="Income recorded" value={currency(totals.income)} detail={`${totals.incomeEntries} entries`} onClick={() => onNavigate('income')} />
-              <MetricCard label="Expenses recorded" value={currency(totals.expenses)} detail={`${totals.expenseEntries} entries · payroll listed separately`} onClick={() => onNavigate('expenses')} />
-              <MetricCard label="Payroll paid this month" value={currency(totals.payrollPaid)} detail="From dated pay-run payment records" onClick={() => onNavigate('payroll-runs')} />
-              <MetricCard label="Job material costs" value={currency(totals.materialCosts)} detail="Completed jobs · average cost" onClick={() => onNavigate('bookings')} />
-            </div>
-            <div className="mt-4 rounded-xl border border-slate-200 p-3.5">
-              <div className="mb-2 flex items-center justify-between"><h3 className="m-0 text-sm font-semibold text-slate-800">Expense categories</h3><button className={`text-xs font-semibold text-[color:var(--purple)] hover:underline ${focusRing}`} onClick={() => onNavigate('expenses')}>View expenses</button></div>
-              {Object.keys(totals.expenseCategories || {}).length ? <div className="grid gap-2">{Object.entries(totals.expenseCategories).sort((a, b) => b[1] - a[1]).map(([category, amount]) => {
-                const maxCategory = Math.max(...Object.values(totals.expenseCategories));
-                const percent = maxCategory > 0 ? Math.max(4, Number(amount) / maxCategory * 100) : 0;
-                return <div key={category} className="grid grid-cols-[minmax(95px,.7fr)_minmax(70px,1.5fr)_auto] items-center gap-3 text-xs"><span className="truncate text-slate-600">{category}</span><span className="h-2 overflow-hidden rounded-full bg-slate-100"><span className="block h-full rounded-full bg-[color:var(--purple)]" style={{ width: `${percent}%` }} /></span><strong className="tabular-nums text-slate-700">{currency(amount)}</strong></div>;
-              })}</div> : <p className="mb-0 mt-1 text-xs text-slate-500">No non-payroll expenses recorded for this month.</p>}
-            </div>
-            <p className="mb-0 mt-3 rounded-lg bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">Profit and customer balances aren’t reported because invoice allocations aren’t tracked and expenses may overlap material costs. Supplier payment due dates aren’t recorded.</p>
-          </>}
+      <section className="dashboard-v2-stats" aria-label="Financial summary">
+        {stats.map((stat) => {
+          const delta = deltaFor(stat.current, stat.previous);
+          return <button type="button" className="dashboard-v2-stat" key={stat.label} onClick={() => onNavigate(stat.target)}>
+            <span>{stat.label}</span><strong>{loading ? '—' : stat.value}</strong>
+            <small>{loading ? 'Loading…' : delta === null ? stat.count : <><b className={delta < 0 ? 'negative' : 'positive'}>{delta > 0 ? '↑' : delta < 0 ? '↓' : '→'} {Math.abs(delta).toFixed(1)}%</b> vs previous month</>}</small>
+          </button>;
+        })}
+      </section>
 
-          <div className="dashboard-chart-toolbar mt-5">
-            <div className="dashboard-chart-series" aria-label="Choose chart data">{CHART_SERIES.map((item) => <label key={item.key} className="dashboard-chart-toggle"><input type="checkbox" checked={chartPreferences.series.includes(item.key)} onChange={() => setChartPreferences((previous) => ({ ...previous, series: previous.series.includes(item.key) ? previous.series.filter((key) => key !== item.key) : [...previous.series, item.key] }))} /><i style={{ '--series-color': item.color }} />{item.label}</label>)}</div>
-            <div className="dashboard-chart-options">
-              <label>Window<select value={chartMonths} onChange={(event) => onChartMonthsChange?.(Number(event.target.value))}><option value={3}>3 months</option><option value={6}>6 months</option><option value={12}>12 months</option></select></label>
-              <div className="dashboard-chart-type" role="group" aria-label="Chart type"><button type="button" aria-pressed={chartPreferences.type === 'line'} onClick={() => setChartPreferences((previous) => ({ ...previous, type: 'line' }))}>Line</button><button type="button" aria-pressed={chartPreferences.type === 'bar'} onClick={() => setChartPreferences((previous) => ({ ...previous, type: 'bar' }))}>Bar</button></div>
-            </div>
+      <div className="dashboard-v2-charts">
+        <section className="dashboard-v2-card dashboard-v2-finance" aria-label="Financial trends">
+          <div className="dashboard-v2-card-heading"><div><h2>Financial trends</h2><p>Monthly totals through {periodLabel}</p></div>
+            <div className="dashboard-chart-options"><label>Window<select value={chartMonths} onChange={(event) => onChartMonthsChange?.(Number(event.target.value))}><option value={3}>3 mo</option><option value={6}>6 mo</option><option value={12}>12 mo</option></select></label><div className="dashboard-chart-type" role="group" aria-label="Chart type"><button type="button" aria-pressed={chartPreferences.type === 'line'} onClick={() => setChartPreferences((previous) => ({ ...previous, type: 'line' }))}>Line</button><button type="button" aria-pressed={chartPreferences.type === 'bar'} onClick={() => setChartPreferences((previous) => ({ ...previous, type: 'bar' }))}>Bar</button></div></div>
           </div>
-          <p className="dashboard-chart-caption">Monthly totals through {periodLabel}. Toggle series, choose a window, and hover a month for exact amounts.</p>
-          {loading ? <div className="h-64 animate-pulse rounded-xl bg-slate-50" /> : <RevenueChart months={data.months} selectedSeries={chartPreferences.series} chartType={chartPreferences.type} />}
-          {!loading && <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[520px] border-collapse text-left text-xs">
-              <caption className="sr-only">Selected and previous month financial comparison</caption>
-              <thead><tr className="border-b border-slate-200 text-slate-500"><th className="py-2 pr-3 font-medium">Period</th><th className="py-2 pr-3 font-medium">Income</th><th className="py-2 pr-3 font-medium">Other expenses</th><th className="py-2 pr-3 font-medium">Payroll paid</th><th className="py-2 font-medium">Material costs</th></tr></thead>
-              <tbody>{[[periodLabel, comparison.current], [previousLabel, comparison.previous]].map(([label, row]) => <tr key={label} className="border-b border-slate-100 last:border-0"><th className="py-2 pr-3 font-medium text-slate-700">{label}</th><td className="py-2 pr-3 tabular-nums">{currency(row.income)}</td><td className="py-2 pr-3 tabular-nums">{currency(row.expenses)}</td><td className="py-2 pr-3 tabular-nums">{currency(row.payrollPaid)}</td><td className="py-2 tabular-nums">{currency(row.materialCosts)}</td></tr>)}</tbody>
-            </table>
-          </div>}
+          <div className="dashboard-chart-series" aria-label="Choose chart data">{CHART_SERIES.map((item) => <label key={item.key} className="dashboard-chart-toggle"><input type="checkbox" checked={chartPreferences.series.includes(item.key)} onChange={() => setChartPreferences((previous) => ({ ...previous, series: previous.series.includes(item.key) ? previous.series.filter((key) => key !== item.key) : [...previous.series, item.key] }))} /><i style={{ '--series-color': item.color }} />{item.label}</label>)}</div>
+          {loading ? <div className="h-56 animate-pulse rounded-xl bg-[var(--surface-soft)]" /> : <RevenueChart months={data.months || []} selectedSeries={chartPreferences.series} chartType={chartPreferences.type} />}
         </section>
-
-        <section className={panel} aria-label="Business operations charts">
-          <div className="mb-4"><h2 className="font-[family-name:Manrope,sans-serif] m-0 text-base font-semibold">Business pulse</h2><p className="mt-1 text-sm text-slate-500">Bookings, material levels, and purchasing at a glance.</p></div>
-          {loading ? <div className="h-28 animate-pulse rounded-xl bg-slate-100" aria-label="Loading operations charts" /> : <div className="grid gap-4 md:grid-cols-3">
+        <section className="dashboard-v2-card dashboard-v2-operations" aria-label="Business operations">
+          <div className="dashboard-v2-card-heading"><div><h2>Business pulse</h2><p>Bookings, stock, and purchasing</p></div></div>
+          {loading ? <div className="h-56 animate-pulse rounded-xl bg-[var(--surface-soft)]" /> : <div className="dashboard-pulse-list">
             <MiniBarChart title="Bookings" items={[{ label: 'Active', value: data.operationCharts?.bookings?.active || 0, color: 'bg-[color:var(--purple)]' }, { label: 'Completed', value: data.operationCharts?.bookings?.completed || 0, color: 'bg-emerald-500' }]} onClick={() => onNavigate('bookings')} />
             <MiniBarChart title="Material stock" items={[{ label: 'Healthy', value: data.operationCharts?.materials?.healthy || 0, color: 'bg-emerald-500' }, { label: 'Low', value: data.operationCharts?.materials?.low || 0, color: 'bg-amber-500' }, { label: 'Out', value: data.operationCharts?.materials?.out || 0, color: 'bg-rose-500' }]} onClick={() => onNavigate('materials')} />
             <MiniBarChart title="Purchasing" items={[{ label: 'Awaiting receipt', value: data.operationCharts?.purchasing?.awaitingReceipt || 0, color: 'bg-sky-500' }, { label: 'Balance due', value: data.operationCharts?.purchasing?.balanceDue || 0, color: 'bg-amber-500' }]} onClick={() => onNavigate('purchases')} />
           </div>}
+          {!loading && <p className="dashboard-v2-note">{data.financialLimits?.profitReliable ? '' : 'Profit and customer balances aren’t shown because invoice allocations aren’t tracked.'}</p>}
         </section>
       </div>
 
-      <section className={panel} aria-label="Attention needed">
-        <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-[family-name:Manrope,sans-serif] m-0 text-base font-semibold">Needs attention</h2><p className="mt-1 text-sm text-slate-500">Counts by area · select a group to review the records.</p></div><span className="rounded-full bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700">{data.attention?.length || 0} open items</span></div>
-        {loading ? <div className="mt-4 h-16 animate-pulse rounded-xl bg-slate-100" aria-label="Loading action counts" /> : <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">{[
-          { kind: 'booking', title: 'Bookings', sub: 'dates & material plans', target: 'bookings' },
-          { kind: 'purchase', title: 'Purchasing', sub: 'receipts & balances', target: 'purchases' },
-          { kind: 'inventory', title: 'Inventory', sub: 'low or out of stock', target: 'materials' },
-          { kind: 'payroll', title: 'Payroll', sub: 'drafts & unpaid runs', target: 'payroll-runs' }
-        ].map((group) => { const records = (data.attention || []).filter((item) => item.kind === group.kind); const count = records.length; const popoverId = `attention-${group.kind}-details`; return <div className="dashboard-attention-card" key={group.kind}><button type="button" aria-describedby={popoverId} className={`w-full rounded-xl border border-slate-200 px-3 py-3 text-left hover:border-[color:var(--purple)] hover:bg-violet-50/40 ${focusRing}`} onClick={() => onNavigate(group.target)}><span className="flex items-baseline justify-between gap-2"><strong className="text-sm font-semibold text-slate-700">{group.title}</strong><span className="font-[family-name:Manrope,sans-serif] text-xl font-bold tabular-nums text-[color:var(--purple)]">{count}</span></span><small className="mt-1 block truncate text-xs text-slate-500">{group.sub} · hover for details</small></button><span className="dashboard-attention-popover" id={popoverId} role="tooltip"><strong>{group.title} · {count} {count === 1 ? 'item' : 'items'}</strong>{count ? <span className="dashboard-attention-popover-list">{records.slice(0, 5).map((item) => <span key={item.key}><b>{item.label}</b><small>{item.detail}</small></span>)}{count > 5 && <small>+ {count - 5} more · open the page to review</small>}</span> : <small>No open items.</small>}</span></div>; })}</div>}
-        {!loading && <p className="mb-0 mt-3 text-xs text-slate-500">Customer balances can’t be calculated without invoice allocations. Supplier balances have no due dates in purchase records.</p>}
-      </section>
+      <div className="dashboard-v2-bottom">
+        <section className="dashboard-v2-card dashboard-v2-transactions" aria-label="Recent transactions">
+          <div className="dashboard-v2-card-heading"><div><h2>Recent transactions</h2><p>Latest income, expenses, bookings, and purchases.</p></div></div>
+          {recent.length ? <div className="dashboard-v2-transaction-list">{recent.slice(0, 5).map((item) => {
+            const label = item.type.charAt(0).toUpperCase() + item.type.slice(1);
+            const sign = item.type === 'income' ? '+' : item.type === 'expenses' ? '−' : '';
+            return <button type="button" className="dashboard-v2-transaction" key={item.id} onClick={() => onNavigate(item.type === 'purchases' ? 'purchases' : item.type)}>
+              <IconBadge name={TONES[item.type] ? item.type : 'bookings'} tone={TONES[item.type] ? item.type : 'bookings'} />
+              <span className="dashboard-v2-transaction-name"><strong>{item.name}</strong><small>{label} · {new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</small></span>
+              <b>{sign}{currency(item.amount)}</b>
+            </button>;
+          })}</div> : <div className="dashboard-v2-empty">No transactions yet.</div>}
+          {!loading && <div className="dashboard-v2-table-summary"><span>Expense mix</span>{Object.keys(totals.expenseCategories || {}).length ? Object.entries(totals.expenseCategories).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([category, amount]) => <b key={category}>{category} · {currency(amount)}</b>) : <span>No expenses recorded</span>}</div>}
+        </section>
 
-      <section className={panel} aria-label="Payroll overview">
-        <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-[family-name:Manrope,sans-serif] m-0 text-base font-semibold">Payroll overview · {periodLabel}</h2><p className="mt-1 text-sm text-slate-500">Saved pay runs for this period. Drafts are excluded from paid expense totals.</p></div><button className={`text-sm font-semibold text-[color:var(--purple)] hover:underline ${focusRing}`} onClick={() => onNavigate('payroll-runs')}>Open pay runs →</button></div>
-        {loading ? <div className="mt-4 h-20 animate-pulse rounded-xl bg-slate-100" /> : <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-          <PayrollMetric label="Employees in pay runs" value={payroll.employeeCount} detail={`${payroll.runCount} saved runs`} />
-          <PayrollMetric label="Run status" value={`${payroll.draftCount + payroll.finalizedCount + payroll.partiallyPaidCount} open`} detail={`${payroll.draftCount} draft · ${payroll.finalizedCount} finalized · ${payroll.partiallyPaidCount} part-paid`} />
-          <PayrollMetric label="Gross payroll" value={currency(payroll.gross)} detail={`${currency(payroll.overtime)} overtime`} />
-          <PayrollMetric label="Deductions" value={currency(payroll.deductions)} detail="From saved pay runs" />
-          <PayrollMetric label="Net payroll" value={currency(payroll.net)} detail="For selected pay period" />
-          <PayrollMetric label="Paid" value={currency(payroll.paid)} detail={`${payroll.paidCount} fully paid runs`} />
-          <PayrollMetric label="Finalized balance due" value={currency(payroll.outstandingFinalized)} detail="Finalized or partly paid" />
-        </div>}
-      </section>
+        <section className="dashboard-v2-card dashboard-v2-health" aria-label="Business health">
+          <div className="dashboard-v2-card-heading"><div><h2>Business health</h2><p>{attention.length ? `${attention.length} items need your attention.` : 'Nothing urgent needs your attention.'}</p></div></div>
+          {loading ? <div className="dashboard-v2-health-empty">Loading…</div> : <>
+            <div className="dashboard-v2-health-total"><span className={attention.length ? 'dashboard-v2-alert' : 'dashboard-v2-ok'}>{attention.length || '✓'}</span><strong>{attention.length ? 'Open items' : 'You’re caught up.'}</strong><small>{attention.length ? 'Review the open items by area.' : 'Bookings, stock, and pay runs look clear.'}</small></div>
+            <div className="dashboard-v2-health-groups">{attentionGroups.map((group) => <button type="button" key={group.kind} onClick={() => onNavigate(group.target)}><span>{group.title}</span><b>{attention.filter((item) => item.kind === group.kind).length}</b></button>)}</div>
+          </>}
+        </section>
 
-      <section className={panel} aria-label="Recent transactions">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="font-[family-name:Manrope,sans-serif] m-0 text-base font-semibold">Recent transactions</h2>
-            <p className="mt-1 text-sm text-slate-500">Your latest income, expenses, bookings and purchases.</p>
-          </div>
-        </div>
+        <section className="dashboard-v2-card dashboard-v2-activity" aria-label="Recent activity">
+          <div className="dashboard-v2-card-heading"><div><h2>Activity</h2><p>Latest updates in your workspace.</p></div></div>
+          {recent.length ? <div className="dashboard-v2-activity-list">{recent.slice(0, 4).map((item) => <button type="button" key={item.id} onClick={() => onNavigate(item.type === 'purchases' ? 'purchases' : item.type)}><span className="dashboard-v2-activity-icon"><Glyph name={TONES[item.type] ? item.type : 'bookings'} size={17} /></span><span><strong>{item.name}</strong><small>{item.type.charAt(0).toUpperCase() + item.type.slice(1)} · {new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</small></span></button>)}</div> : <div className="dashboard-v2-empty">New activity will appear here.</div>}
+        </section>
+      </div>
 
-        {data.recent.length ? (
-          <div className="mt-4">
-            <div className={`${txGrid} pb-2 text-xs text-slate-500`} aria-hidden="true">
-              <span /><span>Name</span><span className="hidden sm:block">Type</span><span className="hidden sm:block">Date</span><span className="text-right">Amount</span>
-            </div>
-            {data.recent.map((t) => {
-              const sign = t.type === 'income' ? '+' : t.type === 'expenses' ? '−' : '';
-              const label = t.type.charAt(0).toUpperCase() + t.type.slice(1);
-              const tone = TONES[t.type] ? t.type : 'income';
-              return (
-                <button type="button" className={`${txGrid} w-full border-t border-slate-100 py-3 text-left text-sm hover:bg-slate-50 ${focusRing}`} key={t.id} onClick={() => onNavigate(t.type === 'purchases' ? 'purchases' : t.type)} aria-label={`Open ${label.toLowerCase()} records`}>
-                  <IconBadge name={tone} tone={tone} />
-                  <span className="truncate font-medium">{t.name}</span>
-                  <span className="hidden text-slate-500 sm:block">{label}</span>
-                  <span className="hidden text-slate-500 sm:block">
-                    {new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                  </span>
-                  <span className={`text-right font-semibold tabular-nums ${t.type === 'income' ? 'text-emerald-700' : ''}`}>{sign}{currency(t.amount)}</span>
-                </button>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="pt-6 text-sm text-slate-500">
-            No transactions yet. Record your first sale and it will show up here.
-            <div className="mt-3"><button className={btnPrimary} onClick={() => onNavigate('income')}><Glyph name="plus" size={16} />Record income</button></div>
-          </div>
-        )}
+      <section className="dashboard-v2-card dashboard-v2-payroll" aria-label="Payroll overview">
+        <div className="dashboard-v2-card-heading"><div><h2>Payroll overview · {periodLabel}</h2><p>Saved pay runs for this period. Drafts are excluded from paid expense totals.</p></div><button className="dashboard-v2-link" onClick={() => onNavigate('payroll-runs')}>Open pay runs →</button></div>
+        <div className="dashboard-v2-payroll-grid"><PayrollMetric label="Employees in pay runs" value={payroll.employeeCount} detail={`${payroll.runCount} saved runs`} /><PayrollMetric label="Run status" value={`${payroll.draftCount + payroll.finalizedCount + payroll.partiallyPaidCount} open`} detail={`${payroll.draftCount} draft · ${payroll.finalizedCount} finalized · ${payroll.partiallyPaidCount} part-paid`} /><PayrollMetric label="Gross payroll" value={currency(payroll.gross)} detail={`${currency(payroll.overtime)} overtime`} /><PayrollMetric label="Deductions" value={currency(payroll.deductions)} detail="From saved pay runs" /><PayrollMetric label="Net payroll" value={currency(payroll.net)} detail="For selected pay period" /><PayrollMetric label="Paid" value={currency(payroll.paid)} detail={`${payroll.paidCount} fully paid runs`} /><PayrollMetric label="Finalized balance due" value={currency(payroll.outstandingFinalized)} detail="Finalized or partly paid" /></div>
       </section>
     </div>
   );

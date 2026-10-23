@@ -20,7 +20,6 @@ import logo from './assets/logo.png';
 import { Icon } from './shared.jsx';
 
 const sections = [
-  { heading: 'Workspace', items: [{ id: 'home', label: 'Main dashboard', icon: '⌂' }] },
   { heading: 'G4 Sticker', items: [
     { id: 'supplier-dashboard', label: 'Dashboard', icon: '◫' },
     { id: 'suppliers', label: 'Suppliers', icon: '♙' },
@@ -65,7 +64,7 @@ const fieldsFor = {
 };
 
 const titles = {
-  home: 'Main dashboard', 'supplier-dashboard': 'G4 Sticker dashboard', suppliers: 'Suppliers',
+  'supplier-dashboard': 'G4 Sticker dashboard', suppliers: 'Suppliers',
   products: 'Products', materials: 'Materials', prices: 'Supplier prices', purchases: 'Purchases',
   'excel-sheet': 'Excel sheet', 'supplier-reports': 'G4 Sticker reports',
   scheduler: 'Scheduler', bookings: 'Bookings', clients: 'Clients', income: 'Income', expenses: 'Expenses', profit: 'Profit',
@@ -232,7 +231,7 @@ function DatePicker({ name, value, required }) {
 
 
 function App() {
-  const [active, setActive] = useState('home');
+  const [active, setActive] = useState('supplier-dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -315,7 +314,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!['home', 'supplier-dashboard', 'supplier-reports'].includes(active)) return;
+    if (!['supplier-dashboard', 'supplier-reports'].includes(active)) return;
     const controller = new AbortController();
     setDashboardLoading(true);
     fetch(`/api/dashboard?period=${dashboardPeriod}&months=${dashboardMonths}`, { signal: controller.signal })
@@ -507,9 +506,7 @@ function App() {
         <div className="content">
           {error && <div className="error-banner"><span>!</span><div><strong>Couldn’t load your data</strong><p>{error} Check your server and MongoDB connection, then refresh.</p></div><button onClick={() => setError('')} aria-label="Dismiss error">×</button></div>}
           {notice && <div className="success-banner">✓ &nbsp;{notice}</div>}
-          {active === 'home' ? (
-            <DashboardPage onNavigate={navigate} data={dashboard} loading={dashboardLoading} period={dashboardPeriod} onPeriodChange={setDashboardPeriod} chartMonths={dashboardMonths} onChartMonthsChange={setDashboardMonths} />
-          ) : active === 'guide' ? (
+          {active === 'guide' ? (
             <GuidePage onNavigate={navigate} />
           ) : active === 'clients' ? (
             <ClientsPage clients={filteredRecords} loading={loading} search={search} setSearch={setSearch}
