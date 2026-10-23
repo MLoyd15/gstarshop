@@ -52,7 +52,9 @@ const compactCurrency = (value) => new Intl.NumberFormat('en-PH', {
 }).format(value);
 
 const CHART_SERIES = [
-  { key: 'income', label: 'Income', color: 'var(--purple,#6c5ce7)' },
+  { key: 'income', label: 'Manual income', color: 'var(--purple,#6c5ce7)' },
+  { key: 'salesRevenue', label: 'Sales revenue', color: '#18a879' },
+  { key: 'cashCollected', label: 'Customer payments', color: '#0ea5e9' },
   { key: 'expenses', label: 'Expenses', color: '#f97316' },
   { key: 'payrollPaid', label: 'Payroll paid', color: '#0ea5e9' },
   { key: 'materialCosts', label: 'Material costs', color: '#10b981' }
@@ -81,10 +83,14 @@ export default function DashboardPage({ onNavigate, data, compact, loading = fal
 
   const deltaFor = (current, previous) => previous ? ((current - previous) / Math.abs(previous)) * 100 : null;
   const stats = [
-    { label: 'Income recorded', value: currency(totals.income), count: `${totals.incomeEntries} entries`, current: comparison.current.income, previous: comparison.previous.income, target: 'income' },
+    { label: 'Manual income', value: currency(totals.income), count: `${totals.incomeEntries} entries`, current: comparison.current.income, previous: comparison.previous.income, target: 'income' },
     { label: 'Expenses recorded', value: currency(totals.expenses), count: `${totals.expenseEntries} entries`, current: comparison.current.expenses, previous: comparison.previous.expenses, target: 'expenses' },
     { label: 'Payroll paid', value: currency(totals.payrollPaid), count: 'From dated pay-run payments', current: comparison.current.payrollPaid, previous: comparison.previous.payrollPaid, target: 'payroll-runs' },
-    { label: 'Job material costs', value: currency(totals.materialCosts), count: 'Completed jobs', current: comparison.current.materialCosts, previous: comparison.previous.materialCosts, target: 'bookings' }
+    { label: 'Sales revenue', value: currency(totals.salesRevenue || 0), count: 'Recognized on job completion', current: comparison.current.salesRevenue, previous: comparison.previous.salesRevenue, target: 'bookings' },
+    { label: 'Customer payments', value: currency(totals.cashCollected || 0), count: 'Non-voided booking payments', current: comparison.current.cashCollected, previous: comparison.previous.cashCollected, target: 'bookings' },
+    { label: 'Receivables', value: currency(totals.receivables || 0), count: `${totals.receivableCount || 0} unpaid jobs`, current: null, previous: null, target: 'bookings' },
+    { label: 'Gross margin', value: currency(totals.grossMargin || 0), count: `All-time: ${currency(totals.allTime?.grossMargin || 0)}`, current: comparison.current.grossMargin, previous: comparison.previous.grossMargin, target: 'bookings' },
+    { label: 'Job material costs', value: currency(totals.materialCosts), count: 'Active completed jobs', current: comparison.current.materialCosts, previous: comparison.previous.materialCosts, target: 'bookings' }
   ];
   const attentionGroups = [
     { kind: 'booking', title: 'Bookings', target: 'bookings' },
@@ -111,10 +117,11 @@ export default function DashboardPage({ onNavigate, data, compact, loading = fal
           const delta = deltaFor(stat.current, stat.previous);
           return <button type="button" className="dashboard-v2-stat" key={stat.label} onClick={() => onNavigate(stat.target)}>
             <span>{stat.label}</span><strong>{loading ? '—' : stat.value}</strong>
-            <small>{loading ? 'Loading…' : delta === null ? stat.count : <><b className={delta < 0 ? 'negative' : 'positive'}>{delta > 0 ? '↑' : delta < 0 ? '↓' : '→'} {Math.abs(delta).toFixed(1)}%</b> vs previous month</>}</small>
+            <small>{loading ? 'Loading…' : delta === null || !Number.isFinite(delta) ? stat.count : <><b className={delta < 0 ? 'negative' : 'positive'}>{delta > 0 ? '↑' : delta < 0 ? '↓' : '→'} {Math.abs(delta).toFixed(1)}%</b> vs previous month · {stat.count}</>}</small>
           </button>;
         })}
       </section>
+      <p className="dashboard-v2-accuracy-note">Manual income, completed-job sales revenue, and customer payments are separate figures; none are added together. {data.financialLimits?.salesRevenueTrackedSeparately ? '' : 'Some legacy or migrated completion revenue needs verification. '}{data.financialLimits?.customerReceivablesTracked ? '' : 'Legacy booking balances exclude unrecorded historic payments. '}Gross margin subtracts recorded job material costs only; it is not net profit.</p>
 
       <div className="dashboard-v2-charts">
         <section className="dashboard-v2-card dashboard-v2-finance" aria-label="Financial trends">
@@ -131,7 +138,7 @@ export default function DashboardPage({ onNavigate, data, compact, loading = fal
             <MiniBarChart title="Material stock" items={[{ label: 'Healthy', value: data.operationCharts?.materials?.healthy || 0, color: 'bg-emerald-500' }, { label: 'Low', value: data.operationCharts?.materials?.low || 0, color: 'bg-amber-500' }, { label: 'Out', value: data.operationCharts?.materials?.out || 0, color: 'bg-rose-500' }]} onClick={() => onNavigate('materials')} />
             <MiniBarChart title="Purchasing" items={[{ label: 'Awaiting receipt', value: data.operationCharts?.purchasing?.awaitingReceipt || 0, color: 'bg-sky-500' }, { label: 'Balance due', value: data.operationCharts?.purchasing?.balanceDue || 0, color: 'bg-amber-500' }]} onClick={() => onNavigate('purchases')} />
           </div>}
-          {!loading && <p className="dashboard-v2-note">{data.financialLimits?.profitReliable ? '' : 'Profit and customer balances aren’t shown because invoice allocations aren’t tracked.'}</p>}
+          {!loading && <p className="dashboard-v2-note">Gross margin excludes overhead and other operating expenses.</p>}
         </section>
       </div>
 
@@ -155,6 +162,7 @@ export default function DashboardPage({ onNavigate, data, compact, loading = fal
           {loading ? <div className="dashboard-v2-health-empty">Loading…</div> : <>
             <div className="dashboard-v2-health-total"><span className={attention.length ? 'dashboard-v2-alert' : 'dashboard-v2-ok'}>{attention.length || '✓'}</span><strong>{attention.length ? 'Open items' : 'You’re caught up.'}</strong><small>{attention.length ? 'Review the open items by area.' : 'Bookings, stock, and pay runs look clear.'}</small></div>
             <div className="dashboard-v2-health-groups">{attentionGroups.map((group) => <button type="button" key={group.kind} onClick={() => onNavigate(group.target)}><span>{group.title}</span><b>{attention.filter((item) => item.kind === group.kind).length}</b></button>)}</div>
+            {(totals.unpaidBookings || []).length > 0 && <div className="dashboard-v2-unpaid-list"><strong>Unpaid jobs</strong>{totals.unpaidBookings.slice(0, 3).map((booking) => <button type="button" key={booking.id} onClick={() => onNavigate('bookings')}><span><b>{booking.name}</b><small>{booking.client || 'No client'}{booking.paymentLedgerVerified ? '' : ' · legacy balance'}</small></span><strong>{currency(booking.balance)}</strong></button>)}</div>}
           </>}
         </section>
 

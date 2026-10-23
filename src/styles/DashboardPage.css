@@ -37,7 +37,7 @@
 .dashboard-v2 .dashboard-v2-stat:hover { background: var(--surface-strong); }
 .dashboard-v2 .dashboard-v2-stat > span { color: var(--muted); font-size: .8rem; }
 .dashboard-v2 .dashboard-v2-stat > strong { overflow: hidden; color: var(--text); font-size: clamp(1.2rem, 2vw, 1.65rem); font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
-.dashboard-v2 .dashboard-v2-stat > small { min-height: 17px; color: var(--muted); font-size: .73rem; }
+.dashboard-v2 .dashboard-v2-stat > small { min-height: 30px; color: var(--muted); font-size: .68rem; }
 .dashboard-v2 .dashboard-v2-stat > small b { margin-right: 4px; }
 .dashboard-v2 .positive { color: #18a879; }
 .dashboard-v2 .negative { color: #df6574; }
@@ -62,6 +62,7 @@
 .dashboard-v2 .dashboard-pulse-list .text-slate-700 { color: var(--muted); }
 .dashboard-v2 .dashboard-pulse-list .bg-slate-100 { background: var(--surface-soft); }
 .dashboard-v2 .dashboard-v2-note { margin: 12px 0 0; color: var(--muted); font-size: .72rem; }
+.dashboard-v2 .dashboard-v2-accuracy-note { margin: 0; padding: 9px 12px; border: 1px solid var(--line); color: var(--muted); background: var(--surface-strong); font-size: .72rem; line-height: 1.5; }
 .dashboard-v2-bottom { display: grid; grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr) minmax(220px, 1fr); gap: 1px; border: 1px solid var(--line); background: var(--line); }
 .dashboard-v2 .dashboard-v2-transactions,
 .dashboard-v2 .dashboard-v2-health,
@@ -89,6 +90,13 @@
 .dashboard-v2 .dashboard-v2-health-groups { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
 .dashboard-v2 .dashboard-v2-health-groups button { display: flex; justify-content: space-between; padding: 6px 7px; border: 1px solid var(--line); border-radius: 6px; color: var(--text); background: var(--surface); font-size: .69rem; cursor: pointer; }
 .dashboard-v2 .dashboard-v2-health-groups button b { color: var(--purple); }
+.dashboard-v2-unpaid-list { display: grid; gap: 4px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
+.dashboard-v2-unpaid-list > strong { color: var(--text); font-size: .72rem; }
+.dashboard-v2-unpaid-list button { display: flex; align-items: center; justify-content: space-between; gap: 7px; padding: 5px 0; border: 0; color: var(--text); background: transparent; text-align: left; cursor: pointer; }
+.dashboard-v2-unpaid-list button > span { display: grid; min-width: 0; gap: 2px; }
+.dashboard-v2-unpaid-list button b { overflow: hidden; font-size: .66rem; text-overflow: ellipsis; white-space: nowrap; }
+.dashboard-v2-unpaid-list button small { color: var(--muted); font-size: .58rem; }
+.dashboard-v2-unpaid-list button > strong { flex: 0 0 auto; font-size: .68rem; }
 .dashboard-v2 .dashboard-v2-activity-list > button { min-height: 54px; }
 .dashboard-v2 .dashboard-v2-activity-list > button > span:last-child { display: grid; min-width: 0; gap: 3px; }
 .dashboard-v2 .dashboard-v2-activity-icon { display: grid; width: 30px; height: 30px; flex: 0 0 auto; place-items: center; border-radius: 8px; color: var(--text-secondary); }

@@ -283,6 +283,7 @@
 .client-extras span { overflow:hidden; color:var(--text); font-size:9px; text-overflow:ellipsis; white-space:nowrap; }
 .client-extras strong { overflow:hidden; color:var(--text); font-size:10px; font-variant-numeric:tabular-nums; text-overflow:ellipsis; white-space:nowrap; }
 .client-notes { display:-webkit-box; overflow:hidden; margin:10px 2px 0; color:var(--text); font-size:10px; line-height:1.5; -webkit-box-orient:vertical; -webkit-line-clamp:2; }
+.client-payment-warning { margin:9px 2px 0; color:#dfa83a; font-size:9px; line-height:1.4; }
 .client-card-actions { display:flex; gap:7px; margin-top:13px; padding-top:12px; border-top:1px solid var(--line); }
 .client-card-actions button { min-height:34px; padding:0 10px; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--text); font:inherit; font-size:10px; cursor:pointer; }
 .client-card-actions button:hover { border-color:#45bad4; color:#fff; }
