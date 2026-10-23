@@ -10,6 +10,7 @@ import { createProductsRouter } from './routes/products.js';
 import { validateEmployeePayrollData } from './services/payroll.js';
 import { buildDashboardSummary } from './services/dashboard.js';
 import { validateFinancialEntry } from './services/financial.js';
+import { deriveBookingFinancials } from './services/booking-financials.js';
 
 const app = express();
 const port = Number(process.env.PORT) || 4000;
@@ -102,7 +103,9 @@ app.get('/api/records/:resource', async (request, response, next) => {
   try {
     const records = await BusinessRecord.find({ resource: request.params.resource }).sort({ updatedAt: -1 }).lean();
     response.json(records.map(({ _id, data, createdAt, updatedAt }) => ({
-      ...data, id: _id.toString(), createdAt, updatedAt
+      ...data,
+      ...(request.params.resource === 'bookings' ? deriveBookingFinancials(data) : {}),
+      id: _id.toString(), createdAt, updatedAt
     })));
   } catch (error) {
     next(error);
@@ -126,12 +129,18 @@ app.post('/api/records/:resource', async (request, response, next) => {
       ? validateFinancialEntry(request.body)
       : request.params.resource === 'employees' ? validateEmployeePayrollData(request.body) : request.body;
     if (request.params.resource === 'bookings') {
-      const { materialPlan: _plan, completion: _completion, completionHistory: _history, statusBeforeCompletion: _status, ...bookingFields } = request.body;
-      data = { ...bookingFields, materialPlan: [], completion: null, completionHistory: [] };
+      const {
+        materialPlan: _plan, completion: _completion, completionHistory: _history, statusBeforeCompletion: _status,
+        payments: _payments, paymentTrackingStartedAt: _tracking, paidAmount: _paid, balance: _balance, paymentStatus: _paymentStatus,
+        ...bookingFields
+      } = request.body;
+      data = { ...bookingFields, materialPlan: [], completion: null, completionHistory: [], payments: [], paymentTrackingStartedAt: new Date() };
     }
     const record = await BusinessRecord.create({ resource: request.params.resource, data });
     response.status(201).json({
-      ...record.data, id: record._id.toString(),
+      ...record.data,
+      ...(request.params.resource === 'bookings' ? deriveBookingFinancials(record.data) : {}),
+      id: record._id.toString(),
       createdAt: record.createdAt, updatedAt: record.updatedAt
     });
   } catch (error) {

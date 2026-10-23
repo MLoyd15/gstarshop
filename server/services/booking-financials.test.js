@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  addBookingPayment, deriveBookingFinancials, isCancelledBooking, moneyCents, snapshotCompletionRevenue, voidBookingPayment
+  addBookingPayment, confirmBookingPaymentHistory, deriveBookingFinancials, isCancelledBooking, moneyCents, snapshotCompletionRevenue, voidBookingPayment
 } from './booking-financials.js';
 
 test('completion captures the booking value as cents at completion time', () => {
@@ -54,4 +54,12 @@ test('voiding a payment keeps its row and removes it from the derived balance', 
 test('cancelled booking status is identified without guessing payment history', () => {
   assert.equal(isCancelledBooking({ status: 'Cancelled' }), true);
   assert.equal(isCancelledBooking({ status: 'Completed' }), false);
+});
+
+test('legacy payment history becomes verified only after explicit confirmation', () => {
+  const booking = { amount: 100 };
+  assert.equal(deriveBookingFinancials(booking).paymentLedgerVerified, false);
+  const verified = confirmBookingPaymentHistory(booking, { now: () => new Date('2026-10-12T00:00:00Z') });
+  assert.equal(deriveBookingFinancials(verified).paymentLedgerVerified, true);
+  assert.deepEqual(verified.payments, []);
 });

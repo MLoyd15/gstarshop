@@ -88,6 +88,14 @@ export function voidBookingPayment(data, paymentId, reason, { now = () => new Da
   return { payments, payment: payments[index] };
 }
 
+export function confirmBookingPaymentHistory(data, { now = () => new Date() } = {}) {
+  return {
+    ...data,
+    payments: Array.isArray(data.payments) ? data.payments : [],
+    paymentTrackingStartedAt: data.paymentTrackingStartedAt || now()
+  };
+}
+
 export function isCancelledBooking(data = {}) {
   return canceledStatuses.has(String(data.status || '').trim().toLowerCase());
 }

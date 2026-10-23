@@ -2,8 +2,14 @@ import express from 'express';
 import {
   InventoryValidationError, applyStockMovement, toQuantity, validateBusinessDate
 } from '../services/inventory.js';
+import {
+  addBookingPayment, confirmBookingPaymentHistory, deriveBookingFinancials, isCancelledBooking, snapshotCompletionRevenue, voidBookingPayment
+} from '../services/booking-financials.js';
 
-const serialize = (record) => ({ ...record.data, id: record._id.toString(), createdAt: record.createdAt, updatedAt: record.updatedAt });
+const serialize = (record) => ({
+  ...record.data, ...deriveBookingFinancials(record.data),
+  id: record._id.toString(), createdAt: record.createdAt, updatedAt: record.updatedAt
+});
 const roundCost = (value) => Math.round((value + Number.EPSILON) * 10000) / 10000;
 const activeCompletion = (data) => data.completion?.status === 'completed';
 
@@ -35,6 +41,7 @@ export function createBookingsRouter(BusinessRecord, mongoose) {
     try {
       const booking = await getBooking(req.params.id);
       if (activeCompletion(booking.data)) throw new InventoryValidationError('Reverse the completed job before deleting its booking.', 409);
+      if ((booking.data.payments || []).length) throw new InventoryValidationError('Bookings with payment history cannot be deleted. Keep the booking for its payment audit history.', 409);
       await booking.deleteOne();
       res.status(204).end();
     } catch (error) { fail(res, error); }
@@ -74,6 +81,7 @@ export function createBookingsRouter(BusinessRecord, mongoose) {
       await session.withTransaction(async () => {
         const booking = await getBooking(req.params.id, session);
         if (activeCompletion(booking.data)) { result = { booking: booking.toObject(), duplicate: true }; return; }
+        const revenueSnapshot = snapshotCompletionRevenue(booking.data);
         if (!booking.data.materialPlan?.length) throw new InventoryValidationError('Add planned materials before completing the job.', 409);
         const planById = new Map(booking.data.materialPlan.map((line) => [line.lineId, line]));
         if (req.body.materials.length !== planById.size) throw new InventoryValidationError('Enter actual use and waste for every planned material line.');
@@ -107,7 +115,7 @@ export function createBookingsRouter(BusinessRecord, mongoose) {
         const data = booking.data;
         data.statusBeforeCompletion = data.status || 'Active';
         data.status = 'Completed';
-        data.completion = { id: completionId, status: 'completed', completedAt: new Date(), completionDate: date, materials: lines, materialCost, movementIds, reversalMovementIds: [] };
+        data.completion = { id: completionId, status: 'completed', completedAt: new Date(), completionDate: date, ...revenueSnapshot, materials: lines, materialCost, movementIds, reversalMovementIds: [] };
         booking.data = data; booking.markModified('data'); await booking.save({ session });
         result = { booking: booking.toObject(), duplicate: false };
       });
@@ -152,6 +160,57 @@ export function createBookingsRouter(BusinessRecord, mongoose) {
       res.json(serialize(updated));
     } catch (error) { fail(res, error); }
     finally { await session?.endSession(); }
+  });
+
+  router.post('/:id/payments', async (req, res) => {
+    let session;
+    try {
+      if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) throw new InventoryValidationError('Payment must be a JSON object.');
+      session = await mongoose.startSession();
+      let result;
+      await session.withTransaction(async () => {
+        const booking = await getBooking(req.params.id, session);
+        if (isCancelledBooking(booking.data)) throw new InventoryValidationError('Payments cannot be added to a cancelled booking.', 409);
+        result = addBookingPayment(booking.data, req.body);
+        if (result.duplicate) { result.booking = booking.toObject(); return; }
+        booking.data.payments = result.payments;
+        booking.markModified('data');
+        await booking.save({ session });
+        result.booking = booking.toObject();
+      });
+      res.status(result.duplicate ? 200 : 201).json({ ...serialize(result.booking), payment: result.payment, duplicate: result.duplicate });
+    } catch (error) { fail(res, error); }
+    finally { await session?.endSession(); }
+  });
+
+  router.delete('/:id/payments/:paymentId', async (req, res) => {
+    let session;
+    try {
+      if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) throw new InventoryValidationError('A void reason is required.');
+      session = await mongoose.startSession();
+      let result;
+      await session.withTransaction(async () => {
+        const booking = await getBooking(req.params.id, session);
+        result = voidBookingPayment(booking.data, req.params.paymentId, req.body.reason);
+        booking.data.payments = result.payments;
+        booking.markModified('data');
+        await booking.save({ session });
+        result.booking = booking.toObject();
+      });
+      res.json({ ...serialize(result.booking), payment: result.payment });
+    } catch (error) { fail(res, error); }
+    finally { await session?.endSession(); }
+  });
+
+  router.post('/:id/payments/confirm-history', async (req, res) => {
+    try {
+      if (req.body?.confirmed !== true) throw new InventoryValidationError('Confirm that all earlier customer payments have been recorded.');
+      const booking = await getBooking(req.params.id);
+      booking.data = confirmBookingPaymentHistory(booking.data);
+      booking.markModified('data');
+      await booking.save();
+      res.json(serialize(booking));
+    } catch (error) { fail(res, error); }
   });
   return router;
 }
