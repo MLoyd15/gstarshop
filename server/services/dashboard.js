@@ -1,7 +1,10 @@
+import { deriveBookingFinancials, isCancelledBooking } from './booking-financials.js';
+
 const amountOf = (record) => {
   const amount = Number(record?.data?.amount);
   return Number.isFinite(amount) ? amount : 0;
 };
+const hasRevenueSnapshot = (completion) => typeof completion?.revenueAmount === 'number' && Number.isFinite(completion.revenueAmount) && completion.revenueAmount >= 0;
 
 function dateKey(value) {
   if (!value) return '';
@@ -39,7 +42,10 @@ export function buildDashboardSummary(records, requestedPeriod, now = new Date()
       income: 0,
       expenses: 0,
       payrollPaid: 0,
-      materialCosts: 0
+      materialCosts: 0,
+      salesRevenue: 0,
+      cashCollected: 0,
+      grossMargin: 0
     };
   });
   const monthByKey = new Map(months.map((item) => [item.key, item]));
@@ -47,7 +53,12 @@ export function buildDashboardSummary(records, requestedPeriod, now = new Date()
   const ordinaryExpenses = (record) => !record.data.payrollRunId && !String(record.data.expenseKind || '').startsWith('payroll-');
   const incomes = records.filter((record) => record.resource === 'income' && !isReversed(record.data));
   const expenses = records.filter((record) => record.resource === 'expenses' && ordinaryExpenses(record) && !isReversed(record.data));
-  const completedBookings = records.filter((record) => record.resource === 'bookings' && record.data.completion?.status === 'completed');
+  const bookings = records.filter((record) => record.resource === 'bookings');
+  const completedBookings = bookings.filter((record) => record.data.completion?.status === 'completed');
+  const bookingRevenueCovered = completedBookings.every((record) => hasRevenueSnapshot(record.data.completion)
+    && record.data.completion.revenueSource === 'completion');
+  const eligibleReceivableBookings = bookings.filter((record) => !isCancelledBooking(record.data));
+  const receivablesCovered = eligibleReceivableBookings.every((record) => Boolean(record.data.paymentTrackingStartedAt));
   const runs = records.filter((record) => record.resource === 'payroll-runs' && record.data.period === period && record.data.status !== 'reversed');
   const paymentRecords = [];
 
@@ -65,7 +76,41 @@ export function buildDashboardSummary(records, requestedPeriod, now = new Date()
     const completion = record.data.completion;
     const key = monthKey(completion.completionDate || completion.completedAt || record.updatedAt, '');
     const item = monthTotals(key);
-    if (item) item.materialCosts += Number.isFinite(Number(completion.materialCost)) ? Number(completion.materialCost) : 0;
+    const materialCost = Number.isFinite(Number(completion.materialCost)) ? Number(completion.materialCost) : 0;
+    if (item) {
+      item.materialCosts += materialCost;
+      if (hasRevenueSnapshot(completion)) {
+        item.salesRevenue += Number(completion.revenueAmount);
+        item.grossMargin += Number(completion.revenueAmount) - materialCost;
+      }
+    }
+  }
+
+  const bookingPayments = [];
+  const allTimeRevenue = { salesRevenue: 0, materialCosts: 0, grossMargin: 0, cashCollected: 0 };
+  const seenBookingPayments = new Set();
+  for (const record of bookings) {
+    const bookingKey = record._id?.toString?.() || String(record.id || record.data.name || 'booking');
+    const completion = record.data.completion;
+    if (completion?.status === 'completed') {
+      const materialCost = Number(completion.materialCost) || 0;
+      allTimeRevenue.materialCosts += materialCost;
+      if (hasRevenueSnapshot(completion)) {
+        allTimeRevenue.salesRevenue += Number(completion.revenueAmount);
+        allTimeRevenue.grossMargin += Number(completion.revenueAmount) - materialCost;
+      }
+    }
+    for (const [index, payment] of (record.data.payments || []).entries()) {
+      if (payment.voidedAt) continue;
+      const uniqueKey = `${bookingKey}:${payment.idempotencyKey || payment.id || `legacy-${index}`}`;
+      if (seenBookingPayments.has(uniqueKey)) continue;
+      seenBookingPayments.add(uniqueKey);
+      bookingPayments.push({ booking: record, payment });
+      const amount = Number(payment.amount);
+      if (Number.isFinite(amount) && amount >= 0) allTimeRevenue.cashCollected += amount;
+      const item = monthTotals(monthKey(payment.date, ''));
+      if (item && Number.isFinite(amount) && amount >= 0) item.cashCollected += amount;
+    }
   }
 
   const seenPayments = new Set();
@@ -93,13 +138,29 @@ export function buildDashboardSummary(records, requestedPeriod, now = new Date()
       const completion = record.data.completion;
       return monthKey(completion.completionDate || completion.completedAt || record.updatedAt, '') === key;
     }).reduce((sum, record) => sum + (Number(record.data.completion.materialCost) || 0), 0);
+    const salesRevenue = completedBookings.filter((record) => {
+      const completion = record.data.completion;
+      return monthKey(completion.completionDate || completion.completedAt || record.updatedAt, '') === key
+        && hasRevenueSnapshot(completion);
+    }).reduce((sum, record) => sum + Number(record.data.completion.revenueAmount), 0);
     const payrollPaid = paymentRecords.filter(({ payment }) => monthKey(payment.date, '') === key)
       .reduce((sum, { payment }) => sum + (Number(payment.amount) || 0), 0);
-    return { income, expenses: expensesTotal, payrollPaid, materialCosts };
+    const cashCollected = bookingPayments.filter(({ payment }) => monthKey(payment.date, '') === key)
+      .reduce((sum, { payment }) => sum + (Number(payment.amount) || 0), 0);
+    const grossMargin = completedBookings.filter((record) => {
+      const completion = record.data.completion;
+      return monthKey(completion.completionDate || completion.completedAt || record.updatedAt, '') === key && hasRevenueSnapshot(completion);
+    }).reduce((sum, record) => sum + Number(record.data.completion.revenueAmount) - (Number(record.data.completion.materialCost) || 0), 0);
+    return { income, expenses: expensesTotal, payrollPaid, materialCosts, salesRevenue, cashCollected, grossMargin };
   };
 
   const selectedTotals = periodValues(period);
   const previousTotals = periodValues(previousPeriod);
+  const unpaidBookings = eligibleReceivableBookings.map((record) => {
+    const financials = deriveBookingFinancials(record.data);
+    return { id: record._id?.toString?.() || String(record.id || ''), name: record.data.name || 'Untitled booking', client: record.data.client || '', balance: Math.max(0, financials.balance), paymentLedgerVerified: financials.paymentLedgerVerified };
+  }).filter((booking) => booking.balance > 0).sort((a, b) => b.balance - a.balance);
+  const receivables = unpaidBookings.reduce((sum, booking) => sum + booking.balance, 0);
   const expenseCategories = {};
   for (const record of expenses) {
     if (monthKey(record.data.date || record.createdAt, '') !== period) continue;
@@ -186,6 +247,11 @@ export function buildDashboardSummary(records, requestedPeriod, now = new Date()
     previousPeriod,
     totals: {
       ...selectedTotals,
+      receivables,
+      receivableCount: unpaidBookings.length,
+      unpaidBookings: unpaidBookings.slice(0, 5),
+      receivablesVerified: receivablesCovered,
+      allTime: allTimeRevenue,
       expenseCategories,
       incomeEntries: incomes.filter((record) => monthKey(record.data.date || record.createdAt, '') === period).length,
       expenseEntries: expenses.filter((record) => monthKey(record.data.date || record.createdAt, '') === period).length,
@@ -203,8 +269,8 @@ export function buildDashboardSummary(records, requestedPeriod, now = new Date()
     months,
     recent,
     financialLimits: {
-      salesRevenueTrackedSeparately: false,
-      customerReceivablesTracked: false,
+      salesRevenueTrackedSeparately: bookingRevenueCovered,
+      customerReceivablesTracked: receivablesCovered,
       profitReliable: false
     }
   };
