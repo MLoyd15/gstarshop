@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Butterfly } from '../shared.jsx';
+import { AppIcon } from '../components/icons.jsx';
+import { Plus, TrendingUp, TrendingDown, Settings, CalendarDays, Package, Users, List, ChevronRight, ArrowRight, Check } from 'lucide-react';
 import '../styles/DashboardPage.css';
 import AnalyticsSection from '../components/analytics/AnalyticsSection.jsx';
 
@@ -15,25 +17,20 @@ const TONES = {
   neutral: 'bg-[var(--surface-soft)] text-[var(--text-secondary)]',
 };
 
-const ICONS = {
-  plus: 'M12 5v14M5 12h14',
-  income: 'M7 17L17 7M9 7h8v8',
-  expenses: 'M7 7l10 10M17 9v8H9',
-  settings: 'M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.7 2.94-.08-.02a1.7 1.7 0 0 0-1.75.62l-.05.07h-3.4l-.03-.08a1.7 1.7 0 0 0-1.43-1.16l-.09-.01-1.7-2.94.06-.06A1.7 1.7 0 0 0 9.8 14.5l-.08-.02v-3.4l.08-.03a1.7 1.7 0 0 0 1.16-1.43l.01-.09 2.94-1.7.06.06a1.7 1.7 0 0 0 1.88.34l.08-.03 2.94 1.7-.02.08a1.7 1.7 0 0 0 .62 1.75l.07.05v3.4l-.08.03a1.7 1.7 0 0 0-1.16 1.43z',
-  bookings: 'M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z',
-  purchases: 'M4 8l8-4 8 4-8 4-8-4zM4 8v8l8 4 8-4V8M12 12v8',
-  suppliers: 'M16 19v-1.5a3.5 3.5 0 0 0-3.5-3.5h-4A3.5 3.5 0 0 0 5 17.5V19M10.5 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19 19v-1.5a3.5 3.5 0 0 0-2.5-3.35M15.5 5.2a3 3 0 0 1 0 5.6',
-  inventory: 'M4 6h16M4 12h16M4 18h10',
-  chevron: 'M9 6l6 6-6 6',
+const DASHBOARD_ICONS = {
+  plus: Plus,
+  income: TrendingUp,
+  expenses: TrendingDown,
+  settings: Settings,
+  bookings: CalendarDays,
+  purchases: Package,
+  suppliers: Users,
+  inventory: List,
+  chevron: ChevronRight,
 };
 
 function Glyph({ name, size = 18, className }) {
-  return (
-    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d={ICONS[name]} />
-    </svg>
-  );
+  return <AppIcon icon={DASHBOARD_ICONS[name]} size={size <= 16 ? 'sm' : 'md'} className={className} style={{ width: size, height: size }} />;
 }
 
 function IconBadge({ name, tone }) {
@@ -113,7 +110,7 @@ export default function DashboardPage({ onNavigate, data, compact, loading = fal
           const delta = deltaFor(stat.current, stat.previous);
           return <button type="button" className="dashboard-v2-stat" key={stat.label} onClick={() => onNavigate(stat.target)}>
             <span>{stat.label}</span><strong>{loading ? '—' : stat.value}</strong>
-            <small>{loading ? 'Loading…' : delta === null || !Number.isFinite(delta) ? stat.count : <><b className={delta < 0 ? 'negative' : 'positive'}>{delta > 0 ? '↑' : delta < 0 ? '↓' : '→'} {Math.abs(delta).toFixed(1)}%</b> vs previous month · {stat.count}</>}</small>
+            <small>{loading ? 'Loading…' : delta === null || !Number.isFinite(delta) ? stat.count : <><b className={delta < 0 ? 'negative' : 'positive'}><AppIcon icon={delta > 0 ? TrendingUp : delta < 0 ? TrendingDown : ArrowRight} size="sm" /> {Math.abs(delta).toFixed(1)}%</b> vs previous month · {stat.count}</>}</small>
           </button>;
         })}
       </section>
@@ -139,7 +136,7 @@ export default function DashboardPage({ onNavigate, data, compact, loading = fal
         <section className="dashboard-v2-card dashboard-v2-health" aria-label="Business health">
           <div className="dashboard-v2-card-heading"><div><h2>Business health</h2><p>{attention.length ? `${attention.length} items need your attention.` : 'Nothing urgent needs your attention.'}</p></div></div>
           {loading ? <div className="dashboard-v2-health-empty">Loading…</div> : <>
-            <div className="dashboard-v2-health-total"><span className={attention.length ? 'dashboard-v2-alert' : 'dashboard-v2-ok'}>{attention.length || '✓'}</span><strong>{attention.length ? 'Open items' : 'You’re caught up.'}</strong><small>{attention.length ? 'Review the open items by area.' : 'Bookings, stock, and pay runs look clear.'}</small></div>
+            <div className="dashboard-v2-health-total"><span className={attention.length ? 'dashboard-v2-alert' : 'dashboard-v2-ok'}>{attention.length || <AppIcon icon={Check} size="sm" />}</span><strong>{attention.length ? 'Open items' : 'You’re caught up.'}</strong><small>{attention.length ? 'Review the open items by area.' : 'Bookings, stock, and pay runs look clear.'}</small></div>
             <div className="dashboard-v2-health-groups">{attentionGroups.map((group) => <button type="button" key={group.kind} onClick={() => onNavigate(group.target)}><span>{group.title}</span><b>{attention.filter((item) => item.kind === group.kind).length}</b></button>)}</div>
             {(totals.unpaidBookings || []).length > 0 && <div className="dashboard-v2-unpaid-list"><strong>Unpaid jobs</strong>{totals.unpaidBookings.slice(0, 3).map((booking) => <button type="button" key={booking.id} onClick={() => onNavigate('bookings')}><span><b>{booking.name}</b><small>{booking.client || 'No client'}{booking.paymentLedgerVerified ? '' : ' · legacy balance'}</small></span><strong>{currency(booking.balance)}</strong></button>)}</div>}
           </>}
@@ -153,7 +150,7 @@ export default function DashboardPage({ onNavigate, data, compact, loading = fal
 
       <div className="dashboard-v2-payroll-row">
         <section className="dashboard-v2-card dashboard-v2-payroll" aria-label="Payroll overview">
-          <div className="dashboard-v2-card-heading"><div><h2>Payroll overview · {periodLabel}</h2><p>Saved pay runs for this period. Drafts are excluded from paid expense totals.</p></div><button className="btn dashboard-v2-link btn-secondary" onClick={() => onNavigate('payroll-runs')}>Review payroll →</button></div>
+          <div className="dashboard-v2-card-heading"><div><h2>Payroll overview · {periodLabel}</h2><p>Saved pay runs for this period. Drafts are excluded from paid expense totals.</p></div><button className="btn dashboard-v2-link btn-secondary" onClick={() => onNavigate('payroll-runs')}>Review payroll <AppIcon icon={ArrowRight} size="sm" /></button></div>
           <div className="dashboard-v2-payroll-grid"><PayrollMetric label="Employees in pay runs" value={payroll.employeeCount} detail={`${payroll.runCount} saved runs`} /><PayrollMetric label="Run status" value={`${payroll.draftCount + payroll.finalizedCount + payroll.partiallyPaidCount} open`} detail={`${payroll.draftCount} draft · ${payroll.finalizedCount} finalized · ${payroll.partiallyPaidCount} part-paid`} /><PayrollMetric label="Gross payroll" value={currency(payroll.gross)} detail={`${currency(payroll.overtime)} overtime`} /><PayrollMetric label="Deductions" value={currency(payroll.deductions)} detail="From saved pay runs" /><PayrollMetric label="Net payroll" value={currency(payroll.net)} detail="For selected pay period" /><PayrollMetric label="Paid" value={currency(payroll.paid)} detail={`${payroll.paidCount} fully paid runs`} /><PayrollMetric label="Finalized balance due" value={currency(payroll.outstandingFinalized)} detail="Finalized or partly paid" /></div>
         </section>
         <section className="dashboard-v2-card dashboard-v2-quick-actions" aria-label="Quick actions">
