@@ -1,4 +1,6 @@
 import '../../../styles/BookingsPage.css';
+import { AppIcon } from '../../icons.jsx';
+import { Plus, X } from 'lucide-react';
 import MockFrame from '../MockFrame.jsx';
 import Callout from '../Callout.jsx';
 import { booking, products, php } from '../mockData.js';
@@ -8,7 +10,7 @@ function PlanMaterialsPreview() {
   return (
     <MockFrame variant="guide-mock-booking">
       <section className="booking-modal">
-        <header><div><span className="eyebrow t-eyebrow">{booking.name}</span><h2>Planned materials</h2></div><button className="btn btn-icon btn-ghost" type="button" aria-label="Close">×</button></header>
+        <header><div><span className="eyebrow t-eyebrow">{booking.name}</span><h2>Planned materials</h2></div><button className="btn btn-icon btn-ghost" type="button" aria-label="Close"><AppIcon icon={X} size="sm" /></button></header>
         <p>Planned quantities are saved with the booking and do not change stock.</p>
         <Callout n={1}><div className="booking-recipe-picker">
           <label>Product recipe<select className="select" defaultValue={product.id}><option value={product.id}>{product.name} · {php(product.unitCost)} material cost / {product.unit}</option></select></label>
@@ -23,7 +25,7 @@ function PlanMaterialsPreview() {
             <button className="btn btn-secondary" type="button">Remove</button>
           </div>
         ))}
-        <button type="button" className="btn btn-secondary">＋ Add material</button>
+        <button type="button" className="btn btn-secondary"><AppIcon icon={Plus} size="sm" /> Add material</button>
         <footer><button type="button" className="btn btn-secondary">Cancel</button><Callout n={3}><button type="button" className="btn btn-secondary">Save plan</button></Callout></footer>
       </section>
     </MockFrame>

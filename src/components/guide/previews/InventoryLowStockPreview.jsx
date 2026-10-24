@@ -1,4 +1,6 @@
 import '../../../styles/MaterialsPage.css';
+import { AppIcon } from '../../icons.jsx';
+import { Plus } from 'lucide-react';
 import MockFrame from '../MockFrame.jsx';
 import Callout from '../Callout.jsx';
 import { materials, php } from '../mockData.js';
@@ -8,7 +10,7 @@ function InventoryLowStockPreview() {
   return (
     <MockFrame variant="guide-mock-inventory">
       <section className="materials-page">
-        <header className="materials-heading"><div><div className="t-eyebrow">RAW MATERIALS</div><h1 className="t-page-title">Materials</h1><p>Low stock filter · active materials</p></div><button className="btn btn-secondary" type="button">＋ Add material</button></header>
+        <header className="materials-heading"><div><div className="t-eyebrow">RAW MATERIALS</div><h1 className="t-page-title">Materials</h1><p>Low stock filter · active materials</p></div><button className="btn btn-secondary" type="button"><AppIcon icon={Plus} size="sm" /> Add material</button></header>
         <div className="materials-panel">
           <div className="materials-toolbar"><div><h2>Stock on hand</h2><p>Low stock is at or below the reorder level.</p></div><div className="materials-filters"><input className="input input-sm" value="Low stock" readOnly aria-label="Filter materials" /></div></div>
           <div className="material-cards guide-mock-material-cards">

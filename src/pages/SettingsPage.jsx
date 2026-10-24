@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { AppIcon } from '../components/icons.jsx';
+import { Building2, UserRound, ExternalLink } from 'lucide-react';
 import { flowSteps } from '../data/flowSteps.js';
 import '../styles/SettingsPage.css';
 import { ConfirmDialog } from '../components/ui/alert-dialog.tsx';
@@ -77,9 +79,9 @@ export default function SettingsPage({ health, appearance, onAppearanceChange, a
         </fieldset>
       </div>
     </section>
-    <div className="settings-grid"><section className="panel settings-card"><div className="settings-symbol">◈</div><h2>Workspace</h2><p>G4 Sticker</p><div className="settings-detail"><span>Database</span><strong className={health === 'connected' ? 'connected-text' : 'disconnected-text'}>{health === 'connected' ? 'Connected' : health === 'checking' ? 'Checking…' : 'Not connected'}</strong></div></section>
-    <section className="panel settings-card"><div className="settings-symbol lavender">♙</div><h2>Your profile</h2><p>G4 Sticker admin</p><div className="settings-detail"><span>Account</span><strong>Personal workspace</strong></div></section>
-    <section className="panel settings-card guide-settings-card"><div className="settings-symbol">↗</div><h2>Learn the flow</h2><p className="guide-settings-progress" aria-live="polite">{guideProgress} of {flowSteps.length} steps viewed</p><div className="guide-settings-actions"><button className="btn btn-secondary" type="button" onClick={() => onNavigate('guide')}>Open the guide</button><button className="btn btn-secondary" type="button" onClick={() => setResetConfirmOpen(true)}>Reset guide progress</button></div></section></div>
+    <div className="settings-grid"><section className="panel settings-card"><div className="settings-symbol"><AppIcon icon={Building2} size="lg" /></div><h2>Workspace</h2><p>G4 Sticker</p><div className="settings-detail"><span>Database</span><strong className={health === 'connected' ? 'connected-text' : 'disconnected-text'}>{health === 'connected' ? 'Connected' : health === 'checking' ? 'Checking…' : 'Not connected'}</strong></div></section>
+    <section className="panel settings-card"><div className="settings-symbol lavender"><AppIcon icon={UserRound} size="lg" /></div><h2>Your profile</h2><p>G4 Sticker admin</p><div className="settings-detail"><span>Account</span><strong>Personal workspace</strong></div></section>
+    <section className="panel settings-card guide-settings-card"><div className="settings-symbol"><AppIcon icon={ExternalLink} size="lg" /></div><h2>Learn the flow</h2><p className="guide-settings-progress" aria-live="polite">{guideProgress} of {flowSteps.length} steps viewed</p><div className="guide-settings-actions"><button className="btn btn-secondary" type="button" onClick={() => onNavigate('guide')}>Open the guide</button><button className="btn btn-secondary" type="button" onClick={() => setResetConfirmOpen(true)}>Reset guide progress</button></div></section></div>
     <ConfirmDialog open={resetConfirmOpen} title="Reset your Learn the flow progress?" description="" confirmLabel="Reset progress" onConfirm={resetGuideProgress} onCancel={() => setResetConfirmOpen(false)} />
   </div>;
 }

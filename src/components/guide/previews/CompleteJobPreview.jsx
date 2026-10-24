@@ -1,4 +1,6 @@
 import '../../../styles/BookingsPage.css';
+import { AppIcon } from '../../icons.jsx';
+import { X } from 'lucide-react';
 import MockFrame from '../MockFrame.jsx';
 import Callout from '../Callout.jsx';
 import { booking, php } from '../mockData.js';
@@ -8,7 +10,7 @@ function CompleteJobPreview() {
   return (
     <MockFrame variant="guide-mock-booking">
       <section className="booking-modal">
-        <header><div><span className="eyebrow t-eyebrow">{booking.name}</span><h2>Complete job</h2></div><button className="btn btn-icon btn-ghost" type="button" aria-label="Close">×</button></header>
+        <header><div><span className="eyebrow t-eyebrow">{booking.name}</span><h2>Complete job</h2></div><button className="btn btn-icon btn-ghost" type="button" aria-label="Close"><AppIcon icon={X} size="sm" /></button></header>
         <p>Enter actual quantities. Stock is deducted now using each material’s current average cost.</p>
         <div className="guide-mock-actual-heading"><span>Material</span><span>Planned</span><span>Used</span><span>Waste</span></div>
         <div className="booking-actual-line guide-mock-actual-line">

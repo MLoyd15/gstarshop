@@ -1,4 +1,6 @@
 import '../../../styles/PayrollPage.css';
+import { AppIcon } from '../../icons.jsx';
+import { Plus } from 'lucide-react';
 import MockFrame from '../MockFrame.jsx';
 import Callout from '../Callout.jsx';
 import { payRun, php } from '../mockData.js';
@@ -9,7 +11,7 @@ function PayRunPreview() {
       <section className="payroll-page">
         <header className="payroll-heading">
           <div><div className="t-eyebrow">PAYROLL SYSTEM</div><h1 className="t-page-title">Pay runs</h1><p>Prepare, review, finalize, and track employee payments.</p></div>
-          <div className="payroll-heading-actions"><label>Pay period<input className="input" type="month" value={payRun.period} readOnly /></label><Callout n={1}><button className="btn btn-secondary" type="button">＋ Generate payroll</button></Callout></div>
+          <div className="payroll-heading-actions"><label>Pay period<input className="input" type="month" value={payRun.period} readOnly /></label><Callout n={1}><button className="btn btn-secondary" type="button"><AppIcon icon={Plus} size="sm" /> Generate payroll</button></Callout></div>
         </header>
         <div className="payroll-summary">
           <article><span>Gross earnings</span><strong>{php(payRun.grossPay)}</strong></article>

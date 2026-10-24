@@ -1,4 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { AppIcon } from '../components/icons.jsx';
+import { Check, ArrowRight } from 'lucide-react';
 import { flowSteps, glossary } from '../data/flowSteps.js';
 import { previewBadgeNumbers } from '../components/guide/registryMeta.js';
 import '../styles/GuidePage.css';
@@ -86,7 +88,7 @@ function GuidePage({ onNavigate }) {
                 onClick={() => setSelectedId(step.id)}>
                 <span className="guide-step-number">{step.number}</span>
                 <span className="guide-step-title">{step.title}</span>
-                {viewed.includes(step.id) && <span className="guide-viewed" aria-hidden="true">✓</span>}
+                {viewed.includes(step.id) && <span className="guide-viewed"><AppIcon icon={Check} size="sm" /></span>}
               </button>
             </li>
           ))}
@@ -101,7 +103,7 @@ function GuidePage({ onNavigate }) {
             <p className="guide-summary">{selected.summary}</p>
           </div>
           <button type="button" className="btn guide-go btn-secondary" onClick={() => onNavigate(selected.goTo)}>
-            Go to {selected.goToLabel} <span aria-hidden="true">→</span>
+            Go to {selected.goToLabel} <AppIcon icon={ArrowRight} size="sm" />
           </button>
         </div>
         <div className="guide-detail-columns">
@@ -125,7 +127,7 @@ function GuidePage({ onNavigate }) {
                   </Suspense>
                   <p className="guide-preview-caption">{preview.caption}</p>
                   <button type="button" className="btn guide-preview-open btn-secondary" onClick={() => onNavigate(selected.goTo)}>
-                    Open the real page <span aria-hidden="true">→</span>
+                    Open the real page <AppIcon icon={ArrowRight} size="sm" />
                   </button>
                 </div>
                 <ol className="guide-preview-callouts" aria-label="Preview instructions">

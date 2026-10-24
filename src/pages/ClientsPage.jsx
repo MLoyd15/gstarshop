@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { AppIcon } from '../components/icons.jsx';
+import { Plus } from 'lucide-react';
 import '../styles/ClientsPage.css';
 
 const money = (value) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(value) || 0);
@@ -38,11 +40,11 @@ export default function ClientsPage({ clients = [], loading, search = '', setSea
       : new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0)), [clients, sort, status]);
 
   return <section className="clients-page">
-    <header className="clients-welcome"><div><span className="t-eyebrow">CUSTOMER RELATIONSHIPS</span><h1 className="t-page-title">Clients</h1><p>Keep client details, booking value, and contact information together.</p></div><button className="btn btn-secondary" onClick={onCreate}>＋ Add client</button></header>
+    <header className="clients-welcome"><div><span className="t-eyebrow">CUSTOMER RELATIONSHIPS</span><h1 className="t-page-title">Clients</h1><p>Keep client details, booking value, and contact information together.</p></div><button className="btn btn-secondary" onClick={onCreate}><AppIcon icon={Plus} size="sm" /> Add client</button></header>
     <div className="clients-summary"><article><span>All clients</span><strong>{clients.length}</strong></article><article><span>Active clients</span><strong>{activeCount}</strong></article><article><span>Customer payments</span><strong>{money(allCollected)}</strong><small>Non-voided booking payments</small></article><article><span>Outstanding</span><strong>{money(allOutstanding)}</strong><small>Uncancelled booking balances</small></article></div>
     <section className="clients-panel"><header className="clients-toolbar"><div><h2>Client directory</h2><p>{listed.length} {listed.length === 1 ? 'client' : 'clients'} · Booking totals are matched by client name.</p></div><div className="clients-filters"><label><span className="sr-only">Search clients</span><input className="input input-sm" value={search} onChange={(event) => setSearch?.(event.target.value)} placeholder="Search clients…" /></label><select className="select" aria-label="Filter client status" value={status} onChange={(event) => setStatus(event.target.value)}><option value="all">All statuses</option><option value="active">Active</option><option value="inactive">Inactive</option></select><select className="select" aria-label="Sort clients" value={sort} onChange={(event) => setSort(event.target.value)}><option value="name">Name A–Z</option><option value="latest">Recently updated</option></select></div></header>
       {bookingsError && <div className="clients-message" role="status">Booking summaries are unavailable: {bookingsError}</div>}
-      {loading || bookingsLoading ? <div className="clients-empty">Loading clients…</div> : !listed.length ? <div className="clients-empty"><strong>{clients.length ? 'No matching clients' : 'No clients yet'}</strong><p>{clients.length ? 'Change the search or status filter.' : 'Add a client to start tracking their bookings and contact details.'}</p>{!clients.length && <button className="btn btn-secondary" onClick={onCreate}>＋ Add client</button>}</div> : <div className="client-cards">{listed.map((client) => {
+      {loading || bookingsLoading ? <div className="clients-empty">Loading clients…</div> : !listed.length ? <div className="clients-empty"><strong>{clients.length ? 'No matching clients' : 'No clients yet'}</strong><p>{clients.length ? 'Change the search or status filter.' : 'Add a client to start tracking their bookings and contact details.'}</p>{!clients.length && <button className="btn btn-secondary" onClick={onCreate}><AppIcon icon={Plus} size="sm" /> Add client</button>}</div> : <div className="client-cards">{listed.map((client) => {
         const name = client.name || 'Unnamed client';
         const initials = name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() || '').join('') || 'CL';
         const isInactive = ['inactive', 'archived'].includes(statusOf(client).toLowerCase());

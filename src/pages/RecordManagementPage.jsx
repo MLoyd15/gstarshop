@@ -1,4 +1,6 @@
 import '../styles/RecordManagementPage.css';
+import { AppIcon } from '../components/icons.jsx';
+import { Plus, Sparkles, Search, ArrowUpRight, NotebookText, ArrowRight, CalendarDays, Pencil, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import '../styles/SuppliersPage.css';
 import '../styles/ProductsPage.css';
 import '../styles/InventoryPage.css';
@@ -36,7 +38,7 @@ export default function RecordManagementPage({ active, title, fields, records, l
   useEffect(() => setCurrentPage(1), [search, statusFilter]);
   useEffect(() => setCurrentPage((page) => Math.min(page, Math.max(1, pageCount))), [pageCount]);
   return <div className={`records-page ${pageClass}`}><div className="welcome-row records-welcome"><div><div className="t-eyebrow"><span className="accent-line" />BUSINESS HUB</div>
-    <h1 className="t-page-title">{title}</h1><p>{isInventory ? 'See current stock levels for every product in your catalog.' : `Keep your ${title.toLowerCase()} organized and up to date.`}</p></div><button className="btn btn-primary" onClick={onCreate}><span>＋</span>{isInventory ? 'Manage products' : `Add ${title.replace(/s$/, '')}`}</button></div>
+    <h1 className="t-page-title">{title}</h1><p>{isInventory ? 'See current stock levels for every product in your catalog.' : `Keep your ${title.toLowerCase()} organized and up to date.`}</p></div><button className="btn btn-primary" onClick={onCreate}><AppIcon icon={Plus} size="sm" />{isInventory ? 'Manage products' : `Add ${title.replace(/s$/, '')}`}</button></div>
     <div className="records-summary">
       {isInventory ? <>
         <div><span className="summary-label">Products tracked</span><strong>{records.length}</strong></div>
@@ -45,26 +47,26 @@ export default function RecordManagementPage({ active, title, fields, records, l
       </> : <>
         <div><span className="summary-label">Total records</span><strong>{records.length}</strong></div>
         <div><span className="summary-label">Last updated</span><strong>{records.length ? 'Just now' : '—'}</strong></div>
-        <div className="summary-hint"><span className="summary-spark">✳</span><span>Your business, all in one place.</span></div>
+        <div className="summary-hint"><span className="summary-spark"><AppIcon icon={Sparkles} size="sm" /></span><span>Your business, all in one place.</span></div>
       </>}
     </div>
     <section className="panel records-panel"><div className="records-toolbar"><div><h2>All {title.toLowerCase()}</h2><p>Manage and keep track of your records</p></div>
-      <label className="table-search"><span>⌕</span><input className="input" aria-label={`Search ${title}`} placeholder={`Search ${title.toLowerCase()}...`} value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+      <label className="table-search"><AppIcon icon={Search} size="sm" /><input className="input" aria-label={`Search ${title}`} placeholder={`Search ${title.toLowerCase()}...`} value={search} onChange={(event) => setSearch(event.target.value)} /></label>
       {statusField && <label className="filter-control"><span className="sr-only">Filter by status</span><select className="select filter-button" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="all">All statuses</option>{statusOptions.map((status) => <option key={status} value={status}>{status}</option>)}</select></label>}
       <label className="sort-control"><span className="sr-only">Sort records</span><select className="select select-button" value={sortOrder} onChange={(event) => setSortOrder(event.target.value)}><option value="latest">Latest first</option><option value="oldest">Oldest first</option><option value="name">Name A–Z</option></select></label></div>
       <div className="table-wrap"><table><thead><tr>{fields.map(([, label]) => <th key={label}>{label}</th>)}{!isInventory && <><th>Added</th><th aria-label="Actions" /></>}</tr></thead>
         <tbody>{loading ? <tr><td className="empty-state" colSpan={fields.length + (isInventory ? 0 : 2)}>Loading your records…</td></tr>
-          : matchingRecords.length === 0 ? <tr><td className="empty-state" colSpan={fields.length + (isInventory ? 0 : 2)}><span className="empty-icon">{lower ? '↗' : '▤'}</span><strong>{search || statusFilter !== 'all' ? 'No matches found' : isInventory ? 'No products to track yet' : `No ${title.toLowerCase()} yet`}</strong><span>{search || statusFilter !== 'all' ? 'Try changing your search or status filter.' : isInventory ? 'Add products with stock quantities to see them here.' : `Add your first ${title.toLowerCase().replace(/s$/, '')} to get started.`}</span></td></tr>
+          : matchingRecords.length === 0 ? <tr><td className="empty-state" colSpan={fields.length + (isInventory ? 0 : 2)}><span className="empty-icon"><AppIcon icon={lower ? ArrowUpRight : NotebookText} size="lg" /></span><strong>{search || statusFilter !== 'all' ? 'No matches found' : isInventory ? 'No products to track yet' : `No ${title.toLowerCase()} yet`}</strong><span>{search || statusFilter !== 'all' ? 'Try changing your search or status filter.' : isInventory ? 'Add products with stock quantities to see them here.' : `Add your first ${title.toLowerCase().replace(/s$/, '')} to get started.`}</span></td></tr>
           : pageRecords.map((record) => <tr key={record.id}>{fields.map(([key]) => <td key={key}>{active === 'employees' && key === 'name' && onSelect
-            ? <button type="button" className="btn btn-secondary employee-sheet-link" onClick={() => onSelect(record)}>{record.name || 'Unnamed employee'}<small>Open monthly sheet →</small></button>
+            ? <button type="button" className="btn btn-secondary employee-sheet-link" onClick={() => onSelect(record)}>{record.name || 'Unnamed employee'}<small>Open monthly sheet <AppIcon icon={ArrowRight} size="sm" /></small></button>
             : key === 'status'
             || key === 'stockStatus'
             ? <span className={`record-status ${String(record[key] || 'active').toLowerCase().replace(/\s/g, '-')}`}>{record[key] || 'Active'}</span>
             : (key.toLowerCase().includes('date') || key === 'updated') && record[key]
-              ? <span className="date-cell"><span>▦</span>{dateFromValue(String(record[key]).slice(0, 10))?.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) || record[key]}</span>
+              ? <span className="date-cell"><AppIcon icon={CalendarDays} size="sm" />{dateFromValue(String(record[key]).slice(0, 10))?.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) || record[key]}</span>
             : record[key] !== undefined && record[key] !== null && record[key] !== '' ? moneyFields.has(key) && Number.isFinite(Number(record[key])) ? money(record[key]) : record[key] : '—'}</td>)}
-            {!isInventory && <><td>{record.createdAt ? new Date(record.createdAt).toLocaleDateString() : '—'}</td><td><div className="row-actions"><button className="btn btn-icon btn-ghost btn-sm" aria-label="Edit record" onClick={() => onEdit(record)}>✎</button><button className="btn btn-icon btn-ghost btn-sm record-delete-action" aria-label="Delete record" onClick={() => onDelete(record)}>×</button></div></td></>}</tr>)}</tbody></table></div>
-      <div className="table-footer"><span>Showing <strong>{firstResult}–{lastResult}</strong> of <strong>{sortedRecords.length}</strong> results</span><div><button className="btn btn-secondary btn-sm" type="button" disabled={currentPage <= 1} onClick={() => setCurrentPage((page) => page - 1)}>← Previous</button><button className="btn btn-secondary btn-sm" type="button" disabled={currentPage >= pageCount} onClick={() => setCurrentPage((page) => page + 1)}>Next →</button></div></div>
+            {!isInventory && <><td>{record.createdAt ? new Date(record.createdAt).toLocaleDateString() : '—'}</td><td><div className="row-actions"><button className="btn btn-icon btn-ghost btn-sm" aria-label="Edit record" onClick={() => onEdit(record)}><AppIcon icon={Pencil} size="sm" /></button><button className="btn btn-icon btn-ghost btn-sm record-delete-action" aria-label="Delete record" onClick={() => onDelete(record)}><AppIcon icon={X} size="sm" /></button></div></td></>}</tr>)}</tbody></table></div>
+      <div className="table-footer"><span>Showing <strong>{firstResult}–{lastResult}</strong> of <strong>{sortedRecords.length}</strong> results</span><div><button className="btn btn-secondary btn-sm" type="button" disabled={currentPage <= 1} onClick={() => setCurrentPage((page) => page - 1)}><AppIcon icon={ChevronLeft} size="sm" /> Previous</button><button className="btn btn-secondary btn-sm" type="button" disabled={currentPage >= pageCount} onClick={() => setCurrentPage((page) => page + 1)}>Next <AppIcon icon={ChevronRight} size="sm" /></button></div></div>
     </section>
   </div>;
 }
