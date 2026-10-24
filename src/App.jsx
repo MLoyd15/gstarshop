@@ -17,9 +17,8 @@ import SupplierPricesPage from './pages/SupplierPricesPage.jsx';
 import ProductsPage from './pages/ProductsPage.jsx';
 import GuidePage from './pages/GuidePage.jsx';
 import logo from './assets/logo.png';
-import { Icon } from './shared.jsx';
 import { AppIcon, navIcons } from './components/icons.jsx';
-import { ArrowRight, Bell, Ellipsis, ExternalLink, Menu, Moon, Search, Sparkles, Sun, X } from 'lucide-react';
+import { ArrowRight, Bell, CalendarDays, ChevronLeft, ChevronRight, Ellipsis, ExternalLink, Menu, Moon, Search, Sparkles, Sun, X } from './components/icons.jsx';
 import { Alert, NOTICE_TIMEOUT_MS } from './components/ui/alert.tsx';
 import { Dialog, DialogBody, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from './components/ui/dialog.tsx';
 import { ConfirmDialog } from './components/ui/alert-dialog.tsx';
@@ -223,15 +222,15 @@ function DatePicker({ name, value, required }) {
         <span className={selectedDate ? '' : 'date-placeholder'}>
           {selectedDate ? selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Choose a date'}
         </span>
-        <span className="date-trigger-icon" aria-hidden="true">▦</span>
+        <AppIcon icon={CalendarDays} size="sm" className="date-trigger-icon" />
       </button>
       {open && createPortal(
         <div className="calendar-popover" ref={popoverRef} style={{ top: popoverPosition.top, left: popoverPosition.left }} role="group" aria-label="Choose a date">
           <div className="calendar-heading">
             <div className="calendar-heading-copy"><span>SELECT DATE</span><strong>{monthLabel}</strong></div>
             <div className="calendar-month-nav">
-              <button className="btn btn-icon btn-ghost" type="button" aria-label="Previous month" onClick={() => changeMonth(-1)}>‹</button>
-              <button className="btn btn-icon btn-ghost" type="button" aria-label="Next month" onClick={() => changeMonth(1)}>›</button>
+              <button className="btn btn-icon btn-ghost" type="button" aria-label="Previous month" onClick={() => changeMonth(-1)}><AppIcon icon={ChevronLeft} /></button>
+              <button className="btn btn-icon btn-ghost" type="button" aria-label="Next month" onClick={() => changeMonth(1)}><AppIcon icon={ChevronRight} /></button>
             </div>
           </div>
           <div className="calendar-weekdays" aria-hidden="true">

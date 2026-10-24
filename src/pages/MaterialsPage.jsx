@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppIcon } from '../components/icons.jsx';
-import { Plus } from 'lucide-react';
+import { Plus } from '../components/icons.jsx';
 import '../styles/MaterialsPage.css';
 import { Alert, NOTICE_TIMEOUT_MS } from '../components/ui/alert.tsx';
 import { Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../components/ui/dialog.tsx';

@@ -1,5 +1,5 @@
 import { AppIcon } from '../icons.jsx';
-import { CircleDot } from 'lucide-react';
+import { CircleDot } from '../icons.jsx';
 import '../../styles/GuidePreviews.css';
 
 function MockFrame({ children, variant = '' }) {

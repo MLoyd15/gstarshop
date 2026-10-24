@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Butterfly } from '../shared.jsx';
 import { AppIcon } from '../components/icons.jsx';
-import { Plus, TrendingUp, TrendingDown, Settings, CalendarDays, Package, Users, List, ChevronRight, ArrowRight, Check } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, Settings, CalendarDays, Package, Users, List, ChevronRight, ArrowRight, Check } from '../components/icons.jsx';
 import '../styles/DashboardPage.css';
 import AnalyticsSection from '../components/analytics/AnalyticsSection.jsx';
 

@@ -155,7 +155,7 @@
 
 .guide-step-selected .guide-step-number { background: var(--accent); color: var(--on-accent); }
 .guide-step-title { display: -webkit-box; min-width: 0; overflow: hidden; padding-top: 2px; font-size: var(--text-xs); font-weight: 700; line-height: 1.4; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
-.guide-viewed { position: absolute; right: 9px; bottom: 7px; color: var(--success); font-size: var(--fs-caption); font-weight: 800; }
+.guide-viewed { position: absolute; right: 9px; bottom: 7px; color: var(--success); }
 
 .guide-detail {
   padding: clamp(17px, 3vw, 28px);

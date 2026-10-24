@@ -20,7 +20,7 @@
   letter-spacing: .02em;
 }
 
-.guide-mock-label > span { color: var(--accent); font-size: var(--fs-body-sm); }
+.guide-mock-label > span { color: var(--accent); }
 
 .guide-mock-window {
   container: guide-mock-window / inline-size;

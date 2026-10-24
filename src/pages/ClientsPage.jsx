@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AppIcon } from '../components/icons.jsx';
-import { Plus } from 'lucide-react';
+import { Plus } from '../components/icons.jsx';
 import '../styles/ClientsPage.css';
 
 const money = (value) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(value) || 0);

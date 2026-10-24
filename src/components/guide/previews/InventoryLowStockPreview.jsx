@@ -1,6 +1,6 @@
 import '../../../styles/MaterialsPage.css';
 import { AppIcon } from '../../icons.jsx';
-import { Plus } from 'lucide-react';
+import { Plus } from '../../icons.jsx';
 import MockFrame from '../MockFrame.jsx';
 import Callout from '../Callout.jsx';
 import { materials, php } from '../mockData.js';

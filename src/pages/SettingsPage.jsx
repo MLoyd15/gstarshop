@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AppIcon } from '../components/icons.jsx';
-import { Building2, UserRound, ExternalLink } from 'lucide-react';
+import { Building2, UserRound, ExternalLink, Sparkles } from '../components/icons.jsx';
 import { flowSteps } from '../data/flowSteps.js';
 import '../styles/SettingsPage.css';
 import { ConfirmDialog } from '../components/ui/alert-dialog.tsx';
@@ -37,7 +37,7 @@ export default function SettingsPage({ health, appearance, onAppearanceChange, a
 
   return <div className="records-page settings-page"><div className="welcome-row records-welcome"><div><div className="t-eyebrow"><span className="accent-line" />PREFERENCES</div><h1 className="t-page-title">Settings</h1><p>Manage your workspace and account preferences.</p></div></div>
     <section className="panel appearance-panel">
-      <div className="appearance-heading"><div><div className="settings-symbol">✦</div><h2>Make it yours</h2><p>Personalize the look of G4 Sticker. Changes apply immediately and are saved on this device.</p></div>
+      <div className="appearance-heading"><div><div className="settings-symbol"><AppIcon icon={Sparkles} size="lg" /></div><h2>Make it yours</h2><p>Personalize the look of G4 Sticker. Changes apply immediately and are saved on this device.</p></div>
         <button type="button" className="btn btn-secondary appearance-reset" onClick={() => onAppearanceChange(defaultAppearance)}>Reset to default</button>
       </div>
       {appearanceError && <p className="appearance-error" role="status">{appearanceError}</p>}

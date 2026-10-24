@@ -6,15 +6,40 @@ import {
   ChartColumn,
   IdCard,
   LayoutDashboard,
+  ArrowRight,
+  ArrowUpRight,
+  Bell,
+  Building2,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  CircleDot,
+  Ellipsis,
+  ExternalLink,
+  List,
+  Menu,
+  Moon,
   NotebookPen,
+  NotebookText,
   Package,
+  Pencil,
+  Plus,
+  Search,
   Settings,
+  Sparkles,
   ShoppingCart,
+  Sun,
   Tag,
+  TrendingDown,
+  TrendingUp,
   Truck,
   Users,
-  Wallet
+  UserRound,
+  Wallet,
+  X
 } from 'lucide-react';
+
+export { ArrowRight, ArrowUpRight, Bell, Building2, CalendarDays, Check, ChevronLeft, ChevronRight, CircleDot, Ellipsis, ExternalLink, List, Menu, Moon, NotebookText, Package, Pencil, Plus, Search, Settings, Sparkles, Sun, TrendingDown, TrendingUp, UserRound, Users, X };
 
 export function AppIcon({ icon: IconComponent, size = 'md', className, style, ...props }) {
   return <IconComponent

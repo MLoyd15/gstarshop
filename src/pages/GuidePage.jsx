@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { AppIcon } from '../components/icons.jsx';
-import { Check, ArrowRight } from 'lucide-react';
+import { Check, ArrowRight } from '../components/icons.jsx';
 import { flowSteps, glossary } from '../data/flowSteps.js';
 import { previewBadgeNumbers } from '../components/guide/registryMeta.js';
 import '../styles/GuidePage.css';

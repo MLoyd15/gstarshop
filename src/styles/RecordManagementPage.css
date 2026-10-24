@@ -5,19 +5,18 @@
 .records-page { min-height: calc(100vh - 125px); }
 .records-welcome { margin-bottom: 24px; }
 .btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 7px; font-size: var(--fs-caption); font-weight: 600; }
-.btn-primary > span { font-size: var(--fs-section); line-height: 1; }
 .records-summary { min-height: 91px; display: flex; align-items: center; gap: 56px; margin-bottom: 17px; padding: 17px 20px; border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--surface); }
 .records-summary > div:not(.summary-hint) { display: flex; flex-direction: column; gap: 6px; }
 .summary-label { color: var(--text); font-size: var(--fs-caption); }
 .records-summary > div > strong { color: var(--text); font-weight: 700; font-size: var(--fs-title); font-family: Manrope; }
 .summary-hint { display: flex; align-items: center; gap: 9px; margin-left: auto; color: var(--muted); font-size: var(--fs-caption); }
-.summary-spark { color: var(--text); font-size: var(--fs-section); }
+.summary-spark { color: var(--text); }
 .records-panel { overflow: hidden; }
 .records-toolbar { display: flex; align-items: center; gap: 8px; padding: 16px 17px; }
 .records-toolbar > div:first-child { margin-right: auto; }
 .records-toolbar .table-search { width: 185px; }
 .table-search { height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 8px; border: 1px solid var(--line); border-radius: var(--radius-control); }
-.table-search > span { color: var(--text); font-size: var(--fs-section); }
+.table-search > span { color: var(--text); }
 .table-search input { font-size: var(--fs-caption); }
 .filter-button { display: flex; align-items: center; gap: 6px; font-size: var(--fs-caption); }
 .filter-button span { font-size: var(--fs-caption); }
@@ -32,7 +31,7 @@
 .row-actions button { width: 22px; }
 .empty-state { height: 225px; text-align: center; }
 .empty-state > span, .empty-state > strong { display: block; }
-.empty-state .empty-icon { margin-bottom: 10px; color: var(--text); font-size: var(--fs-title); }
+.empty-state .empty-icon { margin-bottom: 10px; color: var(--text); }
 .empty-state strong { color: var(--text); font-size: var(--fs-caption); }
 .empty-state > span:last-child { margin-top: 5px; color: var(--text); font-size: var(--fs-caption); }
 .table-footer { display: flex; align-items: center; justify-content: space-between; padding: 11px 15px; border-top: 1px solid var(--line); color: var(--text); font-size: var(--fs-caption); }
@@ -40,7 +39,6 @@
 .table-footer > div { display: flex; gap: 6px; }
 .table-footer button { font-size: var(--fs-caption); }
 .date-cell { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--surface); color: var(--text); font-size: var(--fs-caption); }
-.date-cell > span { color: var(--text); font-size: var(--fs-caption); }
 @media (max-width: 620px) {
   .records-welcome { gap: 8px; }
   .records-welcome .btn-primary { flex: 0 0 auto; font-size: var(--fs-caption); }

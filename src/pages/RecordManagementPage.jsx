@@ -1,6 +1,6 @@
 import '../styles/RecordManagementPage.css';
 import { AppIcon } from '../components/icons.jsx';
-import { Plus, Sparkles, Search, ArrowUpRight, NotebookText, ArrowRight, CalendarDays, Pencil, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Sparkles, Search, ArrowUpRight, NotebookText, ArrowRight, CalendarDays, Pencil, X, ChevronLeft, ChevronRight } from '../components/icons.jsx';
 import '../styles/SuppliersPage.css';
 import '../styles/ProductsPage.css';
 import '../styles/InventoryPage.css';

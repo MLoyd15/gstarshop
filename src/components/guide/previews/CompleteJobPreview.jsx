@@ -1,6 +1,6 @@
 import '../../../styles/BookingsPage.css';
 import { AppIcon } from '../../icons.jsx';
-import { X } from 'lucide-react';
+import { X } from '../../icons.jsx';
 import MockFrame from '../MockFrame.jsx';
 import Callout from '../Callout.jsx';
 import { booking, php } from '../mockData.js';

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppIcon } from '../components/icons.jsx';
-import { Plus, X } from 'lucide-react';
+import { Plus, X } from '../components/icons.jsx';
 import '../styles/EmployeeMonthlySheet.css';
 import '../styles/EmployeeMonthlyOvertime.css';
 import { Alert, NOTICE_TIMEOUT_MS } from '../components/ui/alert.tsx';
