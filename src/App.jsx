@@ -18,26 +18,28 @@ import ProductsPage from './pages/ProductsPage.jsx';
 import GuidePage from './pages/GuidePage.jsx';
 import logo from './assets/logo.png';
 import { Icon } from './shared.jsx';
+import { AppIcon, navIcons } from './components/icons.jsx';
+import { ArrowRight, Bell, Ellipsis, ExternalLink, Menu, Moon, Search, Sparkles, Sun, X } from 'lucide-react';
 import { Alert, NOTICE_TIMEOUT_MS } from './components/ui/alert.tsx';
 import { Dialog, DialogBody, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from './components/ui/dialog.tsx';
 import { ConfirmDialog } from './components/ui/alert-dialog.tsx';
 
 const sections = [
   { heading: 'G4 Sticker', items: [
-    { id: 'supplier-dashboard', label: 'Dashboard', icon: '◫' },
-    { id: 'suppliers', label: 'Suppliers', icon: '♙' },
-    { id: 'products', label: 'Products', icon: '▧' },
-    { id: 'materials', label: 'Materials', icon: '▦' },
-    { id: 'prices', label: 'Supplier prices', icon: '＄' },
-    { id: 'purchases', label: 'Purchases', icon: '🛒' },
-    { id: 'bookings', label: 'Bookings', icon: '▣' },
-    { id: 'supplier-reports', label: 'Reports', icon: '▥' },
-    { id: 'clients', label: 'Clients', icon: '◎' },
-    { id: 'guide', label: 'Learn the flow', icon: '?' }
+    { id: 'supplier-dashboard', label: 'Dashboard' },
+    { id: 'suppliers', label: 'Suppliers' },
+    { id: 'products', label: 'Products' },
+    { id: 'materials', label: 'Materials' },
+    { id: 'prices', label: 'Supplier prices' },
+    { id: 'purchases', label: 'Purchases' },
+    { id: 'bookings', label: 'Bookings' },
+    { id: 'supplier-reports', label: 'Reports' },
+    { id: 'clients', label: 'Clients' },
+    { id: 'guide', label: 'Learn the flow' }
   ] },
   { heading: 'Payroll system', items: [
-    { id: 'employees', label: 'Employees', icon: '♙' },
-    { id: 'payroll-runs', label: 'Pay runs', icon: '＄' }
+    { id: 'employees', label: 'Employees' },
+    { id: 'payroll-runs', label: 'Pay runs' }
   ] }
 ];
 
@@ -488,58 +490,64 @@ function App() {
   return (
     <div className="app-shell">
       {mobileOpen && <button className="mobile-scrim" aria-label="Close navigation" onClick={() => setMobileOpen(false)} />}
-      <aside className={`sidebar ${mobileOpen ? 'sidebar-open' : ''}`}>
+      <aside id="app-sidebar" className={`sidebar ${mobileOpen ? 'sidebar-open' : ''}`}>
         <div className="brand">
           <div className="brand-mark"><img className="brand-logo" src={logo} alt="G Sticker Works logo" /></div>
           <span className="brand-name">G4 <span>Sticker</span></span>
-          <button className="btn collapse-button btn-icon btn-ghost" aria-label="Toggle navigation" onClick={() => setMobileOpen(false)}>‹</button>
+          <button type="button" className="btn collapse-button btn-icon btn-ghost" aria-label="Close navigation" aria-expanded={mobileOpen} aria-controls="app-sidebar" title="Close navigation" onClick={() => setMobileOpen(false)}><AppIcon icon={X} /></button>
         </div>
-        <nav className="navigation" aria-label="Main navigation">
+        <nav className="navigation" aria-label="Main">
           {sections.map((section) => (
             <div className="nav-section" key={section.heading}>
               <div className="nav-heading">{section.heading}</div>
-              {section.items.map((item) => (
-                <button key={`${section.heading}-${item.id}`} className={`btn nav-item btn-ghost${active === item.id ? 'active' : ''}`}
-                  onClick={() => navigate(item.id)}>
-                  <Icon>{item.icon}</Icon><span className="nav-label">{item.label}</span>
-                  {item.badge && <span className="nav-badge">{item.badge}</span>}
-                </button>
-              ))}
+              <ul className="nav-list">
+                {section.items.map((item) => (
+                  <li key={`${section.heading}-${item.id}`}>
+                    <button type="button" className={`btn nav-item btn-ghost${active === item.id ? 'active' : ''}`}
+                      aria-label={item.label} aria-current={active === item.id ? 'page' : undefined} title={item.label}
+                      onClick={() => navigate(item.id)}>
+                      <AppIcon icon={navIcons[item.id]} /><span className="nav-label">{item.label}</span>
+                      {item.badge && <span className="nav-badge">{item.badge}</span>}
+                    </button>
+                  </li>
+                ))}
+              </ul>
             </div>
           ))}
           <div className="nav-divider" />
-          {[{ id: 'notepad', label: 'Notepad', icon: '▤' }].map((item) => (
-            <button key={item.id} className={`btn nav-item btn-ghost${active === item.id ? 'active' : ''}`} onClick={() => navigate(item.id)}>
-              <Icon>{item.icon}</Icon><span className="nav-label">{item.label}</span>
-            </button>
-          ))}
-          <button className={`btn nav-item btn-ghost${active === 'settings' ? 'active' : ''}`} onClick={() => navigate('settings')}>
-            <Icon>⚙</Icon><span className="nav-label">Settings</span>
-          </button>
+          <ul className="nav-list nav-utility-list">
+            {['notepad', 'settings'].map((id) => {
+              const label = id === 'notepad' ? 'Notepad' : 'Settings';
+              return <li key={id}><button type="button" className={`btn nav-item btn-ghost${active === id ? 'active' : ''}`}
+                aria-label={label} aria-current={active === id ? 'page' : undefined} title={label} onClick={() => navigate(id)}>
+                <AppIcon icon={navIcons[id]} /><span className="nav-label">{label}</span>
+              </button></li>;
+            })}
+          </ul>
         </nav>
         <div className="sidebar-bottom">
           <button type="button" className="help-card" aria-label="Open Learn the flow guide" onClick={() => navigate('guide')}>
-            <span className="help-icon" aria-hidden="true">✳</span>
+            <span className="help-icon" aria-hidden="true"><AppIcon icon={Sparkles} size="lg" /></span>
             <span className="help-card-copy"><strong>Need a hand?</strong><span>Learn how the workflow fits together.</span></span>
-            <span className="help-card-arrow" aria-hidden="true">↗</span>
+            <span className="help-card-arrow" aria-hidden="true"><AppIcon icon={ExternalLink} size="sm" /></span>
           </button>
           <div className="profile-button">
             <div className="profile-avatar">JD</div>
             <div className="profile-copy"><strong>Jamie Davis</strong><span>Workspace admin</span></div>
-            <span className="profile-menu">···</span>
+            <span className="profile-menu" aria-hidden="true"><AppIcon icon={Ellipsis} size="sm" /></span>
           </div>
         </div>
       </aside>
 
       <main className="main-area">
         <header className="topbar">
-          <button className="btn mobile-menu-button btn-icon btn-ghost" aria-label="Open navigation" onClick={() => setMobileOpen(true)}>☰</button>
+          <button type="button" className="btn mobile-menu-button btn-icon btn-ghost" aria-label={mobileOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={mobileOpen} aria-controls="app-sidebar" title={mobileOpen ? 'Close navigation' : 'Open navigation'} onClick={() => setMobileOpen((open) => !open)}><AppIcon icon={Menu} /></button>
           <div className="breadcrumbs"><span>Workspace</span><span className="crumb-slash">/</span><strong>{activeLabel}</strong></div>
           <div className="topbar-actions">
             <span className={`connection-status ${health}`}><span className="status-dot" />{health === 'connected' ? 'All systems live' : health === 'checking' ? 'Connecting…' : 'Offline'}</span>
             {active !== 'guide' && <>
-              <button className="btn icon-button search-shortcut btn-icon btn-ghost" aria-label="Search" onClick={() => document.querySelector('.global-search')?.focus()}>⌕</button>
-              <label className="global-search"><span>⌕</span><input className="input input-sm" placeholder="Search anything..." aria-label="Search records" value={search} onChange={(event) => setSearch(event.target.value)} /><kbd>⌘ K</kbd></label>
+              <button type="button" className="btn icon-button search-shortcut btn-icon btn-ghost" aria-label="Search" title="Search" onClick={() => document.querySelector('.global-search input')?.focus()}><AppIcon icon={Search} /></button>
+              <label className="global-search"><span aria-hidden="true"><AppIcon icon={Search} size="sm" /></span><input className="input input-sm" placeholder="Search anything..." aria-label="Search anything..." value={search} onChange={(event) => setSearch(event.target.value)} /><kbd>⌘ K</kbd></label>
             </>}
             <button
               type="button"
@@ -548,26 +556,26 @@ function App() {
               title={appearance.nightMode ? 'Switch to light mode' : 'Switch to dark mode'}
               onClick={() => setAppearance((prev) => ({ ...prev, nightMode: !prev.nightMode }))}
             >
-              {appearance.nightMode ? '☀' : '☾'}
+              <AppIcon icon={appearance.nightMode ? Sun : Moon} />
             </button>
             <div className="notification-wrap">
               <button className={`btn icon-button notification-button btn-icon btn-ghost${notificationsOpen ? 'is-open' : ''}`}
-                aria-label={`Notifications${notifications.count ? `, ${notifications.count} ongoing bookings` : ''}`}
-                aria-expanded={notificationsOpen} onClick={() => setNotificationsOpen((open) => !open)}>
-                ♧{notifications.count > 0 && <span className="notification-count">{notifications.count > 99 ? '99+' : notifications.count}</span>}
+                aria-label="Notifications" aria-expanded={notificationsOpen}
+                title="Notifications" onClick={() => setNotificationsOpen((open) => !open)}>
+                <AppIcon icon={Bell} />{notifications.count > 0 && <span className="notification-count">{notifications.count > 99 ? '99+' : notifications.count}</span>}
               </button>
-              {notificationsOpen && <div className="notification-popover">
+              {notificationsOpen && <div id="notifications-popover" className="notification-popover">
                 <div className="notification-heading"><div><strong>Notifications</strong><span>Ongoing bookings</span></div><span className="notification-heading-count">{notifications.count}</span></div>
                 {notificationsError ? <p className="notification-empty">{notificationsError}</p>
                   : notifications.bookings.length ? <div className="notification-list">{notifications.bookings.map((booking) => (
                     <button className="notification-item" key={booking.id} onClick={() => { setNotificationsOpen(false); navigate('bookings'); }}>
-                      <span className="notification-item-icon">▣</span>
+                      <span className="notification-item-icon" aria-hidden="true"><AppIcon icon={navIcons.bookings} size="sm" /></span>
                       <span className="notification-item-copy"><strong>{booking.name}</strong>
                         <span>{[booking.client, booking.date ? new Date(`${booking.date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '', booking.status].filter(Boolean).join(' · ')}</span>
-                      </span><span className="notification-item-arrow">→</span>
+                      </span><span className="notification-item-arrow" aria-hidden="true"><AppIcon icon={ArrowRight} size="sm" /></span>
                     </button>
                   ))}</div> : <p className="notification-empty">No ongoing bookings right now. New active bookings will appear here.</p>}
-                <button className="btn notification-view-all btn-secondary" onClick={() => { setNotificationsOpen(false); navigate('bookings'); }}>View all bookings <span>→</span></button>
+                <button type="button" className="btn notification-view-all btn-secondary" onClick={() => { setNotificationsOpen(false); navigate('bookings'); }}>View all bookings <span aria-hidden="true"><AppIcon icon={ArrowRight} size="sm" /></span></button>
               </div>}
             </div>
             <div className="top-avatar">JD</div>
