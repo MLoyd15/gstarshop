@@ -97,6 +97,10 @@
   --control-h-sm: 32px;
   --control-h-md: 40px;
   --control-h-lg: 48px;
+  --icon-sm: 16px;
+  --icon-md: 18px;
+  --icon-lg: 20px;
+  --icon-stroke: 1.75;
   --control-height: var(--control-h-md);
   --control-px-sm: 10px;
   --control-px-md: 14px;
