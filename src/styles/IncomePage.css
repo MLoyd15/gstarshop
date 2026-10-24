@@ -1,4 +1,4 @@
 .income-page { --page-accent: var(--accent); }
-.income-accounting-note { margin: 12px 18px 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; color: var(--text-secondary); background: var(--surface); font-size: var(--fs-caption); line-height: 1.5; }
+.income-accounting-note { margin: 12px 18px 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-control); color: var(--text-secondary); background: var(--surface); font-size: var(--fs-caption); line-height: 1.5; }
 .income-page .records-summary { border-color: color-mix(in srgb, var(--page-accent), white 82%); }
 .income-page .records-welcome .accent-line { background: var(--page-accent); }

@@ -433,7 +433,7 @@ export default function IncomeExpensesBarChart({
             <label className="analytics-control-group" style={{ margin: 0 }}>
               <span className="analytics-control-label">Window</span>
               <select
-                className="analytics-window-select"
+                className="select analytics-window-select"
                 value={chartMonths}
                 onChange={(e) => onChartMonthsChange?.(Number(e.target.value))}
               >
@@ -446,7 +446,7 @@ export default function IncomeExpensesBarChart({
             <div className="analytics-type-toggle" role="group" aria-label="Chart type toggle">
               <button
                 type="button"
-                className={`analytics-type-btn ${prefs.type === 'line' ? 'active' : ''}`}
+                className={`btn analytics-type-btn btn-secondary${prefs.type === 'line' ? 'active' : ''}`}
                 aria-pressed={prefs.type === 'line'}
                 onClick={() => setPrefs((prev) => ({ ...prev, type: 'line' }))}
               >
@@ -454,7 +454,7 @@ export default function IncomeExpensesBarChart({
               </button>
               <button
                 type="button"
-                className={`analytics-type-btn ${prefs.type === 'bar' ? 'active' : ''}`}
+                className={`btn analytics-type-btn btn-secondary${prefs.type === 'bar' ? 'active' : ''}`}
                 aria-pressed={prefs.type === 'bar'}
                 onClick={() => setPrefs((prev) => ({ ...prev, type: 'bar' }))}
               >
@@ -480,7 +480,7 @@ export default function IncomeExpensesBarChart({
                 <button
                   type="button"
                   key={s.key}
-                  className={`analytics-sidebar-item ${isChecked ? 'is-active' : ''}`}
+                  className={`btn analytics-sidebar-item btn-secondary${isChecked ? 'is-active' : ''}`}
                   style={{ '--series-color': s.color }}
                   onClick={() => toggleSeries(s.key)}
                   aria-pressed={isChecked}

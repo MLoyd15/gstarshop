@@ -9,7 +9,7 @@ function MaterialsListPreview() {
       <section className="materials-page">
         <header className="materials-heading">
           <div><div className="t-eyebrow">RAW MATERIALS</div><h1 className="t-page-title">Materials</h1><p>Track stock levels, suppliers, and supplies used on jobs.</p></div>
-          <button className="materials-primary" type="button">＋ Add material</button>
+          <button className="btn btn-secondary" type="button">＋ Add material</button>
         </header>
         <div className="materials-panel">
           <div className="materials-toolbar"><div><h2>Stock on hand</h2><p>Balances change through recorded stock movements.</p></div></div>

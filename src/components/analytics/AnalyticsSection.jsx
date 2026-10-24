@@ -75,7 +75,7 @@ export default function AnalyticsSection({ period, chartMonths = 6, onChartMonth
               <span>{error}</span>
               <button
                 type="button"
-                className="analytics-retry-btn"
+                className="btn analytics-retry-btn btn-secondary"
                 onClick={() => setReloadKey((n) => n + 1)}
               >
                 Retry Request

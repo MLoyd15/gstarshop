@@ -1,6 +1,8 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles/global.css';
+import './styles/controls.css';
+import './styles/dialogs.css';
 import './styles/typography.css';
 import './styles/layout.css';
 import './styles/components.css';
@@ -16,3 +18,4 @@ import './styles/colorOverrides.css';
 createRoot(document.getElementById('root')).render(
   <React.StrictMode><App /></React.StrictMode>
 );
+

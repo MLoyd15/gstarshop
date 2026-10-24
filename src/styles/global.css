@@ -67,10 +67,26 @@
   --focus-ring: var(--accent);
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.18);
   --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.28);
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 22px;
+  --radius-control: 8px;
+  --radius-card: 12px;
+  --radius-dialog: 16px;
+  --radius-pill: 999px;
+  --radius-sm: var(--radius-control);
+  --radius-md: var(--radius-card);
+  --radius-lg: var(--radius-dialog);
+  --radius-xl: var(--radius-dialog);
+  --z-popover: 900;
+  --z-overlay: 1000;
+  --z-dialog: 1010;
+  --z-dialog-popover: 1020;
+  --z-toast: 1100;
+  --dialog-w-sm: 440px;
+  --dialog-w-md: 540px;
+  --dialog-w-lg: 680px;
+  --dialog-w-xl: 1050px;
+  --dialog-pad: 24px;
+  --dialog-gap: 16px;
+  --overlay-blur: 8px;
   --space-1: 0.375rem;
   --space-2: 0.625rem;
   --space-3: 0.875rem;
@@ -78,7 +94,13 @@
   --space-5: 1.25rem;
   --page-gutter: clamp(14px, 3vw, 42px);
   --glass-blur: 16px;
-  --control-height: 40px;
+  --control-h-sm: 32px;
+  --control-h-md: 40px;
+  --control-h-lg: 48px;
+  --control-height: var(--control-h-md);
+  --control-px-sm: 10px;
+  --control-px-md: 14px;
+  --control-px-lg: 18px;
   --table-row-height: 48px;
   --transition-fast: 150ms ease;
   --transition-standard: 180ms ease;
@@ -116,6 +138,10 @@
   color-scheme: dark;
 }
 
+@media (pointer: coarse) {
+  :root { --control-h-sm: 44px; --control-h-md: 44px; }
+}
+
 :root[data-theme="light"] {
   color-scheme: light;
   --bg:#f2f6fb; --bg-gradient-1:rgba(0,150,190,.07); --bg-gradient-2:rgba(0,68,204,.06);
@@ -147,7 +173,6 @@
 * { box-sizing: border-box; }
 body { min-width: 360px; min-height: 100vh; margin: 0; }
 button, input, textarea { font: inherit; }
-button { color: inherit; }
 
 html {
   scroll-behavior: smooth;
@@ -173,52 +198,23 @@ body {
 }
 
 body, .main-area, .content { color:var(--text); }
-input, textarea, select { color:var(--text); background-color:var(--input-bg); border-color:var(--input-border); color-scheme:inherit; }
-input::placeholder, textarea::placeholder { color:var(--muted); opacity:1; }
+input, textarea, select { color-scheme:inherit; }
 input[type="range"] { color-scheme:inherit; background:transparent; accent-color:var(--accent); }
 input[type="range"]::-webkit-slider-runnable-track { background:var(--line-strong); }
 input[type="range"]::-moz-range-track { background:var(--line-strong); }
 table th { background:var(--table-head-bg); color:var(--text-secondary); font-size:var(--fs-caption); font-weight:var(--fw-semibold); letter-spacing:var(--ls-label); text-transform:uppercase; }
 table td { color:var(--text); border-color:var(--line); font-size:var(--fs-body-sm); }
 tbody tr:hover { background:var(--table-row-hover); }
-.panel, .records-panel, .records-summary, .cp-panel, .cp-header, .employees-panel, .employee-card, .payroll-panel, .payroll-dialog, .timesheet-sheet, .record-modal, .calendar-popover, .notification-popover, .settings-card, .appearance-panel {
+.panel, .records-panel, .records-summary, .cp-panel, .cp-header, .employees-panel, .employee-card, .payroll-panel, .calendar-popover, .notification-popover, .settings-card, .appearance-panel {
   color:var(--text); border-color:var(--glass-border); background:var(--glass-bg); box-shadow:var(--shadow-glass);
 }
-.modal-header, .modal-footer, .timesheet-section, .payroll-entry { color:var(--text); border-color:var(--line); background:var(--surface-strong); }
+.timesheet-section, .payroll-entry { color:var(--text); border-color:var(--line); background:var(--surface-strong); }
 
 button,
 input,
 textarea,
 select {
   -webkit-tap-highlight-color: transparent;
-}
-
-button {
-  transition:
-    background-color 160ms ease,
-    color 160ms ease,
-    border-color 160ms ease,
-    box-shadow 160ms ease,
-    transform 160ms ease;
-}
-
-button:focus-visible,
-input:focus-visible,
-textarea:focus-visible,
-select:focus-visible,
-[tabindex]:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
-}
-
-button:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-  transform: none !important;
-}
-
-button:active {
-  transform: translateY(0);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -273,10 +269,10 @@ button:active {
   --color-sidebar-accent-foreground: var(--text);
   --color-sidebar-border: var(--line);
   --color-sidebar-ring: var(--focus-ring);
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 22px;
+  --radius-sm: var(--radius-control);
+  --radius-md: var(--radius-card);
+  --radius-lg: var(--radius-dialog);
+  --radius-xl: var(--radius-dialog);
 }
 
 :root, :root[data-theme="dark"], :root[data-theme="light"] {

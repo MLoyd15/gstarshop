@@ -66,7 +66,7 @@
 .guide-reset {
   padding: 5px 8px;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--accent);
   font-size: inherit;
@@ -80,27 +80,20 @@
   gap: 5px;
   padding: 4px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-card);
   background: var(--surface-strong);
 }
 
 .guide-track-switcher button {
-  min-height: 38px;
-  padding: 0 14px;
-  border: 1px solid transparent;
-  border-radius: 9px;
-  background: transparent;
-  color: var(--text-secondary);
   font-size: var(--text-xs);
   font-weight: 700;
-  cursor: pointer;
 }
-
 .guide-track-switcher button.guide-track-active {
-  border-color: color-mix(in srgb, var(--accent), transparent 65%);
-  background: color-mix(in srgb, var(--accent), var(--surface) 86%);
-  color: var(--text);
+  color: var(--accent-contrast);
+  border-color: var(--accent);
+  background: var(--accent);
 }
+.guide-track-switcher button.guide-track-active:hover { background: var(--accent-hover); }
 
 .guide-flow {
   overflow: hidden;
@@ -108,8 +101,8 @@
 }
 
 .guide-stepper {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
   margin: 0;
   padding: 0;
@@ -117,14 +110,14 @@
 }
 
 .guide-stepper li {
-  flex: 1 1 145px;
-  min-width: 120px;
+  min-width: 0;
 }
 
 .guide-step {
   position: relative;
   display: flex;
   width: 100%;
+  height: auto;
   min-height: 84px;
   align-items: flex-start;
   gap: 9px;
@@ -134,11 +127,12 @@
   background: var(--surface);
   color: var(--text-secondary);
   text-align: left;
+  white-space: normal;
   cursor: pointer;
-  transition: border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast);
+  transition: border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
 }
 
-.guide-step:hover { border-color: var(--line-strong); transform: translateY(-1px); }
+.guide-step:hover { border-color: var(--line-strong); }
 .guide-step.guide-step-selected {
   border-color: var(--accent);
   background: color-mix(in srgb, var(--accent), var(--surface) 91%);
@@ -160,7 +154,7 @@
 }
 
 .guide-step-selected .guide-step-number { background: var(--accent); color: var(--on-accent); }
-.guide-step-title { padding-top: 2px; font-size: var(--text-xs); font-weight: 700; line-height: 1.4; }
+.guide-step-title { display: -webkit-box; min-width: 0; overflow: hidden; padding-top: 2px; font-size: var(--text-xs); font-weight: 700; line-height: 1.4; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
 .guide-viewed { position: absolute; right: 9px; bottom: 7px; color: var(--success); font-size: var(--fs-caption); font-weight: 800; }
 
 .guide-detail {
@@ -177,16 +171,16 @@
 
 .guide-go {
   display: inline-flex;
-  min-height: 42px;
+  height: var(--control-h-md);
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
   gap: 10px;
   padding: 0 15px;
   border: 1px solid var(--accent);
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   background: var(--accent);
-  color: var(--on-accent);
+  color: var(--accent-contrast);
   font-size: var(--text-xs);
   font-weight: 800;
   cursor: pointer;
@@ -207,15 +201,15 @@
 .guide-preview-pair { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(190px, .75fr); align-items: start; gap: 20px; }
 .guide-preview-main { min-width: 0; }
 .guide-preview-caption { margin: 9px 1px 10px; color: var(--text-secondary); font-size: var(--text-xs); line-height: 1.5; }
-.guide-preview-open { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 11px; border: 1px solid var(--line-strong); border-radius: 9px; background: var(--surface); color: var(--text); font: inherit; font-size: var(--text-xs); font-weight: 700; cursor: pointer; transition: border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast); }
+.guide-preview-open { display: inline-flex; align-items: center; gap: 8px; height: var(--control-h-md); padding: 0 var(--control-px-md); border: 1px solid var(--line-strong); border-radius: var(--radius-control); background: var(--surface); color: var(--text); font: inherit; font-size: var(--text-xs); font-weight: 700; cursor: pointer; transition: border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast); }
 .guide-preview-open:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent), var(--surface) 90%); }
 .guide-preview-open span { color: var(--accent); }
 .guide-preview-callouts { display: grid; gap: 12px; margin: 0; padding: 6px 0; list-style: none; }
 .guide-preview-callouts li { display: grid; grid-template-columns: 26px minmax(0, 1fr); align-items: start; gap: 9px; }
 .guide-preview-callouts li > span { display: grid; width: 24px; height: 24px; place-items: center; border: 1px solid color-mix(in srgb, var(--accent), transparent 58%); border-radius: 50%; background: color-mix(in srgb, var(--accent), var(--surface) 86%); color: var(--text); font-size: var(--fs-caption); font-weight: 800; }
 .guide-preview-callouts p { margin: 2px 0 0; color: var(--text-secondary); font-size: var(--text-xs); line-height: 1.5; }
-.guide-preview-skeleton { display: grid; height: 270px; place-items: center; overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: linear-gradient(110deg, var(--surface) 8%, var(--surface-soft) 18%, var(--surface) 33%); background-size: 200% 100%; animation: guide-preview-shimmer 1.2s linear infinite; }
-.guide-preview-skeleton span { width: 48px; height: 6px; border-radius: 5px; background: color-mix(in srgb, var(--accent), transparent 35%); }
+.guide-preview-skeleton { display: grid; height: 270px; place-items: center; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius-card); background: linear-gradient(110deg, var(--surface) 8%, var(--surface-soft) 18%, var(--surface) 33%); background-size: 200% 100%; animation: guide-preview-shimmer 1.2s linear infinite; }
+.guide-preview-skeleton span { width: 48px; height: 6px; border-radius: var(--radius-control); background: color-mix(in srgb, var(--accent), transparent 35%); }
 @keyframes guide-preview-shimmer { to { background-position-x: -200%; } }
 
 .guide-glossary { display: grid; gap: 12px; }
@@ -229,18 +223,12 @@
 .guide-accordion details[open] summary::after { content: '−'; }
 .guide-accordion details p { margin: -2px 17px 16px; color: var(--text-secondary); font-size: var(--text-xs); line-height: 1.65; }
 
-.guide-page button:focus-visible,
-.guide-page summary:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
-}
-
 @media (max-width: 680px) {
   .guide-heading { flex-direction: column; }
   .guide-progress { align-self: flex-start; }
-  .guide-stepper { display: grid; grid-template-columns: 1fr; gap: 7px; }
+  .guide-stepper { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .guide-stepper li { min-width: 0; }
-  .guide-step { min-height: 54px; align-items: center; padding: 9px 11px; }
+  .guide-step { min-height: 68px; align-items: flex-start; padding: 9px; }
   .guide-detail-top { align-items: flex-start; flex-direction: column; }
   .guide-detail-columns { grid-template-columns: 1fr; gap: 18px; }
   .guide-mistakes { padding: 17px 0 0; border-top: 1px solid var(--line); border-left: 0; }
@@ -250,6 +238,11 @@
 
 @media (max-width: 420px) {
   .guide-track-switcher { width: 100%; }
-  .guide-track-switcher button { flex: 1; padding: 0 7px; }
+  .guide-track-switcher button { flex: 1; }
   .guide-progress { width: 100%; justify-content: space-between; white-space: normal; }
+}
+
+@media (pointer: coarse) {
+  .guide-reset, .guide-track-switcher button, .guide-preview-open, .guide-go { min-height: 44px; }
+  .guide-step { min-height: 56px; }
 }

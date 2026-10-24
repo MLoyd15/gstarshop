@@ -158,12 +158,6 @@ body {
   min-width: 0;
 }
 
-.filter-control select,
-.sort-control select {
-  min-height: 36px;
-  cursor: pointer;
-}
-
 .filter-control select { min-width: 118px; }
 .sort-control select { min-width: 128px; }
 
@@ -231,85 +225,15 @@ table { min-width: 600px; }
 
 /* ---------- Buttons ---------- */
 
-.primary-button,
-.cp-primary {
-  min-height: var(--control-height);
-  border-radius: var(--radius-md);
-  background: var(--accent);
-  color: var(--accent-contrast);
+.btn-primary,
+.btn-primary {
   font-weight: 700;
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent), transparent 55%), 0 6px 22px color-mix(in srgb, var(--accent), transparent 62%);
-}
-
-.primary-button:hover,
-.cp-primary:hover {
-  background: var(--accent-hover);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent), transparent 40%), 0 8px 30px color-mix(in srgb, var(--accent), transparent 48%);
-  transform: translateY(-1px);
-}
-
-.cancel-button,
-.select-button,
-.filter-button,
-.cp-secondary,
-.appearance-reset,
-.accent-swatch {
-  border-color: var(--line-strong);
-  border-radius: var(--radius-md);
-  color: var(--text);
-  background: var(--surface-soft);
-}
-
-.cancel-button:hover,
-.select-button:hover,
-.filter-button:hover,
-.cp-secondary:hover,
-.appearance-reset:hover,
-.accent-swatch:hover {
-  border-color: var(--accent);
-  color: var(--text);
-  background: color-mix(in srgb, var(--accent), var(--surface) 88%);
 }
 
 /* ---------- Inputs ---------- */
 
-.global-search,
-.table-search,
-.cp-search,
-.cp-filter,
-.modal-fields input,
-.modal-fields textarea,
-.modal-fields select,
-.date-picker-trigger {
-  border-color: var(--line-strong);
-  border-radius: var(--radius-md);
-  color: var(--ink);
-  background: var(--input-bg);
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast);
-}
-
-.global-search:focus-within,
-.table-search:focus-within,
-.cp-search:focus,
-.cp-filter:focus,
-.modal-fields input:focus,
-.modal-fields textarea:focus,
-.modal-fields select:focus,
-.date-picker-trigger:focus-visible {
-  border-color: var(--accent-on-dark);
-  background: var(--input-bg);
-  box-shadow: 0 0 0 4px var(--focus-ring);
-}
-
 /* ---------- Dialogs ---------- */
 
-.modal-overlay {
-  background: var(--overlay-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-
-.record-modal,
 .calendar-popover,
 .notification-popover {
   border-color: var(--glass-border);
@@ -319,11 +243,6 @@ table { min-width: 600px; }
   box-shadow: var(--shadow-glass);
 }
 
-.modal-header,
-.modal-footer { background: var(--glass-bg-strong); }
-
-.record-modal h2, .modal-fields label, .modal-close { color: var(--ink); }
-.modal-fields input::placeholder, .modal-fields textarea::placeholder { color: var(--muted); }
 .date-placeholder { color: var(--muted); }
 
 /* Notification and date-picker popovers must keep the dark theme inside, too. */
@@ -363,7 +282,7 @@ table { min-width: 600px; }
   min-height: 66px;
   padding: 10px;
   border: 1px solid transparent;
-  border-radius: 11px;
+  border-radius: var(--radius-card);
   background: rgba(226, 232, 240, 0.065);
 }
 
@@ -402,28 +321,18 @@ table { min-width: 600px; }
 .calendar-heading { border-bottom-color: var(--line); }
 .calendar-heading-copy > span, .calendar-weekdays { color: var(--text-secondary); }
 .calendar-heading-copy > strong { color: var(--ink); }
-.calendar-month-nav button, .calendar-day, .calendar-clear, .calendar-today {
-  color: var(--ink);
-  background: transparent;
-}
-.calendar-month-nav button:hover, .calendar-day:hover { background: var(--accent-soft); }
-.calendar-day.outside-month { color: #75839A; }
-.calendar-day.today { border-color: var(--accent); color: var(--accent); }
-.calendar-day.selected { color: var(--accent-contrast); background: var(--accent); }
 .calendar-footer { border-top-color: var(--line); }
-.calendar-clear, .calendar-today { color: var(--accent); }
 
 /* Date picker layout: keep the custom calendar readable inside glass modals. */
 .date-picker { position: relative; width: 100%; }
 .date-picker-trigger {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  width: 100%; min-height: 42px; padding: 0 12px; border: 1px solid var(--line-strong);
-  border-radius: var(--radius-md); text-align: left; cursor: pointer;
+  width: 100%; text-align: left;
 }
 .date-trigger-icon { color: var(--accent); flex: 0 0 auto; }
 .calendar-popover {
-  position: fixed; z-index: 1200; width: min(290px, calc(100vw - 32px));
-  padding: 14px; border: 1px solid var(--glass-border); border-radius: 16px;
+  position: fixed; z-index: var(--z-dialog-popover); width: min(290px, calc(100vw - 32px));
+  padding: 14px; border: 1px solid var(--glass-border); border-radius: var(--radius-card);
   background: rgba(8, 14, 27, .97); color: var(--ink);
   box-shadow: 0 24px 64px rgba(0, 0, 0, .58), 0 0 0 1px rgba(0, 180, 255, .08);
   backdrop-filter: blur(24px) saturate(140%); -webkit-backdrop-filter: blur(24px) saturate(140%);
@@ -434,27 +343,16 @@ table { min-width: 600px; }
 .calendar-heading-copy > strong { color: var(--ink); font-size: var(--fs-body); }
 .calendar-month-nav { display: flex; gap: 5px; }
 .calendar-month-nav button,.calendar-day,.calendar-clear,.calendar-today {
-  display: inline-grid; place-items: center; border: 1px solid transparent; border-radius: 8px;
-  color: var(--ink); background: transparent; cursor: pointer;
+  display: inline-grid; place-items: center;
 }
-.calendar-month-nav button { width: 32px; height: 32px; font-size: var(--fs-title); }
+.calendar-month-nav button { width: 32px; font-size: var(--fs-title); }
 .calendar-weekdays,.calendar-days { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); text-align: center; }
 .calendar-weekdays { padding: 12px 0 6px; color: var(--text-secondary); font-size: var(--fs-caption); }
 .calendar-days { gap: 3px; }
-.calendar-day { width: 100%; min-height: 32px; padding: 0; font-size: var(--fs-caption); }
-.calendar-month-nav button:hover,.calendar-day:hover { border-color: rgba(0,180,255,.25); background: var(--accent-soft); }
-.calendar-day.outside-month { color: #75839A; }
-.calendar-day.today { border-color: var(--accent); color: var(--accent); }
-.calendar-day.selected { color: var(--accent-contrast); background: var(--accent); font-weight: 700; }
+.calendar-day { width: 100%; font-size: var(--fs-caption); }
+.calendar-day.selected { font-weight: 700; }
 .calendar-footer { display: flex; justify-content: space-between; margin-top: 9px; padding-top: 10px; border-top: 1px solid var(--line); }
-.calendar-clear,.calendar-today { min-height: 30px; padding: 0 8px; color: var(--accent); font-size: var(--fs-caption); }
-.calendar-clear:hover,.calendar-today:hover { background: rgba(0,180,255,.1); }
-.date-picker-trigger:focus-visible,.calendar-month-nav button:focus-visible,.calendar-day:focus-visible,.calendar-footer button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-
-select option {
-  color: var(--text);
-  background: var(--surface-strong);
-}
+.calendar-clear,.calendar-today { font-size: var(--fs-caption); }
 
 /* ---------- Clients page ---------- */
 
@@ -472,8 +370,6 @@ select option {
 
 .cp-header { border-radius: var(--radius-xl); }
 .cp-stat, .cp-mini { border-radius: var(--radius-lg); }
-
-.cp-client, .cp-secondary, .cp-danger { background: rgba(226, 232, 240, 0.05); color: var(--text); }
 .cp-client {
   transition: background-color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
 }
@@ -496,7 +392,7 @@ select option {
 /* ---------- Status pills & banners ---------- */
 
 .record-status {
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 5px 9px;
   font-weight: 700;
 }
@@ -524,19 +420,6 @@ select option {
 .record-status.out-of-stock {
   color: var(--danger);
   background: var(--danger-soft);
-}
-
-/* Banners: the old light-theme colors (#8e3642 on dark) were unreadable */
-.error-banner {
-  border-color: rgba(218, 91, 108, 0.45);
-  background: var(--danger-soft);
-  color: #ffb6bf;
-}
-
-.success-banner {
-  border-color: rgba(44, 168, 120, 0.45);
-  background: var(--success-soft);
-  color: #9be3c4;
 }
 
 /* ---------- Settings ---------- */
@@ -602,29 +485,8 @@ select option {
   transform: none;
 }
 
-.dashboard-page > header button,
-.dashboard-page section button.grid { min-height: 44px; }
-
 .dashboard-page > .dashboard-quick-actions {
   padding: clamp(14px, 2vw, 20px);
-}
-
-.dashboard-page .dashboard-quick-actions button {
-  min-height: 44px;
-  border-radius: 12px;
-}
-
-.dashboard-page .dashboard-quick-actions button:not(:first-child) {
-  border-color: var(--line-strong);
-  background: rgba(226, 232, 240, 0.09);
-  color: var(--text);
-  box-shadow: none;
-}
-
-.dashboard-page .dashboard-quick-actions button:not(:first-child):hover {
-  border-color: var(--accent-on-dark);
-  background: rgba(226, 232, 240, 0.16);
-  color: var(--text);
 }
 
 .dashboard-page .dashboard-title { max-width: 20ch; }
@@ -638,27 +500,10 @@ select option {
 
 /* primary action: cyan glow, dark text */
 /* secondary buttons (Tailwind `btn`: bg-white + slate text) */
-.dashboard-page > header button:not(:first-child),
-.dashboard-page button.retired-color-utility {
-  border-color: var(--line-strong);
-  background: rgba(226, 232, 240, 0.09);
-  color: var(--text);
-  box-shadow: none;
-}
-
-.dashboard-page > header button:not(:first-child):hover,
-.dashboard-page button.retired-color-utility:hover {
-  border-color: var(--accent-on-dark);
-  background: rgba(226, 232, 240, 0.16);
-  color: var(--text);
-}
 
 /* "View all transactions" link */
-.dashboard-page section > div.justify-between > button { color: var(--accent-on-dark); }
 
 /* rows */
-.dashboard-page section button.grid:hover,
-.dashboard-page section .border-t.retired-color-utility:hover { background: rgba(226, 232, 240, 0.07); }
 
 /* icon badges: pastel chips → tinted dark chips */
 .dashboard-page span.size-9.retired-color-utility { background: var(--success-soft); color: var(--success); }
@@ -712,7 +557,6 @@ select option {
   .settings-card,
   .records-panel,
   .cp-panel,
-  .modal-overlay,
   .dashboard-page > header,
   .dashboard-page > div > section,
   .dashboard-page > section {
@@ -735,13 +579,6 @@ select option {
 
   .records-page th,
   .records-page td { padding-inline: 12px; }
-
-  .record-modal {
-    width: min(100%, 560px);
-    max-height: calc(100dvh - 24px);
-    overflow-y: auto;
-    overscroll-behavior: contain;
-  }
 
   .records-toolbar .sort-control select { min-width: 0; }
   .records-toolbar .select-button { display: flex; }

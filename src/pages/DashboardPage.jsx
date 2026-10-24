@@ -5,10 +5,6 @@ import AnalyticsSection from '../components/analytics/AnalyticsSection.jsx';
 
 /* Dashboard colors resolve through the shared semantic theme tokens. */
 
-const focusRing = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--accent)]';
-const btnBase = `inline-flex h-[38px] items-center gap-2 rounded-[10px] border px-3.5 text-body-sm font-medium motion-safe:transition ${focusRing}`;
-const btn = `${btnBase} border-[var(--line)] bg-[var(--surface)] text-[var(--text)] hover:border-[color:var(--accent)]`;
-const btnPrimary = `${btnBase} border-[color:var(--accent)] bg-[color:var(--accent)] text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]`;
 const panel = 'min-w-0 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4 sm:p-[22px]';
 
 const TONES = {
@@ -41,7 +37,7 @@ function Glyph({ name, size = 18, className }) {
 }
 
 function IconBadge({ name, tone }) {
-  return <span className={`grid size-9 shrink-0 place-items-center rounded-[10px] ${TONES[tone]}`}><Glyph name={name} /></span>;
+  return <span className={`grid size-9 shrink-0 place-items-center rounded-[var(--radius-card)] ${TONES[tone]}`}><Glyph name={name} /></span>;
 }
 
 const currency = (value) => new Intl.NumberFormat('en-PH', {
@@ -107,8 +103,8 @@ export default function DashboardPage({ onNavigate, data, compact, loading = fal
       <div className="dashboard-toolbar">
         <div><h1 className="t-page-title">{heading}</h1><p>Recorded activity for {periodLabel}</p></div>
         <div className="dashboard-toolbar-actions">
-          <label className="dashboard-period-control">Month<input type="month" value={currentPeriod} onChange={(event) => onPeriodChange?.(event.target.value)} /></label>
-          <button className={btnPrimary} onClick={() => onNavigate('income')}><Glyph name="plus" size={16} />Record income</button>
+          <label className="dashboard-period-control">Month<input className="input input-sm" type="month" value={currentPeriod} onChange={(event) => onPeriodChange?.(event.target.value)} /></label>
+          <button className="btn btn-primary" onClick={() => onNavigate('income')}><Glyph name="plus" size={16} />Record income</button>
         </div>
       </div>
 
@@ -157,7 +153,7 @@ export default function DashboardPage({ onNavigate, data, compact, loading = fal
 
       <div className="dashboard-v2-payroll-row">
         <section className="dashboard-v2-card dashboard-v2-payroll" aria-label="Payroll overview">
-          <div className="dashboard-v2-card-heading"><div><h2>Payroll overview · {periodLabel}</h2><p>Saved pay runs for this period. Drafts are excluded from paid expense totals.</p></div><button className="dashboard-v2-link" onClick={() => onNavigate('payroll-runs')}>Review payroll →</button></div>
+          <div className="dashboard-v2-card-heading"><div><h2>Payroll overview · {periodLabel}</h2><p>Saved pay runs for this period. Drafts are excluded from paid expense totals.</p></div><button className="btn dashboard-v2-link btn-secondary" onClick={() => onNavigate('payroll-runs')}>Review payroll →</button></div>
           <div className="dashboard-v2-payroll-grid"><PayrollMetric label="Employees in pay runs" value={payroll.employeeCount} detail={`${payroll.runCount} saved runs`} /><PayrollMetric label="Run status" value={`${payroll.draftCount + payroll.finalizedCount + payroll.partiallyPaidCount} open`} detail={`${payroll.draftCount} draft · ${payroll.finalizedCount} finalized · ${payroll.partiallyPaidCount} part-paid`} /><PayrollMetric label="Gross payroll" value={currency(payroll.gross)} detail={`${currency(payroll.overtime)} overtime`} /><PayrollMetric label="Deductions" value={currency(payroll.deductions)} detail="From saved pay runs" /><PayrollMetric label="Net payroll" value={currency(payroll.net)} detail="For selected pay period" /><PayrollMetric label="Paid" value={currency(payroll.paid)} detail={`${payroll.paidCount} fully paid runs`} /><PayrollMetric label="Finalized balance due" value={currency(payroll.outstandingFinalized)} detail="Finalized or partly paid" /></div>
         </section>
         <section className="dashboard-v2-card dashboard-v2-quick-actions" aria-label="Quick actions">
@@ -191,7 +187,7 @@ function Figure({ label, value, note }) {
 }
 
 function MetricCard({ label, value, detail, onClick }) {
-  return <button type="button" onClick={onClick} className={`min-w-0 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3.5 text-left hover:border-[color:var(--accent)] hover:bg-[var(--surface-hover)] ${focusRing}`}>
+  return <button type="button" onClick={onClick} className={`btn min-w-0 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3.5 text-left hover:border-[color:var(--accent)] hover:bg-[var(--surface-hover)] btn-secondary${focusRing}`}>
     <span className="block text-caption font-medium text-[var(--muted)]">{label}</span>
     <strong className="mt-1 block truncate font-[family-name:Manrope,sans-serif] text-section font-semibold tabular-nums text-[var(--text)]">{value}</strong>
     <small className="mt-1 block truncate text-caption text-[var(--muted)]">{detail}</small>
@@ -209,7 +205,7 @@ function PayrollMetric({ label, value, detail }) {
 function CountRow({ icon, tone, label, value, onClick }) {
   return (
     <button
-      className={`grid w-full grid-cols-[36px_1fr_auto_16px] items-center gap-3 rounded-[10px] border-t border-[var(--line)] px-2 py-3 text-left first:border-t-0 hover:bg-[var(--surface-soft)] motion-safe:transition-colors ${focusRing}`}
+      className={`grid w-full grid-cols-[36px_1fr_auto_16px] items-center gap-3 rounded-[var(--radius-card)] border-t border-[var(--line)] px-2 py-3 text-left first:border-t-0 hover:bg-[var(--surface-soft)] motion-safe:transition-colors${focusRing}`}
       onClick={onClick}
     >
       <IconBadge name={icon} tone={tone} />
@@ -222,7 +218,7 @@ function CountRow({ icon, tone, label, value, onClick }) {
 
 function MiniBarChart({ title, items, onClick }) {
   const max = Math.max(1, ...items.map((item) => Number(item.value) || 0));
-  return <button type="button" className={`rounded-xl border border-[var(--line)] p-3.5 text-left hover:border-[color:var(--accent)] hover:bg-[var(--surface-hover)] ${focusRing}`} onClick={onClick} aria-label={`Open ${title.toLowerCase()} records`}>
+  return <button type="button" className={`btn rounded-xl border border-[var(--line)] p-3.5 text-left hover:border-[color:var(--accent)] hover:bg-[var(--surface-hover)] btn-secondary${focusRing}`} onClick={onClick} aria-label={`Open ${title.toLowerCase()} records`}>
     <h3 className="m-0 text-body-sm font-semibold text-[var(--text)]">{title}</h3>
     <div className="mt-3 grid gap-3">{items.map((item) => <div key={item.label}>
       <div className="mb-1 flex justify-between gap-2 text-caption"><span className="truncate text-[var(--muted)]">{item.label}</span><strong className="tabular-nums text-[var(--text-secondary)]">{item.value}</strong></div>
@@ -303,7 +299,7 @@ function RevenueChart({ months, selectedSeries, chartType }) {
       </svg>
       <table className="sr-only"><caption>Exact selected financial amounts for each month in the chart</caption><thead><tr><th>Month</th>{activeSeries.map((item) => <th key={item.key}>{item.label}</th>)}</tr></thead><tbody>{months.map((month) => <tr key={month.key}><th>{month.key}</th>{activeSeries.map((item) => <td key={item.key}>{currency(month[item.key] || 0)}</td>)}</tr>)}</tbody></table>
       {hover !== null && (
-        <div className="pointer-events-none absolute top-0 -translate-x-1/2 whitespace-nowrap rounded-[10px] bg-[var(--surface-strong)] px-3 py-2 text-caption leading-relaxed text-[var(--text)]"
+        <div className="pointer-events-none absolute top-0 -translate-x-1/2 whitespace-nowrap rounded-[var(--radius-card)] bg-[var(--surface-strong)] px-3 py-2 text-caption leading-relaxed text-[var(--text)]"
           style={{ left: Math.min(width - 70, Math.max(70, x(active))) }}>
           <b className="mb-0.5 block font-semibold">{m.key}</b>
           {activeSeries.map((item) => <span key={item.key} className="flex items-center justify-between gap-4"><span>{item.label}</span><strong>{currency(m[item.key] || 0)}</strong></span>)}

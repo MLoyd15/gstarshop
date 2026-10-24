@@ -1,7 +1,7 @@
 .guide-mock-frame {
   overflow: hidden;
   border: 1px solid var(--line-strong);
-  border-radius: 14px;
+  border-radius: var(--radius-card);
   background: var(--surface-strong);
   box-shadow: var(--shadow-sm);
 }
@@ -83,7 +83,7 @@
 .guide-mock-stage .materials-form-grid select,
 .guide-mock-stage .booking-modal input,
 .guide-mock-stage .booking-modal select,
-.guide-mock-stage .booking-modal textarea { min-height: 34px; padding: 7px 9px; font-size: var(--fs-caption); }
+.guide-mock-stage .booking-modal textarea { font-size: var(--fs-caption); }
 .guide-mock-stage .product-cost-preview { display: flex; flex-wrap: wrap; gap: 12px; }
 .guide-mock-stage .product-cost-preview span { font-size: var(--fs-caption); }
 .guide-mock-stage .booking-modal { background: var(--panel, var(--surface)); }
@@ -96,13 +96,12 @@
 .guide-mock-stage .guide-mock-actual-line-secondary { align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); color: var(--text-secondary); font-size: var(--fs-caption); }
 .guide-mock-stage .guide-mock-planned { color: var(--text-secondary); font-size: var(--fs-caption); }
 .guide-mock-stage .booking-full-field { margin: 10px 0; }
-.guide-mock-stage .booking-full-field textarea { min-height: 64px; }
 .guide-mock-stage .booking-modal footer { margin-top: 13px; }
 .guide-mock-stage .payroll-heading { align-items: flex-end; }
 .guide-mock-stage .payroll-heading-actions { gap: 8px; }
 .guide-mock-stage .payroll-heading-actions label { font-size: var(--fs-caption); }
-.guide-mock-stage .payroll-heading-actions input { padding: 7px 9px; font-size: var(--fs-caption); }
-.guide-mock-stage .payroll-primary { padding: 8px 10px; font-size: var(--fs-caption); }
+.guide-mock-stage .payroll-heading-actions input { font-size: var(--fs-caption); }
+.guide-mock-stage .btn-primary { font-size: var(--fs-caption); }
 .guide-mock-stage .payroll-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin: 10px 0; }
 .guide-mock-stage .payroll-summary article { padding: 9px; }
 .guide-mock-stage .payroll-summary article span { margin-bottom: 4px; font-size: var(--fs-caption); }
@@ -112,10 +111,10 @@
 .guide-mock-stage .payroll-page th,
 .guide-mock-stage .payroll-page td { padding: 8px 7px; font-size: var(--fs-body-sm); }
 .guide-mock-stage .payroll-row-actions { flex-wrap: wrap; }
-.guide-mock-stage .payroll-row-actions button { padding: 5px 7px; font-size: var(--fs-caption); }
-.guide-mock-stage .guide-mock-payrun-next { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); font-size: var(--fs-caption); }
+.guide-mock-stage .payroll-row-actions button { font-size: var(--fs-caption); }
+.guide-mock-stage .guide-mock-payrun-next { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; padding: 9px 11px; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--surface); font-size: var(--fs-caption); }
 .guide-mock-stage .guide-mock-payrun-next > span:first-child { color: var(--text-secondary); }
-.guide-mock-stage .guide-mock-payrun-next button { padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); font-size: var(--fs-caption); }
+.guide-mock-stage .guide-mock-payrun-next button { font-size: var(--fs-caption); }
 
 .guide-callout-anchor { position: relative; display: inline-block; vertical-align: middle; }
 .guide-callout-badge {

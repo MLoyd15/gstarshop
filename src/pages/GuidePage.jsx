@@ -63,14 +63,14 @@ function GuidePage({ onNavigate }) {
         </div>
         <div className="guide-progress" aria-live="polite">
           <span>{viewed.filter((id) => steps.some((step) => step.id === id)).length} of {steps.length} steps viewed</span>
-          <button type="button" className="guide-reset" onClick={resetProgress}>Reset progress</button>
+          <button type="button" className="btn guide-reset btn-secondary" onClick={resetProgress}>Reset progress</button>
         </div>
       </header>
 
       <div className="guide-track-switcher" role="group" aria-label="Choose a guide">
         {tracks.map((item) => (
           <button type="button" key={item.id} aria-pressed={track === item.id}
-            className={track === item.id ? 'guide-track-active' : ''} onClick={() => changeTrack(item.id)}>
+            className={`btn btn-secondary${track === item.id ? ' guide-track-active' : ''}`} onClick={() => changeTrack(item.id)}>
             {item.label}
           </button>
         ))}
@@ -80,7 +80,7 @@ function GuidePage({ onNavigate }) {
         <ol className="guide-stepper">
           {steps.map((step) => (
             <li key={step.id}>
-              <button type="button" className={`guide-step ${selected.id === step.id ? 'guide-step-selected' : ''}`}
+              <button type="button" className={`btn guide-step btn-secondary${selected.id === step.id ? ' guide-step-selected' : ''}`}
                 aria-current={selected.id === step.id ? 'step' : undefined}
                 aria-label={`Step ${step.number}: ${step.title}${viewed.includes(step.id) ? ', viewed' : ''}`}
                 onClick={() => setSelectedId(step.id)}>
@@ -100,7 +100,7 @@ function GuidePage({ onNavigate }) {
             <h2 id="guide-detail-title">{selected.title}</h2>
             <p className="guide-summary">{selected.summary}</p>
           </div>
-          <button type="button" className="guide-go" onClick={() => onNavigate(selected.goTo)}>
+          <button type="button" className="btn guide-go btn-secondary" onClick={() => onNavigate(selected.goTo)}>
             Go to {selected.goToLabel} <span aria-hidden="true">→</span>
           </button>
         </div>
@@ -124,7 +124,7 @@ function GuidePage({ onNavigate }) {
                     <PreviewRegistry preview={preview} />
                   </Suspense>
                   <p className="guide-preview-caption">{preview.caption}</p>
-                  <button type="button" className="guide-preview-open" onClick={() => onNavigate(selected.goTo)}>
+                  <button type="button" className="btn guide-preview-open btn-secondary" onClick={() => onNavigate(selected.goTo)}>
                     Open the real page <span aria-hidden="true">→</span>
                   </button>
                 </div>

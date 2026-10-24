@@ -1,3 +1,3 @@
-.timesheet-totals{grid-template-columns:repeat(6,minmax(0,1fr))}
-.timesheet-days-overtime label{grid-template-columns:minmax(55px,1fr) 70px 70px 54px}
-@media(max-width:420px){.timesheet-days-overtime label{grid-template-columns:1fr 62px 62px}.timesheet-days-overtime label small{grid-column:1/-1}}
+.timesheet-totals { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 900px) { .timesheet-totals { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .timesheet-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

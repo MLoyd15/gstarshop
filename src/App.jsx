@@ -18,6 +18,9 @@ import ProductsPage from './pages/ProductsPage.jsx';
 import GuidePage from './pages/GuidePage.jsx';
 import logo from './assets/logo.png';
 import { Icon } from './shared.jsx';
+import { Alert, NOTICE_TIMEOUT_MS } from './components/ui/alert.tsx';
+import { Dialog, DialogBody, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from './components/ui/dialog.tsx';
+import { ConfirmDialog } from './components/ui/alert-dialog.tsx';
 
 const sections = [
   { heading: 'G4 Sticker', items: [
@@ -184,7 +187,7 @@ function DatePicker({ name, value, required }) {
   return (
     <div className="date-picker" ref={wrapperRef}>
       <input type="hidden" name={name} value={selectedValue} />
-      <button type="button" className={`date-picker-trigger ${open ? 'is-open' : ''}`}
+      <button type="button" className={`input date-picker-trigger${open ? 'is-open' : ''}`}
         aria-label={selectedDate ? `Selected date: ${selectedDate.toLocaleDateString()}` : 'Choose a date'}
         aria-haspopup="dialog" aria-expanded={open} aria-required={required || undefined}
         onClick={() => {
@@ -198,12 +201,12 @@ function DatePicker({ name, value, required }) {
         <span className="date-trigger-icon" aria-hidden="true">▦</span>
       </button>
       {open && createPortal(
-        <div className="calendar-popover" ref={popoverRef} style={{ top: popoverPosition.top, left: popoverPosition.left }} role="dialog" aria-label="Choose a date">
+        <div className="calendar-popover" ref={popoverRef} style={{ top: popoverPosition.top, left: popoverPosition.left }} role="group" aria-label="Choose a date">
           <div className="calendar-heading">
             <div className="calendar-heading-copy"><span>SELECT DATE</span><strong>{monthLabel}</strong></div>
             <div className="calendar-month-nav">
-              <button type="button" aria-label="Previous month" onClick={() => changeMonth(-1)}>‹</button>
-              <button type="button" aria-label="Next month" onClick={() => changeMonth(1)}>›</button>
+              <button className="btn btn-icon btn-ghost" type="button" aria-label="Previous month" onClick={() => changeMonth(-1)}>‹</button>
+              <button className="btn btn-icon btn-ghost" type="button" aria-label="Next month" onClick={() => changeMonth(1)}>›</button>
             </div>
           </div>
           <div className="calendar-weekdays" aria-hidden="true">
@@ -221,15 +224,15 @@ function DatePicker({ name, value, required }) {
                 dateValue === selectedValue ? 'selected' : '',
                 dateValue === todayValue ? 'today' : ''
               ].filter(Boolean).join(' ');
-              return <button type="button" className={dayClasses} key={dateValue}
+              return <button type="button" className={`btn btn-ghost btn-sm ${dayClasses}`} key={dateValue}
                 aria-label={date.toLocaleDateString('en-US', { dateStyle: 'full' })}
                 aria-pressed={dateValue === selectedValue}
                 onClick={() => chooseDate(date)}>{date.getDate()}</button>;
             })}
           </div>
           <div className="calendar-footer">
-            <button type="button" className="calendar-clear" onClick={() => { setSelectedValue(''); setOpen(false); }}>Clear date</button>
-            <button type="button" className="calendar-today" onClick={() => chooseDate(new Date())}>Today</button>
+            <button type="button" className="btn calendar-clear btn-secondary" onClick={() => { setSelectedValue(''); setOpen(false); }}>Clear date</button>
+            <button type="button" className="btn calendar-today btn-secondary" onClick={() => chooseDate(new Date())}>Today</button>
           </div>
         </div>, document.body
       )}
@@ -246,11 +249,15 @@ function App() {
   const [error, setError] = useState('');
   const [modal, setModal] = useState(false);
   const [modalError, setModalError] = useState('');
+  const [modalSaving, setModalSaving] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState(null);
+  const [confirmBusy, setConfirmBusy] = useState(false);
   const [editing, setEditing] = useState(null);
   const [sheetEmployee, setSheetEmployee] = useState(null);
   const [search, setSearch] = useState('');
   const [health, setHealth] = useState('checking');
   const [notice, setNotice] = useState('');
+  const noticeTimeoutRef = useRef(null);
   const [appearance, setAppearance] = useState(readAppearance);
   const [dashboardPeriod, setDashboardPeriod] = useState(new Date().toISOString().slice(0, 7));
   const [dashboardMonths, setDashboardMonths] = useState(6);
@@ -273,6 +280,10 @@ function App() {
   const activeLabel = titles[active] || allItems.find((item) => item.id === active)?.label || 'Dashboard';
   const resource = resourceFor[active];
   const fields = fieldsFor[active] || [];
+
+  useEffect(() => () => {
+    if (noticeTimeoutRef.current !== null) window.clearTimeout(noticeTimeoutRef.current);
+  }, []);
 
   useEffect(() => {
     document.documentElement.style.setProperty('--accent', appearance.accent);
@@ -393,6 +404,7 @@ function App() {
       ? resource === 'bookings' ? `/api/bookings/${editing.id}` : `/api/records/${resource}/${editing.id}`
       : `/api/records/${resource}`;
     setModalError('');
+    setModalSaving(true);
     try {
       const response = await fetch(url, {
         method: editing ? 'PATCH' : 'POST',
@@ -407,15 +419,27 @@ function App() {
       if (resource === 'bookings') refreshNotifications();
       setModal(false);
       setNotice(editing ? 'Changes saved successfully.' : 'Record added successfully.');
-      window.setTimeout(() => setNotice(''), 3000);
+      if (noticeTimeoutRef.current !== null) window.clearTimeout(noticeTimeoutRef.current);
+      noticeTimeoutRef.current = window.setTimeout(() => {
+        setNotice('');
+        noticeTimeoutRef.current = null;
+      }, NOTICE_TIMEOUT_MS);
     } catch (saveError) {
       setModalError(saveError.message);
+    } finally {
+      setModalSaving(false);
     }
   }
 
-  async function deleteRecord(record) {
-    if (!window.confirm(`Delete "${record[fields[0]?.[0]] || 'this record'}"? This can’t be undone.`)) return;
+  function deleteRecord(record) {
+    setConfirmDialog({ record, title: `Delete "${record[fields[0]?.[0]] || 'this record'}"?` });
+  }
+
+  async function confirmDelete() {
+    if (!confirmDialog) return;
+    setConfirmBusy(true);
     try {
+      const { record } = confirmDialog;
       const url = resource === 'bookings' ? `/api/bookings/${record.id}` : `/api/records/${resource}/${record.id}`;
       const response = await fetch(url, { method: 'DELETE' });
       if (!response.ok) {
@@ -426,6 +450,9 @@ function App() {
       if (resource === 'bookings') refreshNotifications();
     } catch (deleteError) {
       setError(deleteError.message);
+    } finally {
+      setConfirmDialog(null);
+      setConfirmBusy(false);
     }
   }
 
@@ -440,14 +467,14 @@ function App() {
         <div className="brand">
           <div className="brand-mark"><img className="brand-logo" src={logo} alt="G Sticker Works logo" /></div>
           <span className="brand-name">G4 <span>Sticker</span></span>
-          <button className="collapse-button" aria-label="Toggle navigation" onClick={() => setMobileOpen(false)}>‹</button>
+          <button className="btn collapse-button btn-icon btn-ghost" aria-label="Toggle navigation" onClick={() => setMobileOpen(false)}>‹</button>
         </div>
         <nav className="navigation" aria-label="Main navigation">
           {sections.map((section) => (
             <div className="nav-section" key={section.heading}>
               <div className="nav-heading">{section.heading}</div>
               {section.items.map((item) => (
-                <button key={`${section.heading}-${item.id}`} className={`nav-item ${active === item.id ? 'active' : ''}`}
+                <button key={`${section.heading}-${item.id}`} className={`btn nav-item btn-ghost${active === item.id ? 'active' : ''}`}
                   onClick={() => navigate(item.id)}>
                   <Icon>{item.icon}</Icon><span className="nav-label">{item.label}</span>
                   {item.badge && <span className="nav-badge">{item.badge}</span>}
@@ -457,11 +484,11 @@ function App() {
           ))}
           <div className="nav-divider" />
           {[{ id: 'notepad', label: 'Notepad', icon: '▤' }].map((item) => (
-            <button key={item.id} className={`nav-item ${active === item.id ? 'active' : ''}`} onClick={() => navigate(item.id)}>
+            <button key={item.id} className={`btn nav-item btn-ghost${active === item.id ? 'active' : ''}`} onClick={() => navigate(item.id)}>
               <Icon>{item.icon}</Icon><span className="nav-label">{item.label}</span>
             </button>
           ))}
-          <button className={`nav-item ${active === 'settings' ? 'active' : ''}`} onClick={() => navigate('settings')}>
+          <button className={`btn nav-item btn-ghost${active === 'settings' ? 'active' : ''}`} onClick={() => navigate('settings')}>
             <Icon>⚙</Icon><span className="nav-label">Settings</span>
           </button>
         </nav>
@@ -481,17 +508,17 @@ function App() {
 
       <main className="main-area">
         <header className="topbar">
-          <button className="mobile-menu-button" aria-label="Open navigation" onClick={() => setMobileOpen(true)}>☰</button>
+          <button className="btn mobile-menu-button btn-icon btn-ghost" aria-label="Open navigation" onClick={() => setMobileOpen(true)}>☰</button>
           <div className="breadcrumbs"><span>Workspace</span><span className="crumb-slash">/</span><strong>{activeLabel}</strong></div>
           <div className="topbar-actions">
             <span className={`connection-status ${health}`}><span className="status-dot" />{health === 'connected' ? 'All systems live' : health === 'checking' ? 'Connecting…' : 'Offline'}</span>
             {active !== 'guide' && <>
-              <button className="icon-button search-shortcut" aria-label="Search" onClick={() => document.querySelector('.global-search')?.focus()}>⌕</button>
-              <label className="global-search"><span>⌕</span><input placeholder="Search anything..." aria-label="Search records" value={search} onChange={(event) => setSearch(event.target.value)} /><kbd>⌘ K</kbd></label>
+              <button className="btn icon-button search-shortcut btn-icon btn-ghost" aria-label="Search" onClick={() => document.querySelector('.global-search')?.focus()}>⌕</button>
+              <label className="global-search"><span>⌕</span><input className="input input-sm" placeholder="Search anything..." aria-label="Search records" value={search} onChange={(event) => setSearch(event.target.value)} /><kbd>⌘ K</kbd></label>
             </>}
             <button
               type="button"
-              className="icon-button theme-toggle"
+              className="btn icon-button theme-toggle btn-icon btn-ghost"
               aria-label={appearance.nightMode ? 'Switch to light mode' : 'Switch to dark mode'}
               title={appearance.nightMode ? 'Switch to light mode' : 'Switch to dark mode'}
               onClick={() => setAppearance((prev) => ({ ...prev, nightMode: !prev.nightMode }))}
@@ -499,7 +526,7 @@ function App() {
               {appearance.nightMode ? '☀' : '☾'}
             </button>
             <div className="notification-wrap">
-              <button className={`icon-button notification-button ${notificationsOpen ? 'is-open' : ''}`}
+              <button className={`btn icon-button notification-button btn-icon btn-ghost${notificationsOpen ? 'is-open' : ''}`}
                 aria-label={`Notifications${notifications.count ? `, ${notifications.count} ongoing bookings` : ''}`}
                 aria-expanded={notificationsOpen} onClick={() => setNotificationsOpen((open) => !open)}>
                 ♧{notifications.count > 0 && <span className="notification-count">{notifications.count > 99 ? '99+' : notifications.count}</span>}
@@ -515,15 +542,15 @@ function App() {
                       </span><span className="notification-item-arrow">→</span>
                     </button>
                   ))}</div> : <p className="notification-empty">No ongoing bookings right now. New active bookings will appear here.</p>}
-                <button className="notification-view-all" onClick={() => { setNotificationsOpen(false); navigate('bookings'); }}>View all bookings <span>→</span></button>
+                <button className="btn notification-view-all btn-secondary" onClick={() => { setNotificationsOpen(false); navigate('bookings'); }}>View all bookings <span>→</span></button>
               </div>}
             </div>
             <div className="top-avatar">JD</div>
           </div>
         </header>
         <div className="content">
-          {error && <div className="error-banner"><span>!</span><div><strong>Couldn’t load your data</strong><p>{error} Check your server and MongoDB connection, then refresh.</p></div><button onClick={() => setError('')} aria-label="Dismiss error">×</button></div>}
-          {notice && <div className="success-banner">✓ &nbsp;{notice}</div>}
+          {error && <Alert variant="error" title="Couldn’t load your data" dismissible onDismiss={() => setError('')}>{error} Check your server and MongoDB connection, then refresh.</Alert>}
+          {notice && <Alert variant="success">{notice}</Alert>}
           {active === 'guide' ? (
             <GuidePage onNavigate={navigate} />
           ) : active === 'clients' ? (
@@ -570,13 +597,14 @@ function App() {
           )}
         </div>
       </main>
-      {modal && <RecordModal title={activeLabel} active={active} fields={fields} record={editing} saveError={modalError} onClose={() => setModal(false)} onSave={saveRecord} />}
+      {modal && <RecordModal title={activeLabel} active={active} fields={fields} record={editing} saveError={modalError} saving={modalSaving} onClose={() => setModal(false)} onSave={saveRecord} />}
+      <ConfirmDialog open={Boolean(confirmDialog)} title={confirmDialog?.title || ''} description="This can’t be undone." confirmLabel="Delete" busy={confirmBusy} onCancel={() => setConfirmDialog(null)} onConfirm={confirmDelete} />
       {sheetEmployee && <EmployeeMonthlySheet employee={sheetEmployee} onClose={() => setSheetEmployee(null)} />}
     </div>
   );
 }
 
-function RecordModal({ title, active, fields, record, saveError, onClose, onSave }) {
+function RecordModal({ title, active, fields, record, saveError, saving, onClose, onSave }) {
   const [dateError, setDateError] = useState('');
   const [bookingClients, setBookingClients] = useState([]);
   const [grossPay, setGrossPay] = useState(Number(record?.grossPay) || 0);
@@ -605,20 +633,31 @@ function RecordModal({ title, active, fields, record, saveError, onClose, onSave
     onSave(event);
   }
 
-  return <div className="modal-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-    <form className="record-modal" onSubmit={handleSubmit}><div className="modal-header"><div><div className="t-eyebrow"><span className="accent-line" />BUSINESS HUB</div><h2>{record ? 'Edit' : 'Add'} {title.replace(/s$/, '')}</h2></div>
-      <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>×</button></div>
-      <div className="modal-fields">{fields.map(([key, label]) => (
+  return <Dialog open onOpenChange={(open) => { if (!open && !saving) onClose(); }}>
+    <DialogContent size="md" busy={saving}>
+      <form className="dialog-form" onSubmit={handleSubmit}>
+        <DialogHeader>
+          <div className="t-eyebrow"><span className="accent-line" />BUSINESS HUB</div>
+          <DialogTitle>{record ? 'Edit' : 'Add'} {title.replace(/s$/, '')}</DialogTitle>
+          <DialogClose disabled={saving} />
+        </DialogHeader>
+        <DialogBody>
+          {saveError && <Alert variant="error">{saveError}</Alert>}
+          <div className="record-fields">{fields.map(([key, label]) => (
         <RecordField key={key} active={active} keyName={key} label={label} record={record}
           clients={bookingClients}
           grossPay={grossPay} deductions={deductions} calculatedNetPay={calculatedNetPay}
           onGrossPayChange={setGrossPay} onDeductionsChange={setDeductions} />
-      ))}</div>
-      {dateError && <p className="date-validation-error" role="alert">{dateError}</p>}
-      {saveError && <p className="modal-save-error" role="alert">{saveError}</p>}
-      <div className="modal-footer"><button type="button" className="cancel-button" onClick={onClose}>Cancel</button><button type="submit" className="primary-button">{record ? 'Save changes' : 'Add record'}</button></div>
-    </form>
-  </div>;
+          ))}</div>
+          {dateError && <p className="field-error" role="alert">{dateError}</p>}
+        </DialogBody>
+        <DialogFooter>
+          <button type="button" className="btn btn-secondary" onClick={onClose} disabled={saving}>Cancel</button>
+          <button type="submit" className="btn btn-primary" aria-busy={saving || undefined} disabled={saving}>{record ? 'Save changes' : 'Add record'}</button>
+        </DialogFooter>
+      </form>
+    </DialogContent>
+  </Dialog>;
 }
 
 function RecordField({ active, keyName: key, label, record, clients = [], grossPay, deductions, calculatedNetPay, onGrossPayChange, onDeductionsChange }) {
@@ -627,24 +666,24 @@ function RecordField({ active, keyName: key, label, record, clients = [], grossP
   const isCalculatedNetPay = active === 'payroll-runs' && key === 'netPay';
   return <label className={key === 'content' ? 'wide-field' : ''}><span>{label}</span>
     {['content', 'notes', ...(active === 'clients' ? ['address'] : [])].includes(key)
-      ? <textarea name={key} placeholder={label} defaultValue={record?.[key] || ''} rows={key === 'notes' ? 4 : 3} required={active === 'clients' ? key === 'name' : key === 'content'} />
+      ? <textarea className="textarea" name={key} placeholder={label} defaultValue={record?.[key] || ''} rows={key === 'notes' ? 4 : 3} required={active === 'clients' ? key === 'name' : key === 'content'} />
       : key === 'category' && active === 'products'
-        ? <select name={key} defaultValue={record?.[key] || ''} required><option value="" disabled>Select a product type</option>{['Sticker', 'Cap', 'Mug', 'Tarpaulin', ...(record?.[key] && !['Sticker', 'Cap', 'Mug', 'Tarpaulin'].includes(record[key]) ? [record[key]] : [])].map((category) => <option key={category} value={category}>{category}</option>)}</select>
+        ? <select className="select" name={key} defaultValue={record?.[key] || ''} required><option value="" disabled>Select a product type</option>{['Sticker', 'Cap', 'Mug', 'Tarpaulin', ...(record?.[key] && !['Sticker', 'Cap', 'Mug', 'Tarpaulin'].includes(record[key]) ? [record[key]] : [])].map((category) => <option key={category} value={category}>{category}</option>)}</select>
         : key === 'client' && active === 'bookings'
-          ? <select name={key} defaultValue={record?.[key] || ''} required><option value="" disabled>Select a client</option>{record?.[key] && !clients.some((client) => client.name === record.client) && <option value={record.client}>{record.client}</option>}{clients.map((client) => <option key={client.id} value={client.name}>{client.name}</option>)}</select>
+          ? <select className="select" name={key} defaultValue={record?.[key] || ''} required><option value="" disabled>Select a client</option>{record?.[key] && !clients.some((client) => client.name === record.client) && <option value={record.client}>{record.client}</option>}{clients.map((client) => <option key={client.id} value={client.name}>{client.name}</option>)}</select>
         : key === 'payFrequency' && active === 'employees'
-          ? <select name={key} defaultValue={record?.[key] || 'Monthly'}><option>Weekly</option><option>Biweekly</option><option>Semimonthly</option><option>Monthly</option></select>
+          ? <select className="select" name={key} defaultValue={record?.[key] || 'Monthly'}><option>Weekly</option><option>Biweekly</option><option>Semimonthly</option><option>Monthly</option></select>
           : key === 'salaryType' && active === 'employees'
-            ? <select name={key} defaultValue={record?.[key] || 'hourly'}><option value="hourly">Hourly rate</option><option value="daily">Daily rate</option><option value="monthly">Monthly salary</option></select>
+            ? <select className="select" name={key} defaultValue={record?.[key] || 'hourly'}><option value="hourly">Hourly rate</option><option value="daily">Daily rate</option><option value="monthly">Monthly salary</option></select>
           : key === 'status' && active === 'employees'
-            ? <select name={key} defaultValue={record?.[key] || 'Active'}><option>Active</option><option>On leave</option><option>Inactive</option></select>
+            ? <select className="select" name={key} defaultValue={record?.[key] || 'Active'}><option>Active</option><option>On leave</option><option>Inactive</option></select>
             : key === 'status' && active === 'bookings'
-              ? <select name={key} defaultValue={record?.[key] || 'Scheduled'}><option>Scheduled</option><option>In progress</option><option>On hold</option><option>Cancelled</option>{record?.[key] && !['Scheduled', 'In progress', 'On hold', 'Cancelled'].includes(record.status) && <option>{record.status}</option>}</select>
+              ? <select className="select" name={key} defaultValue={record?.[key] || 'Scheduled'}><option>Scheduled</option><option>In progress</option><option>On hold</option><option>Cancelled</option>{record?.[key] && !['Scheduled', 'In progress', 'On hold', 'Cancelled'].includes(record.status) && <option>{record.status}</option>}</select>
             : key === 'status' && active === 'payroll-runs'
-              ? <select name={key} defaultValue={record?.[key] || 'Draft'}><option>Draft</option><option>Processing</option><option>Paid</option><option>Failed</option></select>
+              ? <select className="select" name={key} defaultValue={record?.[key] || 'Draft'}><option>Draft</option><option>Processing</option><option>Paid</option><option>Failed</option></select>
               : key.toLowerCase().includes('date') || key === 'updated'
                 ? <DatePicker name={key} value={record?.[key] || ''} required={key !== 'updated'} />
-                : <input name={key} placeholder={label} type={isNumeric ? 'number' : key === 'email' ? 'email' : key === 'phone' ? 'tel' : 'text'} step={step}
+                : <input className="input" name={key} placeholder={label} type={isNumeric ? 'number' : key === 'email' ? 'email' : key === 'phone' ? 'tel' : 'text'} step={step}
                     min={['salary', 'overtimeRate', 'grossPay', 'deductions'].includes(key) ? '0' : undefined}
                     value={isCalculatedNetPay ? calculatedNetPay : undefined}
                     defaultValue={isCalculatedNetPay ? undefined : record?.[key] || ''}

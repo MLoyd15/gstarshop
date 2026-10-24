@@ -42,8 +42,9 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
       const dailyEntries = (Array.isArray(req.body.dailyEntries) ? req.body.dailyEntries : []).map((entry) => {
         const hours = Number(entry.hours);
         const overtimeHours = Number(entry.overtimeHours || 0);
-        if (!validDate(entry.date) || !Number.isFinite(hours) || !Number.isFinite(overtimeHours) || hours < 0 || overtimeHours < 0 || hours + overtimeHours <= 0 || hours + overtimeHours > 24) throw new PayrollValidationError('Each workday needs regular or overtime hours, with a combined total between 0 and 24.');
-        return { date: entry.date, hours: Math.round(hours * 100) / 100, overtimeHours: Math.round(overtimeHours * 100) / 100 };
+        const absent = entry.absent === true;
+        if (!validDate(entry.date) || !Number.isFinite(hours) || !Number.isFinite(overtimeHours) || hours < 0 || overtimeHours < 0 || (absent ? hours + overtimeHours !== 0 : hours + overtimeHours <= 0) || hours + overtimeHours > 24) throw new PayrollValidationError('Each workday needs regular or overtime hours, or must be marked absent. Hours must total between 0 and 24.');
+        return { date: entry.date, hours: Math.round(hours * 100) / 100, overtimeHours: Math.round(overtimeHours * 100) / 100, absent };
       });
       if (new Set(dailyEntries.map((entry) => entry.date)).size !== dailyEntries.length) throw new PayrollValidationError('There can only be one hours entry per day.');
       const advances = (Array.isArray(req.body.advances) ? req.body.advances : []).map((advance) => {
@@ -154,13 +155,28 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
   });
 
   router.delete('/runs/:id', async (req, res) => {
+    let session;
     try {
-      const run = await BusinessRecord.findOne({ _id: req.params.id, resource: 'payroll-runs' });
-      if (!run) return res.status(404).json({ error: 'Payroll run not found.' });
-      if (run.data.status !== 'draft') return res.status(409).json({ error: 'Only draft payroll runs can be deleted. Reverse finalized runs instead.' });
-      await run.deleteOne();
+      session = await mongoose.startSession();
+      let found = false;
+      await session.withTransaction(async () => {
+        const run = await BusinessRecord.findOne({ _id: req.params.id, resource: 'payroll-runs' }).session(session);
+        if (!run) return;
+        found = true;
+        const expenseIds = [run.data.expenseId].filter(Boolean);
+        await BusinessRecord.deleteMany({
+          resource: 'expenses',
+          $or: [
+            { 'data.payrollRunId': run._id.toString() },
+            ...(expenseIds.length ? [{ _id: { $in: expenseIds } }] : [])
+          ]
+        }).session(session);
+        await run.deleteOne({ session });
+      });
+      if (!found) return res.status(404).json({ error: 'Payroll run not found.' });
       res.status(204).end();
     } catch (error) { fail(res, error); }
+    finally { await session?.endSession(); }
   });
   router.post('/runs/:id/finalize', async (req, res) => {
     try {
