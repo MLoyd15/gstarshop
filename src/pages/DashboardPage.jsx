@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Butterfly } from '../shared.jsx';
 import '../styles/DashboardPage.css';
+import AnalyticsSection from '../components/analytics/AnalyticsSection.jsx';
 
 /* Tailwind version. Accent color comes from your existing --purple CSS variable.
    Everything else uses the default Tailwind palette (slate, emerald, etc.). */
@@ -123,24 +124,7 @@ export default function DashboardPage({ onNavigate, data, compact, loading = fal
       </section>
       <p className="dashboard-v2-accuracy-note">Manual income, completed-job sales revenue, and customer payments are separate figures; none are added together. {data.financialLimits?.salesRevenueTrackedSeparately ? '' : 'Some legacy or migrated completion revenue needs verification. '}{data.financialLimits?.customerReceivablesTracked ? '' : 'Legacy booking balances exclude unrecorded historic payments. '}Gross margin subtracts recorded job material costs only; it is not net profit.</p>
 
-      <div className="dashboard-v2-charts">
-        <section className="dashboard-v2-card dashboard-v2-finance" aria-label="Financial trends">
-          <div className="dashboard-v2-card-heading"><div><h2>Financial trends</h2><p>Monthly totals through {periodLabel}</p></div>
-            <div className="dashboard-chart-options"><label>Window<select value={chartMonths} onChange={(event) => onChartMonthsChange?.(Number(event.target.value))}><option value={3}>3 mo</option><option value={6}>6 mo</option><option value={12}>12 mo</option></select></label><div className="dashboard-chart-type" role="group" aria-label="Chart type"><button type="button" aria-pressed={chartPreferences.type === 'line'} onClick={() => setChartPreferences((previous) => ({ ...previous, type: 'line' }))}>Line</button><button type="button" aria-pressed={chartPreferences.type === 'bar'} onClick={() => setChartPreferences((previous) => ({ ...previous, type: 'bar' }))}>Bar</button></div></div>
-          </div>
-          <div className="dashboard-chart-series" aria-label="Choose chart data">{CHART_SERIES.map((item) => <label key={item.key} className="dashboard-chart-toggle"><input type="checkbox" checked={chartPreferences.series.includes(item.key)} onChange={() => setChartPreferences((previous) => ({ ...previous, series: previous.series.includes(item.key) ? previous.series.filter((key) => key !== item.key) : [...previous.series, item.key] }))} /><i style={{ '--series-color': item.color }} />{item.label}</label>)}</div>
-          {loading ? <div className="h-56 animate-pulse rounded-xl bg-[var(--surface-soft)]" /> : <RevenueChart months={data.months || []} selectedSeries={chartPreferences.series} chartType={chartPreferences.type} />}
-        </section>
-        <section className="dashboard-v2-card dashboard-v2-operations" aria-label="Business operations">
-          <div className="dashboard-v2-card-heading"><div><h2>Business pulse</h2><p>Bookings, stock, and purchasing</p></div></div>
-          {loading ? <div className="h-56 animate-pulse rounded-xl bg-[var(--surface-soft)]" /> : <div className="dashboard-pulse-list">
-            <MiniBarChart title="Bookings" items={[{ label: 'Active', value: data.operationCharts?.bookings?.active || 0, color: 'bg-[color:var(--purple)]' }, { label: 'Completed', value: data.operationCharts?.bookings?.completed || 0, color: 'bg-emerald-500' }]} onClick={() => onNavigate('bookings')} />
-            <MiniBarChart title="Material stock" items={[{ label: 'Healthy', value: data.operationCharts?.materials?.healthy || 0, color: 'bg-emerald-500' }, { label: 'Low', value: data.operationCharts?.materials?.low || 0, color: 'bg-amber-500' }, { label: 'Out', value: data.operationCharts?.materials?.out || 0, color: 'bg-rose-500' }]} onClick={() => onNavigate('materials')} />
-            <MiniBarChart title="Purchasing" items={[{ label: 'Awaiting receipt', value: data.operationCharts?.purchasing?.awaitingReceipt || 0, color: 'bg-sky-500' }, { label: 'Balance due', value: data.operationCharts?.purchasing?.balanceDue || 0, color: 'bg-amber-500' }]} onClick={() => onNavigate('purchases')} />
-          </div>}
-          {!loading && <p className="dashboard-v2-note">Gross margin excludes overhead and other operating expenses.</p>}
-        </section>
-      </div>
+      <AnalyticsSection period={currentPeriod} chartMonths={chartMonths} onChartMonthsChange={onChartMonthsChange} />
 
       <div className="dashboard-v2-bottom">
         <section className="dashboard-v2-card dashboard-v2-transactions" aria-label="Recent transactions">

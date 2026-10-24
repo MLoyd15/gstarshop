@@ -7,6 +7,7 @@ import { createInventoryRouter } from './routes/inventory.js';
 import { createBookingsRouter } from './routes/bookings.js';
 import { createPurchasesRouter } from './routes/purchases.js';
 import { createProductsRouter } from './routes/products.js';
+import { createAnalyticsRouter } from './routes/analytics.js';
 import { validateEmployeePayrollData } from './services/payroll.js';
 import { buildDashboardSummary } from './services/dashboard.js';
 import { validateFinancialEntry } from './services/financial.js';
@@ -69,6 +70,7 @@ app.use('/api/materials', createInventoryRouter(BusinessRecord, mongoose));
 app.use('/api/bookings', createBookingsRouter(BusinessRecord, mongoose));
 app.use('/api', createPurchasesRouter(BusinessRecord, mongoose));
 app.use('/api/products', createProductsRouter(BusinessRecord, mongoose));
+app.use('/api/analytics', createAnalyticsRouter(BusinessRecord));
 
 app.get('/api/dashboard', async (request, response, next) => {
   try {
