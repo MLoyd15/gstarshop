@@ -8,7 +8,7 @@ function MaterialsListPreview() {
     <MockFrame variant="guide-mock-materials">
       <section className="materials-page">
         <header className="materials-heading">
-          <div><div className="materials-eyebrow">RAW MATERIALS</div><h1>Materials</h1><p>Track stock levels, suppliers, and supplies used on jobs.</p></div>
+          <div><div className="t-eyebrow">RAW MATERIALS</div><h1 className="t-page-title">Materials</h1><p>Track stock levels, suppliers, and supplies used on jobs.</p></div>
           <button className="materials-primary" type="button">＋ Add material</button>
         </header>
         <div className="materials-panel">

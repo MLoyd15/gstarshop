@@ -14,7 +14,7 @@
 }
 
 .analytics-section:focus-within {
-  border-color: color-mix(in srgb, var(--purple), transparent 50%);
+  border-color: color-mix(in srgb, var(--accent), transparent 50%);
 }
 
 /* Header & Toggle */
@@ -34,11 +34,11 @@
 }
 
 .analytics-header-toggle:hover {
-  background: color-mix(in srgb, var(--surface-strong), var(--purple) 4%);
+  background: color-mix(in srgb, var(--surface-strong), var(--accent) 4%);
 }
 
 .analytics-header-toggle:focus-visible {
-  outline: 2px solid var(--purple);
+  outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
 
@@ -54,26 +54,26 @@
   align-items: center;
   gap: 6px;
   padding: 3px 8px;
-  background: color-mix(in srgb, var(--purple), transparent 85%);
-  border: 1px solid color-mix(in srgb, var(--purple), transparent 60%);
+  background: color-mix(in srgb, var(--accent), transparent 85%);
+  border: 1px solid color-mix(in srgb, var(--accent), transparent 60%);
   border-radius: 6px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 11px;
+  font-size: var(--fs-caption);
   font-weight: 600;
-  color: var(--purple);
+  color: var(--accent);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .analytics-header-title {
-  font-size: var(--font-section-title, 1.05rem);
+  font-size: var(--fs-section);
   font-weight: 600;
   margin: 0;
   color: var(--text);
 }
 
 .analytics-header-period {
-  font-size: 12px;
+  font-size: var(--fs-caption);
   color: var(--muted);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
@@ -146,7 +146,7 @@
 }
 
 .analytics-sidebar-title {
-  font-size: 10px;
+  font-size: var(--fs-caption);
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -174,7 +174,7 @@
   cursor: pointer;
   user-select: none;
   transition: all var(--transition-fast, 150ms ease);
-  font-size: 11.5px;
+  font-size: var(--fs-caption);
 }
 
 .analytics-sidebar-item:hover {
@@ -219,7 +219,7 @@
 
 .analytics-sidebar-item-val {
   font-family: ui-monospace, monospace;
-  font-size: 11px;
+  font-size: var(--fs-caption);
   font-weight: 600;
   color: var(--text-secondary);
   margin-left: 8px;
@@ -253,7 +253,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: var(--fs-caption);
   color: var(--muted);
   font-family: ui-monospace, monospace;
 }
@@ -265,7 +265,7 @@
   border: 1px solid var(--line-strong);
   background: var(--surface);
   color: var(--text);
-  font-size: 11px;
+  font-size: var(--fs-caption);
   font-family: inherit;
   cursor: pointer;
   outline: none;
@@ -273,7 +273,7 @@
 }
 
 .analytics-window-select:focus-visible {
-  border-color: var(--purple);
+  border-color: var(--accent);
 }
 
 .analytics-type-toggle {
@@ -290,7 +290,7 @@
   border: none;
   background: transparent;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--fs-caption);
   font-weight: 600;
   cursor: pointer;
   transition: all var(--transition-fast, 150ms ease);
@@ -325,7 +325,7 @@
   border: 1px solid var(--line);
   background: var(--surface-soft);
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--fs-caption);
   cursor: pointer;
   user-select: none;
   transition: all var(--transition-fast, 150ms ease);
@@ -376,7 +376,7 @@
 }
 
 .analytics-tooltip-header {
-  font-size: 11px;
+  font-size: var(--fs-caption);
   color: var(--text);
   margin-bottom: 6px;
   padding-bottom: 4px;
@@ -395,7 +395,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  font-size: 11px;
+  font-size: var(--fs-caption);
 }
 
 .analytics-tooltip-row-label {
@@ -438,7 +438,7 @@
 }
 
 .analytics-card-title {
-  font-size: 13px;
+  font-size: var(--fs-body-sm);
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--text);
@@ -449,7 +449,7 @@
 }
 
 .analytics-card-desc {
-  font-size: 12px;
+  font-size: var(--fs-caption);
   color: var(--muted);
   margin-top: 2px;
 }
@@ -459,7 +459,7 @@
   align-items: center;
   padding: 2px 7px;
   border-radius: 4px;
-  font-size: 10px;
+  font-size: var(--fs-caption);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -542,7 +542,7 @@
 .analytics-bar-label {
   position: absolute;
   bottom: 0;
-  font-size: 11px;
+  font-size: var(--fs-caption);
   font-family: ui-monospace, monospace;
   color: var(--muted);
   text-align: center;
@@ -550,21 +550,21 @@
 }
 
 .analytics-bar-col.is-peak .analytics-bar-label {
-  color: var(--purple);
+  color: var(--accent);
   font-weight: 700;
 }
 
 .analytics-peak-indicator {
   position: absolute;
   top: -20px;
-  font-size: 9px;
+  font-size: var(--fs-caption);
   font-weight: 700;
   font-family: ui-monospace, monospace;
-  color: var(--purple);
-  background: color-mix(in srgb, var(--purple), transparent 88%);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent), transparent 88%);
   padding: 1px 5px;
   border-radius: 3px;
-  border: 1px solid color-mix(in srgb, var(--purple), transparent 60%);
+  border: 1px solid color-mix(in srgb, var(--accent), transparent 60%);
   white-space: nowrap;
 }
 
@@ -583,7 +583,7 @@
   padding: 6px 10px;
   border-radius: 6px;
   background: var(--surface-soft);
-  font-size: 12px;
+  font-size: var(--fs-caption);
 }
 
 .analytics-legend-left {
@@ -604,7 +604,7 @@
 }
 
 .analytics-legend-count {
-  font-size: 11px;
+  font-size: var(--fs-caption);
   color: var(--muted);
 }
 
@@ -623,7 +623,7 @@
 
 .analytics-legend-pct {
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: var(--fs-caption);
 }
 
 /* Funnel Pipeline */
@@ -652,7 +652,7 @@
   left: 0;
   top: 0;
   bottom: 0;
-  background: color-mix(in srgb, var(--purple), transparent 88%);
+  background: color-mix(in srgb, var(--accent), transparent 88%);
   z-index: 0;
   transition: width 300ms ease;
 }
@@ -679,16 +679,16 @@
   width: 22px;
   height: 22px;
   border-radius: 5px;
-  background: color-mix(in srgb, var(--purple), transparent 80%);
-  color: var(--purple);
+  background: color-mix(in srgb, var(--accent), transparent 80%);
+  color: var(--accent);
   font-family: ui-monospace, monospace;
-  font-size: 11px;
+  font-size: var(--fs-caption);
   font-weight: 700;
 }
 
 .analytics-funnel-title {
   font-weight: 600;
-  font-size: 13px;
+  font-size: var(--fs-body-sm);
   color: var(--text);
 }
 
@@ -700,12 +700,12 @@
 }
 
 .analytics-funnel-count {
-  font-size: 12px;
+  font-size: var(--fs-caption);
   color: var(--muted);
 }
 
 .analytics-funnel-val {
-  font-size: 13px;
+  font-size: var(--fs-body-sm);
   font-weight: 600;
   color: var(--text);
 }
@@ -715,7 +715,7 @@
   align-items: center;
   padding: 2px 6px;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: var(--fs-caption);
   font-weight: 600;
   background: color-mix(in srgb, var(--success), transparent 82%);
   color: var(--success);
@@ -752,7 +752,7 @@
 }
 
 .analytics-unpaid-name {
-  font-size: 12px;
+  font-size: var(--fs-caption);
   font-weight: 600;
   color: var(--text);
   white-space: nowrap;
@@ -761,7 +761,7 @@
 }
 
 .analytics-unpaid-client {
-  font-size: 11px;
+  font-size: var(--fs-caption);
   color: var(--muted);
   display: flex;
   align-items: center;
@@ -774,7 +774,7 @@
 }
 
 .analytics-unpaid-balance {
-  font-size: 13px;
+  font-size: var(--fs-body-sm);
   font-weight: 700;
   color: var(--danger);
 }
@@ -793,7 +793,7 @@
 
 .analytics-placeholder-tag {
   font-family: ui-monospace, monospace;
-  font-size: 10px;
+  font-size: var(--fs-caption);
   font-weight: 700;
   color: var(--muted);
   border: 1px solid var(--line-strong);
@@ -804,7 +804,7 @@
 }
 
 .analytics-placeholder-msg {
-  font-size: 12px;
+  font-size: var(--fs-caption);
   color: var(--text-secondary);
   max-width: 280px;
   line-height: 1.5;
@@ -820,24 +820,24 @@
   padding: 40px 20px;
   text-align: center;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--fs-body-sm);
   gap: 10px;
 }
 
 .analytics-prompt-symbol {
   font-family: ui-monospace, monospace;
-  color: var(--purple);
-  font-size: 14px;
+  color: var(--accent);
+  font-size: var(--fs-body);
   font-weight: 700;
 }
 
 .analytics-retry-btn {
   padding: 6px 14px;
   border-radius: 6px;
-  background: var(--purple);
+  background: var(--accent);
   color: #fff;
   border: none;
-  font-size: 12px;
+  font-size: var(--fs-caption);
   font-weight: 600;
   cursor: pointer;
   transition: opacity var(--transition-fast, 150ms ease);
@@ -854,7 +854,7 @@
   background: linear-gradient(
     90deg,
     var(--surface-soft) 25%,
-    color-mix(in srgb, var(--surface-soft), var(--purple) 8%) 50%,
+    color-mix(in srgb, var(--surface-soft), var(--accent) 8%) 50%,
     var(--surface-soft) 75%
   );
   background-size: 200% 100%;

@@ -22,7 +22,7 @@ export default function SuppliersPage() {
   const set = (key, value) => setForm((old) => ({ ...old, [key]: value }));
   const materialNames = new Map(materials.map((material) => [material.id, material.name]));
   return <section className="materials-page suppliers-page">
-    <div className="materials-header"><div><h1>Suppliers</h1><p>Supplier contacts and purchasing history</p></div><button className="primary-button" onClick={() => setForm({ ...initial })}>Add supplier</button></div>
+    <div className="materials-header"><div><h1 className="t-page-title">Suppliers</h1><p>Supplier contacts and purchasing history</p></div><button className="primary-button" onClick={() => setForm({ ...initial })}>Add supplier</button></div>
     {error && <p className="materials-error">{error}</p>}
     <div className="materials-panel"><div className="materials-toolbar"><div><h2>Suppliers</h2><p>Supplier contacts and purchasing history.</p></div></div>
       {!suppliers.length ? <div className="materials-empty">No suppliers yet. Add a supplier to start creating purchase orders.</div> : <div className="materials-table-wrap"><table className="materials-table"><thead><tr><th>Supplier</th><th>Contact</th><th>Lead time</th><th>Status</th><th>Supplied materials</th><th /></tr></thead><tbody>

@@ -50,7 +50,7 @@ export function DashboardInvoices() {
 	return (
 		<DashboardCard className="relative gap-0 md:col-span-2">
 			<CardHeader className="border-b">
-				<CardTitle className="text-base">Recent invoices</CardTitle>
+				<CardTitle className="text-body">Recent invoices</CardTitle>
 				<CardDescription>Open amounts and payment status.</CardDescription>
 			</CardHeader>
 			<CardContent className="mask-b-from-50% mask-b-to-100% px-0">

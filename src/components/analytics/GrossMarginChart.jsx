@@ -147,7 +147,7 @@ export default function GrossMarginChart({ data, loading, error }) {
         </table>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', fontSize: '11px', color: 'var(--muted)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', fontSize: 'var(--fs-caption)', color: 'var(--muted)' }}>
         <div style={{ display: 'flex', gap: '10px' }}>
           <span style={{ color: 'var(--success)' }}>■ Gross Revenue</span>
           <span style={{ color: 'var(--danger)' }}>■ Material Cost</span>

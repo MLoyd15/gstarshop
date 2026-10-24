@@ -8,7 +8,7 @@ function InventoryLowStockPreview() {
   return (
     <MockFrame variant="guide-mock-inventory">
       <section className="materials-page">
-        <header className="materials-heading"><div><div className="materials-eyebrow">RAW MATERIALS</div><h1>Materials</h1><p>Low stock filter · active materials</p></div><button className="materials-primary" type="button">＋ Add material</button></header>
+        <header className="materials-heading"><div><div className="t-eyebrow">RAW MATERIALS</div><h1 className="t-page-title">Materials</h1><p>Low stock filter · active materials</p></div><button className="materials-primary" type="button">＋ Add material</button></header>
         <div className="materials-panel">
           <div className="materials-toolbar"><div><h2>Stock on hand</h2><p>Low stock is at or below the reorder level.</p></div><div className="materials-filters"><input value="Low stock" readOnly aria-label="Filter materials" /></div></div>
           <div className="material-cards guide-mock-material-cards">

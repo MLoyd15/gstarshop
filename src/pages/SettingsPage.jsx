@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { flowSteps } from '../data/flowSteps.js';
 import '../styles/SettingsPage.css';
-const defaultAppearance={accent:'#6967d9',textScale:1.15,nightMode:true};
-const accentPresets=[{label:'Violet',value:'#6967d9'},{label:'Ocean',value:'#2878c7'},{label:'Forest',value:'#26836b'},{label:'Coral',value:'#d46a70'},{label:'Amber',value:'#bd7d28'}];
+const defaultAppearance={accent:'#0878b8',textScale:1.15,nightMode:true};
+const accentPresets=[{label:'Cyan',value:'#0878b8'},{label:'Violet',value:'#6967d9'},{label:'Forest',value:'#26836b'},{label:'Coral',value:'#b94753'},{label:'Amber',value:'#a66a10'}];
 
 
 
@@ -31,7 +31,7 @@ export default function SettingsPage({ health, appearance, onAppearanceChange, a
     setGuideProgress(0);
   }
 
-  return <div className="records-page settings-page"><div className="welcome-row records-welcome"><div><div className="eyebrow"><span className="eyebrow-line" />PREFERENCES</div><h1>Settings</h1><p>Manage your workspace and account preferences.</p></div></div>
+  return <div className="records-page settings-page"><div className="welcome-row records-welcome"><div><div className="t-eyebrow"><span className="accent-line" />PREFERENCES</div><h1 className="t-page-title">Settings</h1><p>Manage your workspace and account preferences.</p></div></div>
     <section className="panel appearance-panel">
       <div className="appearance-heading"><div><div className="settings-symbol">✦</div><h2>Make it yours</h2><p>Personalize the look of G4 Sticker. Changes apply immediately and are saved on this device.</p></div>
         <button type="button" className="appearance-reset" onClick={() => onAppearanceChange(defaultAppearance)}>Reset to default</button>

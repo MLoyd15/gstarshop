@@ -8,7 +8,7 @@ export default function ProductRevenuePlaceholder() {
       <p className="analytics-placeholder-msg">
         Bookings currently record total booking price and material consumption, but do not record itemized product sales or quantities.
       </p>
-      <div style={{ marginTop: '14px', fontSize: '11px', color: 'var(--muted)', fontFamily: 'ui-monospace, monospace' }}>
+      <div style={{ marginTop: '14px', fontSize: 'var(--fs-caption)', color: 'var(--muted)', fontFamily: 'ui-monospace, monospace' }}>
         &gt; Requires line-item products on booking records
       </div>
     </div>

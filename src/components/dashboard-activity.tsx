@@ -60,10 +60,10 @@ export function DashboardActivity() {
 								{item.icon}
 							</span>
 							<div className="min-w-0 flex-1 space-y-1">
-								<p className="line-clamp-1 text-pretty text-foreground text-sm leading-snug">
+								<p className="line-clamp-1 text-pretty text-foreground text-body-sm leading-snug">
 									{item.title}
 								</p>
-								<p className="text-muted-foreground text-xs">{item.time}</p>
+								<p className="text-muted-foreground text-caption">{item.time}</p>
 							</div>
 						</li>
 					))}

@@ -3,21 +3,20 @@ import { Butterfly } from '../shared.jsx';
 import '../styles/DashboardPage.css';
 import AnalyticsSection from '../components/analytics/AnalyticsSection.jsx';
 
-/* Tailwind version. Accent color comes from your existing --purple CSS variable.
-   Everything else uses the default Tailwind palette (slate, emerald, etc.). */
+/* Dashboard colors resolve through the shared semantic theme tokens. */
 
-const focusRing = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--purple)]';
-const btnBase = `inline-flex h-[38px] items-center gap-2 rounded-[10px] border px-3.5 text-sm font-medium motion-safe:transition ${focusRing}`;
-const btn = `${btnBase} border-slate-200 bg-white text-slate-800 hover:border-[color:var(--purple)]`;
-const btnPrimary = `${btnBase} border-[color:var(--purple)] bg-[color:var(--purple)] text-white hover:brightness-95`;
-const panel = 'min-w-0 rounded-2xl border border-slate-200 bg-white p-4 sm:p-[22px]';
+const focusRing = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--accent)]';
+const btnBase = `inline-flex h-[38px] items-center gap-2 rounded-[10px] border px-3.5 text-body-sm font-medium motion-safe:transition ${focusRing}`;
+const btn = `${btnBase} border-[var(--line)] bg-[var(--surface)] text-[var(--text)] hover:border-[color:var(--accent)]`;
+const btnPrimary = `${btnBase} border-[color:var(--accent)] bg-[color:var(--accent)] text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]`;
+const panel = 'min-w-0 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4 sm:p-[22px]';
 
 const TONES = {
-  income: 'bg-emerald-50 text-emerald-700',
-  expenses: 'bg-orange-50 text-orange-700',
-  bookings: 'bg-violet-100 text-violet-700',
-  purchases: 'bg-blue-50 text-blue-700',
-  neutral: 'bg-slate-100 text-slate-600',
+  income: 'bg-[var(--success-soft)] text-[var(--success)]',
+  expenses: 'bg-[var(--danger-soft)] text-[var(--danger)]',
+  bookings: 'bg-[var(--accent-soft)] text-[var(--accent)]',
+  purchases: 'bg-[var(--info-soft)] text-[var(--info)]',
+  neutral: 'bg-[var(--surface-soft)] text-[var(--text-secondary)]',
 };
 
 const ICONS = {
@@ -53,12 +52,12 @@ const compactCurrency = (value) => new Intl.NumberFormat('en-PH', {
 }).format(value);
 
 const CHART_SERIES = [
-  { key: 'income', label: 'Manual income', color: 'var(--purple,#6c5ce7)' },
-  { key: 'salesRevenue', label: 'Sales revenue', color: '#18a879' },
-  { key: 'cashCollected', label: 'Customer payments', color: '#0ea5e9' },
-  { key: 'expenses', label: 'Expenses', color: '#f97316' },
-  { key: 'payrollPaid', label: 'Payroll paid', color: '#0ea5e9' },
-  { key: 'materialCosts', label: 'Material costs', color: '#10b981' }
+  { key: 'income', label: 'Manual income', color: 'var(--chart-1)' },
+  { key: 'salesRevenue', label: 'Sales revenue', color: 'var(--chart-2)' },
+  { key: 'cashCollected', label: 'Customer payments', color: 'var(--chart-3)' },
+  { key: 'expenses', label: 'Expenses', color: 'var(--chart-4)' },
+  { key: 'payrollPaid', label: 'Payroll paid', color: 'var(--chart-3)' },
+  { key: 'materialCosts', label: 'Material costs', color: 'var(--chart-2)' }
 ];
 
 function readChartPreferences() {
@@ -106,7 +105,7 @@ export default function DashboardPage({ onNavigate, data, compact, loading = fal
   return (
     <div className="dashboard-page dashboard-v2">
       <div className="dashboard-toolbar">
-        <div><h1>{heading}</h1><p>Recorded activity for {periodLabel}</p></div>
+        <div><h1 className="t-page-title">{heading}</h1><p>Recorded activity for {periodLabel}</p></div>
         <div className="dashboard-toolbar-actions">
           <label className="dashboard-period-control">Month<input type="month" value={currentPeriod} onChange={(event) => onPeriodChange?.(event.target.value)} /></label>
           <button className={btnPrimary} onClick={() => onNavigate('income')}><Glyph name="plus" size={16} />Record income</button>
@@ -184,50 +183,50 @@ const txGrid = 'grid grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-x-3.5 
 function Figure({ label, value, note }) {
   return (
     <div>
-      <span className="block text-sm text-slate-500">{label}</span>
-      <strong className="font-[family-name:Manrope,sans-serif] mt-1 block text-xl font-semibold tabular-nums">{value}</strong>
-      <small className="mt-0.5 block text-xs text-slate-500">{note}</small>
+      <span className="block text-body-sm text-[var(--muted)]">{label}</span>
+      <strong className="font-[family-name:Manrope,sans-serif] mt-1 block text-title font-semibold tabular-nums">{value}</strong>
+      <small className="mt-0.5 block text-caption text-[var(--muted)]">{note}</small>
     </div>
   );
 }
 
 function MetricCard({ label, value, detail, onClick }) {
-  return <button type="button" onClick={onClick} className={`min-w-0 rounded-xl border border-slate-200 bg-white p-3.5 text-left hover:border-[color:var(--purple)] hover:bg-violet-50/40 ${focusRing}`}>
-    <span className="block text-xs font-medium text-slate-500">{label}</span>
-    <strong className="mt-1 block truncate font-[family-name:Manrope,sans-serif] text-lg font-semibold tabular-nums text-slate-900">{value}</strong>
-    <small className="mt-1 block truncate text-[11px] text-slate-500">{detail}</small>
+  return <button type="button" onClick={onClick} className={`min-w-0 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3.5 text-left hover:border-[color:var(--accent)] hover:bg-[var(--surface-hover)] ${focusRing}`}>
+    <span className="block text-caption font-medium text-[var(--muted)]">{label}</span>
+    <strong className="mt-1 block truncate font-[family-name:Manrope,sans-serif] text-section font-semibold tabular-nums text-[var(--text)]">{value}</strong>
+    <small className="mt-1 block truncate text-caption text-[var(--muted)]">{detail}</small>
   </button>;
 }
 
 function PayrollMetric({ label, value, detail }) {
-  return <article className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3.5">
-    <span className="block text-xs font-medium text-slate-500">{label}</span>
-    <strong className="mt-1 block truncate font-[family-name:Manrope,sans-serif] text-lg font-semibold tabular-nums text-slate-900">{value}</strong>
-    <small className="mt-1 block truncate text-[11px] text-slate-500">{detail}</small>
+  return <article className="min-w-0 rounded-xl border border-[var(--line)] bg-[var(--surface-soft)] p-3.5">
+    <span className="block text-caption font-medium text-[var(--muted)]">{label}</span>
+    <strong className="mt-1 block truncate font-[family-name:Manrope,sans-serif] text-section font-semibold tabular-nums text-[var(--text)]">{value}</strong>
+    <small className="mt-1 block truncate text-caption text-[var(--muted)]">{detail}</small>
   </article>;
 }
 
 function CountRow({ icon, tone, label, value, onClick }) {
   return (
     <button
-      className={`grid w-full grid-cols-[36px_1fr_auto_16px] items-center gap-3 rounded-[10px] border-t border-slate-100 px-2 py-3 text-left first:border-t-0 hover:bg-slate-50 motion-safe:transition-colors ${focusRing}`}
+      className={`grid w-full grid-cols-[36px_1fr_auto_16px] items-center gap-3 rounded-[10px] border-t border-[var(--line)] px-2 py-3 text-left first:border-t-0 hover:bg-[var(--surface-soft)] motion-safe:transition-colors ${focusRing}`}
       onClick={onClick}
     >
       <IconBadge name={icon} tone={tone} />
       <span>{label}</span>
-      <strong className="text-lg font-semibold tabular-nums">{Number(value || 0).toLocaleString()}</strong>
-      <Glyph name="chevron" size={16} className="text-slate-400" />
+      <strong className="text-section font-semibold tabular-nums">{Number(value || 0).toLocaleString()}</strong>
+      <Glyph name="chevron" size={16} className="text-[var(--muted)]" />
     </button>
   );
 }
 
 function MiniBarChart({ title, items, onClick }) {
   const max = Math.max(1, ...items.map((item) => Number(item.value) || 0));
-  return <button type="button" className={`rounded-xl border border-slate-200 p-3.5 text-left hover:border-[color:var(--purple)] hover:bg-violet-50/30 ${focusRing}`} onClick={onClick} aria-label={`Open ${title.toLowerCase()} records`}>
-    <h3 className="m-0 text-sm font-semibold text-slate-800">{title}</h3>
+  return <button type="button" className={`rounded-xl border border-[var(--line)] p-3.5 text-left hover:border-[color:var(--accent)] hover:bg-[var(--surface-hover)] ${focusRing}`} onClick={onClick} aria-label={`Open ${title.toLowerCase()} records`}>
+    <h3 className="m-0 text-body-sm font-semibold text-[var(--text)]">{title}</h3>
     <div className="mt-3 grid gap-3">{items.map((item) => <div key={item.label}>
-      <div className="mb-1 flex justify-between gap-2 text-xs"><span className="truncate text-slate-500">{item.label}</span><strong className="tabular-nums text-slate-700">{item.value}</strong></div>
-      <span className="block h-2 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label={item.label} aria-valuemin="0" aria-valuemax={max} aria-valuenow={item.value}><span className={`block h-full rounded-full ${item.color}`} style={{ width: `${Math.max(0, Number(item.value) / max * 100)}%` }} /></span>
+      <div className="mb-1 flex justify-between gap-2 text-caption"><span className="truncate text-[var(--muted)]">{item.label}</span><strong className="tabular-nums text-[var(--text-secondary)]">{item.value}</strong></div>
+      <span className="block h-2 overflow-hidden rounded-full bg-[var(--surface-soft)]" role="progressbar" aria-label={item.label} aria-valuemin="0" aria-valuemax={max} aria-valuenow={item.value}><span className={`block h-full rounded-full ${item.color}`} style={{ width: `${Math.max(0, Number(item.value) / max * 100)}%` }} /></span>
     </div>)}</div>
   </button>;
 }
@@ -289,22 +288,22 @@ function RevenueChart({ months, selectedSeries, chartType }) {
         onPointerMove={onMove} onPointerLeave={() => setHover(null)}>
         {ticks.map((t) => (
           <g key={t}>
-            <line x1={pad.l} x2={width - pad.r} y1={y(t)} y2={y(t)} className="stroke-slate-100" />
-            <text x={pad.l - 10} y={y(t) + 4} textAnchor="end" className="fill-slate-500 text-xs tabular-nums">{compactCurrency(t)}</text>
+            <line x1={pad.l} x2={width - pad.r} y1={y(t)} y2={y(t)} className="stroke-[var(--line)]" />
+            <text x={pad.l - 10} y={y(t) + 4} textAnchor="end" className="fill-[var(--muted)] text-caption tabular-nums">{compactCurrency(t)}</text>
           </g>
         ))}
-        {hover !== null && <line x1={x(active)} x2={x(active)} y1={pad.t} y2={y(0)} className="stroke-slate-300" />}
+        {hover !== null && <line x1={x(active)} x2={x(active)} y1={pad.t} y2={y(0)} className="stroke-[var(--line-strong)]" />}
         {activeSeries.map((series, seriesIndex) => chartType === 'bar'
           ? months.map((month, index) => <rect key={`${series.key}-${month.key}`} x={x(index) - (activeSeries.length * barWidth) / 2 + seriesIndex * barWidth} y={y(Number(month[series.key]) || 0)} width={Math.max(2, barWidth - 2)} height={Math.max(0, y(0) - y(Number(month[series.key]) || 0))} rx="3" fill={series.color} opacity={index === active ? 1 : 0.78} />)
           : <g key={series.key}><path d={smooth(series.key)} fill="none" stroke={series.color} strokeWidth={series.key === 'income' ? 3 : 2.5} strokeLinecap="round" strokeLinejoin="round" />{months.map((month, index) => <circle key={month.key} cx={x(index)} cy={y(Number(month[series.key]) || 0)} r={index === active ? 4.5 : 2.8} fill="var(--surface,#fff)" stroke={series.color} strokeWidth="2" />)}</g>)}
         {months.map((mo, i) => (
           <text key={mo.key} x={x(i)} y={H - 8} textAnchor="middle"
-            className={`text-xs ${i === active ? 'fill-slate-800 font-semibold' : 'fill-slate-500'}`}>{mo.label}</text>
+            className={`text-caption ${i === active ? 'fill-[var(--text)] font-semibold' : 'fill-[var(--muted)]'}`}>{mo.label}</text>
         ))}
       </svg>
       <table className="sr-only"><caption>Exact selected financial amounts for each month in the chart</caption><thead><tr><th>Month</th>{activeSeries.map((item) => <th key={item.key}>{item.label}</th>)}</tr></thead><tbody>{months.map((month) => <tr key={month.key}><th>{month.key}</th>{activeSeries.map((item) => <td key={item.key}>{currency(month[item.key] || 0)}</td>)}</tr>)}</tbody></table>
       {hover !== null && (
-        <div className="pointer-events-none absolute top-0 -translate-x-1/2 whitespace-nowrap rounded-[10px] bg-slate-800 px-3 py-2 text-xs leading-relaxed text-white"
+        <div className="pointer-events-none absolute top-0 -translate-x-1/2 whitespace-nowrap rounded-[10px] bg-[var(--surface-strong)] px-3 py-2 text-caption leading-relaxed text-[var(--text)]"
           style={{ left: Math.min(width - 70, Math.max(70, x(active))) }}>
           <b className="mb-0.5 block font-semibold">{m.key}</b>
           {activeSeries.map((item) => <span key={item.key} className="flex items-center justify-between gap-4"><span>{item.label}</span><strong>{currency(m[item.key] || 0)}</strong></span>)}

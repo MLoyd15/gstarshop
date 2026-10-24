@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 
 const CHART_SERIES = [
-  { key: 'income', label: 'Manual income', color: 'var(--purple, #6967d9)' },
-  { key: 'salesRevenue', label: 'Sales revenue', color: '#10b981' },
-  { key: 'cashCollected', label: 'Customer payments', color: '#0ea5e9' },
-  { key: 'expenses', label: 'Expenses', color: '#f97316' },
-  { key: 'payrollPaid', label: 'Payroll paid', color: '#38bdf8' },
-  { key: 'materialCost', label: 'Material costs', color: '#f43f5e' },
-  { key: 'grossMargin', label: 'Gross margin', color: '#a855f7' }
+  { key: 'income', label: 'Manual income', color: 'var(--chart-1)' },
+  { key: 'salesRevenue', label: 'Sales revenue', color: 'var(--chart-2)' },
+  { key: 'cashCollected', label: 'Customer payments', color: 'var(--chart-3)' },
+  { key: 'expenses', label: 'Expenses', color: 'var(--chart-4)' },
+  { key: 'payrollPaid', label: 'Payroll paid', color: 'var(--chart-3)' },
+  { key: 'materialCost', label: 'Material costs', color: 'var(--chart-5)' },
+  { key: 'grossMargin', label: 'Gross margin', color: 'var(--accent-hover)' }
 ];
 
 const currency = (val) =>
@@ -248,7 +248,7 @@ export default function IncomeExpensesBarChart({
                         y={y(t) + 4}
                         textAnchor="end"
                         fill="var(--muted)"
-                        fontSize="11"
+                        fontSize="var(--fs-caption)"
                         fontFamily="ui-monospace, monospace"
                       >
                         {compactCurrency(t)}
@@ -347,8 +347,8 @@ export default function IncomeExpensesBarChart({
                             x={x(i)}
                             y={pad.t - 8}
                             textAnchor="middle"
-                            fill="var(--purple)"
-                            fontSize="9"
+                            fill="var(--accent)"
+                            fontSize="var(--fs-caption)"
                             fontWeight="700"
                             fontFamily="ui-monospace, monospace"
                           >
@@ -361,7 +361,7 @@ export default function IncomeExpensesBarChart({
                           textAnchor="middle"
                           fill={isMoActive ? 'var(--text)' : 'var(--muted)'}
                           fontWeight={isMoActive ? '700' : '500'}
-                          fontSize="11"
+                          fontSize="var(--fs-caption)"
                           fontFamily="ui-monospace, monospace"
                         >
                           {mo.label}
@@ -466,7 +466,7 @@ export default function IncomeExpensesBarChart({
           {/* Series Selection Checklist */}
           <div className="analytics-sidebar-title">
             <span>Series Toggles</span>
-            <span style={{ fontSize: '9px', color: 'var(--muted)', fontWeight: 'normal' }}>
+            <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--muted)', fontWeight: 'normal' }}>
               {activeSeries.length} active
             </span>
           </div>

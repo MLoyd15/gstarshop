@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
 
 const PALETTE = [
-  'var(--purple)',
+  'var(--accent)',
   'var(--success)',
-  '#0ea5e9',
+  'var(--chart-3)',
   'var(--warning)',
-  '#ec4899',
-  '#8b5cf6',
+  'var(--chart-5)',
+  'var(--accent-hover)',
   'var(--muted)'
 ];
 
@@ -133,7 +133,7 @@ export default function ExpensesDonutChart({ data, loading, error }) {
             y="86"
             textAnchor="middle"
             fill="var(--text-secondary)"
-            fontSize="10"
+            fontSize="var(--fs-caption)"
             fontFamily="ui-monospace, monospace"
           >
             TOTAL
@@ -143,7 +143,7 @@ export default function ExpensesDonutChart({ data, loading, error }) {
             y="102"
             textAnchor="middle"
             fill="var(--text)"
-            fontSize="12"
+            fontSize="var(--fs-caption)"
             fontWeight="700"
             fontFamily="ui-monospace, monospace"
           >

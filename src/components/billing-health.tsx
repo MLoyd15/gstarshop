@@ -20,7 +20,7 @@ export function BillingHealth() {
 	return (
 		<DashboardCard className="gap-0">
 			<CardHeader className="border-b">
-				<CardTitle className="text-balance text-base">Billing health</CardTitle>
+				<CardTitle className="text-balance text-body">Billing health</CardTitle>
 				<CardDescription className="text-pretty">
 					Nothing urgent needs your attention.
 				</CardDescription>
@@ -32,7 +32,7 @@ export function BillingHealth() {
 							<CircleCheckIcon aria-hidden="true" />
 						</EmptyMedia>
 						<EmptyTitle className="font-heading">You're caught up.</EmptyTitle>
-						<EmptyDescription className="text-xs">
+						<EmptyDescription className="text-caption">
 							Balances and payouts look fine. nothing overdue in this snapshot.
 						</EmptyDescription>
 					</EmptyHeader>

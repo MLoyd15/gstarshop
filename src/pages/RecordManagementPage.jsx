@@ -35,8 +35,8 @@ export default function RecordManagementPage({ active, title, fields, records, l
 
   useEffect(() => setCurrentPage(1), [search, statusFilter]);
   useEffect(() => setCurrentPage((page) => Math.min(page, Math.max(1, pageCount))), [pageCount]);
-  return <div className={`records-page ${pageClass}`}><div className="welcome-row records-welcome"><div><div className="eyebrow"><span className="eyebrow-line" />BUSINESS HUB</div>
-    <h1>{title}</h1><p>{isInventory ? 'See current stock levels for every product in your catalog.' : `Keep your ${title.toLowerCase()} organized and up to date.`}</p></div><button className="primary-button" onClick={onCreate}><span>＋</span>{isInventory ? 'Manage products' : `Add ${title.replace(/s$/, '')}`}</button></div>
+  return <div className={`records-page ${pageClass}`}><div className="welcome-row records-welcome"><div><div className="t-eyebrow"><span className="accent-line" />BUSINESS HUB</div>
+    <h1 className="t-page-title">{title}</h1><p>{isInventory ? 'See current stock levels for every product in your catalog.' : `Keep your ${title.toLowerCase()} organized and up to date.`}</p></div><button className="primary-button" onClick={onCreate}><span>＋</span>{isInventory ? 'Manage products' : `Add ${title.replace(/s$/, '')}`}</button></div>
     <div className="records-summary">
       {isInventory ? <>
         <div><span className="summary-label">Products tracked</span><strong>{records.length}</strong></div>

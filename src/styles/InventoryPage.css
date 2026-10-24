@@ -1,3 +1,3 @@
-.inventory-page { --page-accent: var(--purple); }
+.inventory-page { --page-accent: var(--accent); }
 .inventory-page .records-summary { border-color: color-mix(in srgb, var(--page-accent), white 82%); }
-.inventory-page .records-welcome .eyebrow-line { background: var(--page-accent); }
+.inventory-page .records-welcome .accent-line { background: var(--page-accent); }

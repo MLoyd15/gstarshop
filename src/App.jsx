@@ -72,14 +72,22 @@ const titles = {
   notepad: 'Notepad', settings: 'Settings', guide: 'Learn the flow'
 };
 
-const defaultAppearance = { accent: '#6967d9', textScale: 1.15, nightMode: true };
+const defaultAppearance = { accent: '#0878b8', textScale: 1.15, nightMode: true };
 const accentPresets = [
+  { label: 'Cyan', value: '#0878b8' },
   { label: 'Violet', value: '#6967d9' },
-  { label: 'Ocean', value: '#2878c7' },
   { label: 'Forest', value: '#26836b' },
-  { label: 'Coral', value: '#d46a70' },
-  { label: 'Amber', value: '#bd7d28' }
+  { label: 'Coral', value: '#b94753' },
+  { label: 'Amber', value: '#a66a10' }
 ];
+
+function accentTextColor(hex) {
+  const channel = (start) => { const value = parseInt(hex.slice(start, start + 2), 16) / 255; return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4; };
+  const luminance = 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
+  const whiteContrast = 1.05 / (luminance + 0.05);
+  const darkContrast = (luminance + 0.05) / 0.05;
+  return whiteContrast >= darkContrast ? '#ffffff' : '#04101c';
+}
 
 function readAppearance() {
   try {
@@ -267,7 +275,8 @@ function App() {
   const fields = fieldsFor[active] || [];
 
   useEffect(() => {
-    document.documentElement.style.setProperty('--purple', appearance.accent);
+    document.documentElement.style.setProperty('--accent', appearance.accent);
+    document.documentElement.style.setProperty('--accent-contrast', accentTextColor(appearance.accent));
     document.documentElement.style.setProperty('--type-scale', String(appearance.textScale));
     document.documentElement.dataset.theme = appearance.nightMode ? 'dark' : 'light';
     const themeColor = document.querySelector('meta[name="theme-color"]');
@@ -480,6 +489,15 @@ function App() {
               <button className="icon-button search-shortcut" aria-label="Search" onClick={() => document.querySelector('.global-search')?.focus()}>⌕</button>
               <label className="global-search"><span>⌕</span><input placeholder="Search anything..." aria-label="Search records" value={search} onChange={(event) => setSearch(event.target.value)} /><kbd>⌘ K</kbd></label>
             </>}
+            <button
+              type="button"
+              className="icon-button theme-toggle"
+              aria-label={appearance.nightMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={appearance.nightMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              onClick={() => setAppearance((prev) => ({ ...prev, nightMode: !prev.nightMode }))}
+            >
+              {appearance.nightMode ? '☀' : '☾'}
+            </button>
             <div className="notification-wrap">
               <button className={`icon-button notification-button ${notificationsOpen ? 'is-open' : ''}`}
                 aria-label={`Notifications${notifications.count ? `, ${notifications.count} ongoing bookings` : ''}`}
@@ -588,7 +606,7 @@ function RecordModal({ title, active, fields, record, saveError, onClose, onSave
   }
 
   return <div className="modal-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-    <form className="record-modal" onSubmit={handleSubmit}><div className="modal-header"><div><div className="eyebrow"><span className="eyebrow-line" />BUSINESS HUB</div><h2>{record ? 'Edit' : 'Add'} {title.replace(/s$/, '')}</h2></div>
+    <form className="record-modal" onSubmit={handleSubmit}><div className="modal-header"><div><div className="t-eyebrow"><span className="accent-line" />BUSINESS HUB</div><h2>{record ? 'Edit' : 'Add'} {title.replace(/s$/, '')}</h2></div>
       <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>×</button></div>
       <div className="modal-fields">{fields.map(([key, label]) => (
         <RecordField key={key} active={active} keyName={key} label={label} record={record}

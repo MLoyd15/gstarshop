@@ -1,0 +1,66 @@
+/* Semantic type utilities. Sizes come from tokens in global.css (already scaled). */
+
+.t-page-title {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--fs-page);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-heading);
+  overflow-wrap: anywhere;
+}
+
+.t-section-title {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--fs-section);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-heading);
+}
+
+.t-card-title {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-heading);
+}
+
+.t-body {
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+}
+
+.t-body-sm {
+  font-size: var(--fs-body-sm);
+  line-height: var(--lh-body);
+}
+
+.t-caption {
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  color: var(--text-secondary);
+}
+
+.t-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 9px;
+  color: var(--text-secondary);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-label);
+  line-height: var(--lh-caption);
+  text-transform: uppercase;
+}
+
+.accent-line {
+  width: 14px;
+  height: 1px;
+  flex: 0 0 auto;
+  background: currentColor;
+}
+
+.t-num {
+  font-variant-numeric: tabular-nums;
+}

@@ -207,7 +207,7 @@ export default function MaterialsPage() {
   }
 
   return <section className="materials-page">
-    <header className="materials-heading"><div><div className="materials-eyebrow">RAW MATERIALS</div><h1>Materials</h1><p>Track stock levels, suppliers, and the supplies used on customer orders.</p></div><div className="materials-header-actions"><button className="materials-secondary" onClick={() => setCategoryDialog(true)}>＋ Add category</button><button className="materials-primary" onClick={() => setDialog({ type: 'create' })}>＋ Add material</button></div></header>
+    <header className="materials-heading"><div><div className="t-eyebrow">RAW MATERIALS</div><h1 className="t-page-title">Materials</h1><p>Track stock levels, suppliers, and the supplies used on customer orders.</p></div><div className="materials-header-actions"><button className="materials-secondary" onClick={() => setCategoryDialog(true)}>＋ Add category</button><button className="materials-primary" onClick={() => setDialog({ type: 'create' })}>＋ Add material</button></div></header>
     {error && <div className="materials-alert" role="alert">{error}<button onClick={() => setError('')}>Dismiss</button></div>}
     {notice && <div className="materials-success" role="status">✓ {notice}</div>}
     <div className="materials-summary"><article><span>Materials</span><strong>{materials.length}</strong></article><article><span>Low or out of stock</span><strong>{lowCount}</strong></article><article><span>Estimated inventory value</span><strong>{money(inventoryValue)}</strong></article></div>

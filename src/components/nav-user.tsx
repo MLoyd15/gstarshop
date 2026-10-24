@@ -41,7 +41,7 @@ export function NavUser() {
 						<div>
 							<span className="font-medium text-foreground">{user.name}</span>{" "}
 							<br />
-							<div className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-muted-foreground text-xs">
+							<div className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-muted-foreground text-caption">
 								{user.email}
 							</div>
 						</div>

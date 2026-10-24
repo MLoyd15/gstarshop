@@ -7,12 +7,12 @@ function Butterfly({ className = '' }) {
     <svg className={`butterfly ${className}`} viewBox="0 0 80 64" aria-hidden="true">
       <defs>
         <linearGradient id="butterflyLeft" x1="0" x2="1" y1="0" y2="1">
-          <stop offset="0%" stopColor="#a99cf6" />
-          <stop offset="100%" stopColor="#7773df" />
+          <stop offset="0%" stopColor="var(--accent)" />
+          <stop offset="100%" stopColor="var(--accent-hover)" />
         </linearGradient>
         <linearGradient id="butterflyRight" x1="0" x2="1" y1="0" y2="1">
-          <stop offset="0%" stopColor="#f1a7b4" />
-          <stop offset="100%" stopColor="#d784a8" />
+          <stop offset="0%" stopColor="var(--text-secondary)" />
+          <stop offset="100%" stopColor="var(--muted)" />
         </linearGradient>
       </defs>
       <g className="butterfly-left-wing">
@@ -27,8 +27,8 @@ function Butterfly({ className = '' }) {
         <circle cx="65" cy="19" r="2" fill="#fff" fillOpacity=".8" />
         <circle cx="57" cy="46" r="1.7" fill="#fff" fillOpacity=".8" />
       </g>
-      <path d="M39.5 28c-1.7 8-1.5 17 .5 24 2-7 2.2-16 .5-24Z" fill="#514c9e" />
-      <path d="M39 29c-3-6-5-8-8-9M41 29c3-6 5-8 8-9" fill="none" stroke="#514c9e" strokeLinecap="round" strokeWidth="1.3" />
+      <path d="M39.5 28c-1.7 8-1.5 17 .5 24 2-7 2.2-16 .5-24Z" fill="var(--accent)" />
+      <path d="M39 29c-3-6-5-8-8-9M41 29c3-6 5-8 8-9" fill="none" stroke="var(--accent)" strokeLinecap="round" strokeWidth="1.3" />
     </svg>
   );
 }

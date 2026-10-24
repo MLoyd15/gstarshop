@@ -1,0 +1,45 @@
+/* Shared color treatments. Geometry remains owned by each component. */
+:is(.primary-button, .cp-primary, .clients-primary, .employees-primary, .materials-primary, .payroll-primary, .bookings-page .primary-button, .materials-page .primary-button, .clients-page .primary-button) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+  box-shadow: none;
+}
+:is(.primary-button, .cp-primary, .clients-primary, .employees-primary, .materials-primary, .payroll-primary, .bookings-page .primary-button, .materials-page .primary-button, .clients-page .primary-button):hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: var(--accent-contrast);
+  box-shadow: none;
+}
+:is(.primary-button, .cp-primary, .clients-primary, .employees-primary, .materials-primary, .payroll-primary, .bookings-page .primary-button, .materials-page .primary-button, .clients-page .primary-button):active:not(:disabled) {
+  background: var(--accent-active);
+  border-color: var(--accent-active);
+}
+:is(.secondary-button, .materials-secondary, .cancel-button, .filter-button, .cp-secondary):hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--border-hover);
+  color: var(--text);
+}
+.cp-danger { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
+.cp-danger:hover:not(:disabled) { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
+.payroll-status { background: var(--surface-soft); color: var(--text-secondary); border: 1px solid var(--line); }
+.payroll-status.draft { background: var(--warning-soft); color: var(--warning-strong); border-color: var(--warning-border); }
+.payroll-status.finalized, .payroll-status.partially-paid { background: var(--info-soft); color: var(--info-strong); border-color: var(--info-border); }
+.payroll-status.paid { background: var(--success-soft); color: var(--success-strong); border-color: var(--success-border); }
+.payroll-status.reversed { background: var(--danger-soft); color: var(--danger-strong); border-color: var(--danger-border); }
+:is(.payroll-alert, .materials-alert, .error-banner, .error-message) { background: var(--danger-soft); color: var(--danger); border-color: var(--danger-border); }
+:is(.payroll-success, .materials-success, .success-banner) { background: var(--success-soft); color: var(--success); border-color: var(--success-border); }
+.booking-page-error, .booking-form-error { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
+.booking-form-warning, .booking-amount-warning, .booking-legacy-payment-note { background: var(--warning-soft); border-color: var(--warning-border); color: var(--warning); }
+.booking-payment-status.partial, .booking-payment-status.unpaid { color: var(--warning); }
+.booking-payment-status.paid { color: var(--success); }
+.booking-payment-status.overpaid { color: var(--danger); }
+.bookings-page .record-status { background: var(--success-soft); color: var(--success); }
+.bookings-page .record-status.completed { background: var(--info-soft); color: var(--info); }
+.bookings-page .record-status.cancelled { background: var(--danger-soft); color: var(--danger); }
+.employee-state.inactive, .employee-state.terminated { background: var(--danger-soft); color: var(--danger); }
+.cp-badge.paid { background: var(--success-soft); color: var(--success); }
+.cp-badge.pending { background: var(--warning-soft); color: var(--warning); }
+.cp-badge.cancelled { background: var(--danger-soft); color: var(--danger); }
+:is(.booking-actions, .employee-card-actions) button:hover:not(:disabled) { background: var(--surface-hover); border-color: var(--accent); color: var(--text); }
+:is(.booking-delete-action, .employee-delete-action):hover:not(:disabled) { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }

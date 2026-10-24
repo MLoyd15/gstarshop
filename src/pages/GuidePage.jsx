@@ -57,8 +57,8 @@ function GuidePage({ onNavigate }) {
     <main className="guide-page">
       <header className="guide-heading">
         <div>
-          <div className="guide-eyebrow">STAFF QUICK GUIDE</div>
-          <h1>Learn the flow</h1>
+          <div className="t-eyebrow">STAFF QUICK GUIDE</div>
+          <h1 className="t-page-title">Learn the flow</h1>
           <p>Follow how work moves through G4 Sticker, from supplies to finished jobs and pay runs.</p>
         </div>
         <div className="guide-progress" aria-live="polite">
@@ -139,7 +139,7 @@ function GuidePage({ onNavigate }) {
 
       <section className="guide-glossary">
         <div className="guide-section-heading">
-          <div><div className="guide-eyebrow">QUICK ANSWERS</div><h2>Helpful to know</h2></div>
+          <div><div className="t-eyebrow">QUICK ANSWERS</div><h2>Helpful to know</h2></div>
         </div>
         <div className="guide-accordion">
           {glossary.map((item) => (

@@ -96,12 +96,12 @@ export default function UnpaidBalancesChart({ data, loading, error }) {
                   <span className="analytics-unpaid-client">
                     {item.client}
                     {!item.paymentLedgerVerified && (
-                      <span className="analytics-pill estimated" style={{ fontSize: '9px', padding: '1px 4px' }}>
+                      <span className="analytics-pill estimated" style={{ fontSize: 'var(--fs-caption)', padding: '1px 4px' }}>
                         Legacy ledger
                       </span>
                     )}
                     {item.isCompleted && (
-                      <span className="analytics-pill" style={{ fontSize: '9px', padding: '1px 4px' }}>
+                      <span className="analytics-pill" style={{ fontSize: 'var(--fs-caption)', padding: '1px 4px' }}>
                         Job completed
                       </span>
                     )}
@@ -110,7 +110,7 @@ export default function UnpaidBalancesChart({ data, loading, error }) {
 
                 <div className="analytics-unpaid-balance-wrap" style={{ position: 'relative', zIndex: 1 }}>
                   <span className="analytics-unpaid-balance">{formatCurrency(item.balance)}</span>
-                  <div style={{ fontSize: '10px', color: 'var(--muted)' }}>
+                  <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--muted)' }}>
                     of {formatCurrency(item.totalAmount)}
                   </div>
                 </div>

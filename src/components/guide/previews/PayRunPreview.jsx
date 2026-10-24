@@ -8,7 +8,7 @@ function PayRunPreview() {
     <MockFrame variant="guide-mock-payroll">
       <section className="payroll-page">
         <header className="payroll-heading">
-          <div><div className="payroll-eyebrow">PAYROLL SYSTEM</div><h1>Pay runs</h1><p>Prepare, review, finalize, and track employee payments.</p></div>
+          <div><div className="t-eyebrow">PAYROLL SYSTEM</div><h1 className="t-page-title">Pay runs</h1><p>Prepare, review, finalize, and track employee payments.</p></div>
           <div className="payroll-heading-actions"><label>Pay period<input type="month" value={payRun.period} readOnly /></label><Callout n={1}><button className="payroll-primary" type="button">＋ Generate payroll</button></Callout></div>
         </header>
         <div className="payroll-summary">
