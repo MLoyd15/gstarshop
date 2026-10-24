@@ -12,7 +12,7 @@ const monthDates = (period) => {
 };
 const id = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-export default function EmployeeMonthlySheet({ employee, onClose }) {
+export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOvertimeRate = 0, onClose }) {
   const [period, setPeriod] = useState(new Date().toISOString().slice(0, 7));
   const [hours, setHours] = useState({}); const [overtimeHours, setOvertimeHours] = useState({}); const [absentDays, setAbsentDays] = useState({}); const [advances, setAdvances] = useState([]);
   const [carryIn, setCarryIn] = useState(0); const [locked, setLocked] = useState(false);
@@ -42,7 +42,7 @@ export default function EmployeeMonthlySheet({ employee, onClose }) {
   const totalAbsentDays = useMemo(() => Object.values(absentDays).filter(Boolean).length, [absentDays]);
   const totalAdvances = useMemo(() => advances.reduce((total, advance) => total + (Number(advance.amount) || 0), 0), [advances]);
   const rate = Number(employee.salary || employee.baseRate) || 0;
-  const overtimeRate = Number(employee.overtimeRate) || 0;
+  const overtimeRate = Number(sharedOvertimeRate) || 0;
   const overtimePay = Math.round(overtimeRate * totalOvertimeHours * 100) / 100;
   const gross = Math.round((rate * totalHours + overtimePay) * 100) / 100;
   const extras = ['allowances', 'bonus', 'commission'].reduce((sum, key) => sum + (Number(employee[key]) || 0), 0);
@@ -57,7 +57,7 @@ export default function EmployeeMonthlySheet({ employee, onClose }) {
     const cleanAdvances = advances.filter((advance) => Number(advance.amount) > 0).map((advance) => ({ ...advance, amount: Number(advance.amount) }));
     try {
       const response = await fetch(`/api/payroll/employees/${employee.id}/sheet?period=${period}`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dailyEntries, advances: cleanAdvances })
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dailyEntries, advances: cleanAdvances, overtimeRate })
       });
       const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Could not save this sheet.');
       setCarryIn(Number(data.advanceOwedBefore || 0)); setAdvances(data.advances || []); setLocked(Boolean(data.locked)); setNotice('Monthly sheet saved.');

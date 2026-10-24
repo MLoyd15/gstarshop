@@ -344,7 +344,8 @@ tbody tr:hover {
 .record-fields textarea:focus,
 .record-fields select:focus {
   border-color: color-mix(in srgb, var(--accent), white 30%);
-  background: #fff;
+  background: var(--input-bg);
+  color: var(--text);
   box-shadow: 0 0 0 4px var(--focus-ring);
 }
 

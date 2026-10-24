@@ -7,7 +7,7 @@ import { ConfirmDialog } from '../components/ui/alert-dialog.tsx';
 const money = (value) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(value) || 0);
 const today = () => new Date().toISOString().slice(0, 10);
 
-export default function PayrollPage({ onOpenEmployee, onEditEmployee }) {
+export default function PayrollPage({ defaultOvertimeRate = '0', onOpenEmployee, onEditEmployee }) {
   const [period, setPeriod] = useState(new Date().toISOString().slice(0, 7));
   const [runs, setRuns] = useState([]); const [loading, setLoading] = useState(true); const [error, setError] = useState('');
   const [notice, setNotice] = useState(''); const [dialog, setDialog] = useState(null); const [busy, setBusy] = useState(false);
@@ -31,7 +31,7 @@ export default function PayrollPage({ onOpenEmployee, onEditEmployee }) {
   function generate(event) {
     event.preventDefault();
     const eligibleIds = active.filter((employee) => employee.salaryType === 'monthly' || (employee.salaryType === 'hourly' && Number(sheetsByEmployee[employee.id]?.totalHours) > 0)).map((employee) => employee.id);
-    act(() => request('/runs/generate', 'POST', { period, employeeIds: eligibleIds }), (result) => `Generated ${result.created.length} payroll record${result.created.length === 1 ? '' : 's'}; skipped ${result.skipped.length} employee${result.skipped.length === 1 ? '' : 's'}.`);
+    act(() => request('/runs/generate', 'POST', { period, employeeIds: eligibleIds, overtimeRate: Number(defaultOvertimeRate) || 0 }), (result) => `Generated ${result.created.length} payroll record${result.created.length === 1 ? '' : 's'}; skipped ${result.skipped.length} employee${result.skipped.length === 1 ? '' : 's'}.`);
   }
   async function startGenerate() {
     setError('');
@@ -57,10 +57,16 @@ export default function PayrollPage({ onOpenEmployee, onEditEmployee }) {
           {active.map((employee) => {
             const sheet = sheetsByEmployee[employee.id];
             const needsHours = employee.salaryType === 'hourly' && !(Number(sheet?.totalHours) > 0);
+            const sheetGross = employee.salaryType === 'hourly' && sheet
+              ? (Number(employee.salary) || 0) * (Number(sheet.totalHours) || 0) + (Number(defaultOvertimeRate) || 0) * (Number(sheet.totalOvertimeHours) || 0)
+              : Number(sheet?.grossPay) || 0;
+            const sheetAdvanceOwed = sheet
+              ? Math.max(0, Number(sheet.advanceOwedBefore || 0) + Number(sheet.totalAdvances || 0) - Math.max(0, sheetGross + Number(employee.allowances || 0) + Number(employee.bonus || 0) + Number(employee.commission || 0) - Number(employee.regularDeductions || 0)))
+              : 0;
             return <div className="payroll-entry" key={employee.id}>
               <div className="payroll-entry-heading"><strong>{employee.name}</strong><span>{money(employee.salary)} / {employee.salaryType === 'hourly' ? 'hour' : (employee.salaryType || 'month')}</span></div>
               {employee.salaryType === 'hourly' && Number(sheet?.totalHours) > 0
-                ? <div className="payroll-sheet-summary"><span>{sheet.totalHours} hours worked</span><span>{money(sheet.grossPay)} gross pay</span><span>{money(sheet.totalAdvances)} advances</span><span>{money(sheet.advanceOwed)} still owed</span></div>
+                ? <div className="payroll-sheet-summary"><span>{sheet.totalHours} hours worked</span><span>{money(sheetGross)} gross pay</span><span>{sheet.totalOvertimeHours || 0} OT hrs · {money((Number(defaultOvertimeRate) || 0) * (Number(sheet.totalOvertimeHours) || 0))}</span><span>{money(sheet.totalAdvances)} advances</span><span>{money(sheetAdvanceOwed)} still owed</span></div>
                 : employee.salaryType === 'hourly'
                   ? <div className="payroll-sheet-missing"><span>No hours saved for this month. This employee will be skipped.</span><button type="button" className="btn btn-secondary payroll-open-sheet" onClick={() => { setDialog(null); onOpenEmployee?.(employee); }}>Open monthly sheet</button></div>
                   : employee.salaryType === 'monthly'

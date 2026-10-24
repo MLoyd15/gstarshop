@@ -57,7 +57,9 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
       const totalOvertimeHours = dailyEntries.reduce((sum, entry) => sum + entry.overtimeHours, 0);
       const totalAdvances = advances.reduce((sum, entry) => sum + entry.amount, 0);
       const rate = toMoney(employeeRecord.data.salary ?? employeeRecord.data.baseRate, 'Hourly rate');
-      const overtimeRate = toMoney(employeeRecord.data.overtimeRate, 'Overtime rate', { optional: true });
+      const overtimeRate = req.body.overtimeRate === undefined
+        ? toMoney(employeeRecord.data.overtimeRate, 'Overtime rate', { optional: true })
+        : toMoney(req.body.overtimeRate, 'Overtime rate', { optional: true });
       const overtimePay = Math.round((overtimeRate * totalOvertimeHours + Number.EPSILON) * 100) / 100;
       const grossPay = Math.round((rate * totalHours + overtimePay + Number.EPSILON) * 100) / 100;
       const regularDeductions = toMoney(employeeRecord.data.regularDeductions, 'Regular deductions', { optional: true });
@@ -99,6 +101,7 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
       const unitsByEmployee = req.body.unitsByEmployee || {};
       const advancesByEmployee = req.body.advancesByEmployee || {};
       const advanceDatesByEmployee = req.body.advanceDatesByEmployee || {};
+      const sharedOvertimeRate = req.body.overtimeRate === undefined ? null : toMoney(req.body.overtimeRate, 'Overtime rate', { optional: true });
       const requestedIds = Array.isArray(req.body.employeeIds) ? new Set(req.body.employeeIds.map(String)) : null;
       const timesheets = await BusinessRecord.find({ resource: 'payroll-timesheets', 'data.period': period }).lean();
       const sheetByEmployee = new Map(timesheets.map((sheet) => [String(sheet.data.employeeRecordId), sheet.data]));
@@ -114,13 +117,25 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
         const salaryType = employee.salaryType || 'monthly';
         if (salaryType === 'hourly' && !(Number(unit) > 0)) { skipped.push({ employee: employee.name || 'Employee', reason: 'No hours saved for this period.' }); return []; }
         if (salaryType === 'daily') { skipped.push({ employee: employee.name || 'Employee', reason: 'Daily pay is not supported by the current timesheet.' }); return []; }
-        const advanceDeduction = sheet?.advanceApplied ?? toMoney(advancesByEmployee[id], `${employee.name || 'Employee'} advance`, { optional: true });
+        const overtimeRate = sharedOvertimeRate ?? toMoney(sheet?.overtimeRate ?? employee.overtimeRate, 'Overtime rate', { optional: true });
+        const overtimeHours = Number(sheet?.totalOvertimeHours || 0);
+        const overtimePay = Math.round((overtimeRate * overtimeHours + Number.EPSILON) * 100) / 100;
         const regularDeductions = toMoney(employee.regularDeductions, 'Regular deductions', { optional: true });
+        const advancesToApply = sheet
+          ? Number(sheet.advanceOwedBefore || 0) + Number(sheet.totalAdvances || 0)
+          : toMoney(advancesByEmployee[id], `${employee.name || 'Employee'} advance`, { optional: true });
+        const earningsBeforeAdvance = Math.max(0,
+          (Number(employee.salary ?? employee.baseRate) || 0) * (salaryType === 'hourly' ? Number(unit) || 0 : 1) +
+          Number(employee.allowances || 0) + Number(employee.bonus || 0) + Number(employee.commission || 0) +
+          Number(employee.otherEarnings || 0) + overtimePay - regularDeductions
+        );
+        const advanceDeduction = Math.min(advancesToApply, earningsBeforeAdvance);
+        const advanceOwed = Math.max(0, advancesToApply - advanceDeduction);
         const calc = calculatePayroll({
           salaryType, baseRate: employee.salary ?? employee.baseRate,
           units: salaryType === 'daily' || salaryType === 'hourly' ? unit : 1,
           allowances: employee.allowances, bonus: employee.bonus, commission: employee.commission,
-          otherEarnings: Number(employee.otherEarnings || 0) + Number(sheet?.overtimePay || 0),
+          otherEarnings: Number(employee.otherEarnings || 0) + overtimePay,
           deductions: regularDeductions + advanceDeduction
         });
         calc.otherEarnings = toMoney(employee.otherEarnings, 'Other earnings', { optional: true });
@@ -129,8 +144,8 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
           employeeId: employee.employeeId || '', employeeRecordId: id, employeeSnapshot: { ...employee },
           ...calc, regularDeductions, advanceDeduction,
           advanceDate: advanceDeduction > 0 ? (advanceDatesByEmployee[id] || sheet?.advances?.at(-1)?.date || '') : '',
-          overtimeRate: sheet?.overtimeRate || 0, overtimeHours: sheet?.totalOvertimeHours || 0, overtimePay: sheet?.overtimePay || 0,
-          dailyEntries: sheet?.dailyEntries || [], advances: sheet?.advances || [], advanceOwed: sheet?.advanceOwed || 0,
+          overtimeRate, overtimeHours, overtimePay,
+          dailyEntries: sheet?.dailyEntries || [], advances: sheet?.advances || [], advanceOwed: sheet ? advanceOwed : 0,
           amountPaid: 0, balance: calc.netPay, payments: [], status: 'draft', expenseId: null
         }}];
       });

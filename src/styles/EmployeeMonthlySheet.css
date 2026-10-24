@@ -28,6 +28,20 @@
 }
 .timesheet-period label { display: grid; gap: 6px; color: var(--text-secondary); font-size: var(--fs-caption); }
 .timesheet-period input { width: min(220px, 100%); }
+.timesheet-shell input.input,
+.timesheet-shell input.input:focus,
+.timesheet-shell input.input:focus-visible {
+  background-color: var(--input-bg);
+  color: var(--text);
+  caret-color: var(--text);
+}
+.timesheet-shell input.input:-webkit-autofill,
+.timesheet-shell input.input:-webkit-autofill:hover,
+.timesheet-shell input.input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text);
+  -webkit-box-shadow: 0 0 0 1000px var(--input-bg) inset;
+  caret-color: var(--text);
+}
 .timesheet-period > span { padding-bottom: 9px; color: var(--text-secondary); font-size: var(--fs-caption); text-align: right; }
 .timesheet-totals {
   display: grid;

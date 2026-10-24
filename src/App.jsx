@@ -61,10 +61,19 @@ const fieldsFor = {
   expenses: [['name', 'Description'], ['category', 'Category'], ['amount', 'Amount'], ['date', 'Date']],
   profit: [['name', 'Period'], ['income', 'Income'], ['expenses', 'Expenses'], ['amount', 'Net profit']],
   shareholders: [['name', 'Shareholder'], ['email', 'Email'], ['shares', 'Shares'], ['percentage', 'Ownership %']],
-  employees: [['employeeId', 'Employee ID'], ['name', 'Full name'], ['position', 'Position'], ['email', 'Email'], ['phone', 'Phone'], ['salary', 'Hourly rate / pay rate'], ['overtimeRate', 'Overtime rate per hour'], ['salaryType', 'Pay basis'], ['allowances', 'Regular allowances'], ['bonus', 'Regular bonus'], ['commission', 'Regular commission'], ['regularDeductions', 'Regular deductions'], ['effectiveDate', 'Rate effective date'], ['payFrequency', 'Pay frequency'], ['status', 'Status']],
+  employees: [['employeeId', 'Employee ID'], ['name', 'Full name'], ['position', 'Position'], ['email', 'Email'], ['phone', 'Phone'], ['salary', 'Hourly rate / pay rate'], ['holidayRate', 'Holiday rate per hour'], ['salaryType', 'Pay basis'], ['allowances', 'Regular allowances'], ['bonus', 'Regular bonus'], ['commission', 'Regular commission'], ['regularDeductions', 'Regular deductions'], ['effectiveDate', 'Rate effective date'], ['payFrequency', 'Pay frequency'], ['status', 'Status']],
   'payroll-runs': [],
   notepad: [['name', 'Title'], ['content', 'Note'], ['updated', 'Last updated']]
 };
+
+const OVERTIME_RATE_KEY = 'gstarshop.defaultOvertimeRate';
+const HOLIDAY_RATE_KEY = 'gstarshop.defaultHolidayRate';
+function readDefaultRate(key) {
+  try {
+    const value = Number(window.localStorage.getItem(key));
+    return Number.isFinite(value) && value >= 0 ? String(value) : '0';
+  } catch { return '0'; }
+}
 
 const titles = {
   'supplier-dashboard': 'G4 Sticker dashboard', suppliers: 'Suppliers',
@@ -118,15 +127,23 @@ function toDateValue(date) {
 
 function dateFromValue(value) {
   if (!value) return null;
-  const [year, month, day] = value.split('-').map(Number);
+  const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return null;
+  const [, yearText, monthText, dayText] = match;
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
   const date = new Date(year, month - 1, day);
-  return Number.isNaN(date.getTime()) ? null : date;
+  return !Number.isNaN(date.getTime()) && date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day
+    ? date
+    : null;
 }
 
 function DatePicker({ name, value, required }) {
   const wrapperRef = useRef(null);
   const popoverRef = useRef(null);
-  const [selectedValue, setSelectedValue] = useState(value);
+  const normalizedValue = dateFromValue(value) ? toDateValue(dateFromValue(value)) : '';
+  const [selectedValue, setSelectedValue] = useState(normalizedValue);
   const selectedDate = dateFromValue(selectedValue);
   const [open, setOpen] = useState(false);
   const [popoverPosition, setPopoverPosition] = useState({ top: 0, left: 0 });
@@ -134,6 +151,12 @@ function DatePicker({ name, value, required }) {
     const initialDate = selectedDate || new Date();
     return new Date(initialDate.getFullYear(), initialDate.getMonth(), 1);
   });
+
+  useEffect(() => {
+    setSelectedValue(normalizedValue);
+    const nextDate = dateFromValue(normalizedValue);
+    if (nextDate) setVisibleMonth(new Date(nextDate.getFullYear(), nextDate.getMonth(), 1));
+  }, [normalizedValue]);
 
   function updatePopoverPosition() {
     const rect = wrapperRef.current?.getBoundingClientRect();
@@ -259,6 +282,8 @@ function App() {
   const [notice, setNotice] = useState('');
   const noticeTimeoutRef = useRef(null);
   const [appearance, setAppearance] = useState(readAppearance);
+  const [defaultOvertimeRate, setDefaultOvertimeRate] = useState(() => readDefaultRate(OVERTIME_RATE_KEY));
+  const [defaultHolidayRate, setDefaultHolidayRate] = useState(() => readDefaultRate(HOLIDAY_RATE_KEY));
   const [dashboardPeriod, setDashboardPeriod] = useState(new Date().toISOString().slice(0, 7));
   const [dashboardMonths, setDashboardMonths] = useState(6);
   const [dashboardLoading, setDashboardLoading] = useState(true);
@@ -583,9 +608,17 @@ function App() {
               search={search} setSearch={setSearch} onCreate={openCreate}
               onEdit={openEdit} onDelete={deleteRecord} />
           ) : active === 'payroll-runs' ? (
-            <PayrollPage onOpenEmployee={setSheetEmployee} onEditEmployee={openEdit} />
+            <PayrollPage defaultOvertimeRate={defaultOvertimeRate} onOpenEmployee={setSheetEmployee} onEditEmployee={openEdit} />
           ) : active === 'employees' ? (
             <EmployeesPage employees={filteredRecords} loading={loading} search={search} setSearch={setSearch}
+              defaultOvertimeRate={defaultOvertimeRate} onDefaultOvertimeRateChange={(value) => {
+                setDefaultOvertimeRate(value);
+                try { window.localStorage.setItem(OVERTIME_RATE_KEY, value); } catch { /* Storage may be unavailable. */ }
+              }}
+              defaultHolidayRate={defaultHolidayRate} onDefaultHolidayRateChange={(value) => {
+                setDefaultHolidayRate(value);
+                try { window.localStorage.setItem(HOLIDAY_RATE_KEY, value); } catch { /* Storage may be unavailable. */ }
+              }}
               onCreate={openCreate} onEdit={openEdit} onDelete={deleteRecord} onSelect={setSheetEmployee} />
           ) : (
             <RecordManagementPage active={active} title={activeLabel} fields={fields} records={filteredRecords} loading={loading}
@@ -597,14 +630,14 @@ function App() {
           )}
         </div>
       </main>
-      {modal && <RecordModal title={activeLabel} active={active} fields={fields} record={editing} saveError={modalError} saving={modalSaving} onClose={() => setModal(false)} onSave={saveRecord} />}
+      {modal && <RecordModal title={activeLabel} active={active} fields={fields} record={editing} defaultHolidayRate={defaultHolidayRate} saveError={modalError} saving={modalSaving} onClose={() => setModal(false)} onSave={saveRecord} />}
       <ConfirmDialog open={Boolean(confirmDialog)} title={confirmDialog?.title || ''} description="This can’t be undone." confirmLabel="Delete" busy={confirmBusy} onCancel={() => setConfirmDialog(null)} onConfirm={confirmDelete} />
-      {sheetEmployee && <EmployeeMonthlySheet employee={sheetEmployee} onClose={() => setSheetEmployee(null)} />}
+      {sheetEmployee && <EmployeeMonthlySheet employee={sheetEmployee} overtimeRate={defaultOvertimeRate} onClose={() => setSheetEmployee(null)} />}
     </div>
   );
 }
 
-function RecordModal({ title, active, fields, record, saveError, saving, onClose, onSave }) {
+function RecordModal({ title, active, fields, record, defaultHolidayRate, saveError, saving, onClose, onSave }) {
   const [dateError, setDateError] = useState('');
   const [bookingClients, setBookingClients] = useState([]);
   const [grossPay, setGrossPay] = useState(Number(record?.grossPay) || 0);
@@ -644,7 +677,7 @@ function RecordModal({ title, active, fields, record, saveError, saving, onClose
         <DialogBody>
           {saveError && <Alert variant="error">{saveError}</Alert>}
           <div className="record-fields">{fields.map(([key, label]) => (
-        <RecordField key={key} active={active} keyName={key} label={label} record={record}
+        <RecordField key={key} active={active} keyName={key} label={label} record={record} defaultHolidayRate={defaultHolidayRate}
           clients={bookingClients}
           grossPay={grossPay} deductions={deductions} calculatedNetPay={calculatedNetPay}
           onGrossPayChange={setGrossPay} onDeductionsChange={setDeductions} />
@@ -660,9 +693,9 @@ function RecordModal({ title, active, fields, record, saveError, saving, onClose
   </Dialog>;
 }
 
-function RecordField({ active, keyName: key, label, record, clients = [], grossPay, deductions, calculatedNetPay, onGrossPayChange, onDeductionsChange }) {
-  const isNumeric = ['amount', 'price', 'income', 'expenses', 'stock', 'shares', 'percentage', 'salary', 'overtimeRate', 'allowances', 'bonus', 'commission', 'regularDeductions', 'grossPay', 'deductions', 'netPay'].includes(key);
-  const step = ['amount', 'price', 'income', 'expenses', 'percentage', 'salary', 'overtimeRate', 'allowances', 'bonus', 'commission', 'regularDeductions', 'grossPay', 'deductions', 'netPay'].includes(key) ? '0.01' : undefined;
+function RecordField({ active, keyName: key, label, record, defaultHolidayRate, clients = [], grossPay, deductions, calculatedNetPay, onGrossPayChange, onDeductionsChange }) {
+  const isNumeric = ['amount', 'price', 'income', 'expenses', 'stock', 'shares', 'percentage', 'salary', 'holidayRate', 'allowances', 'bonus', 'commission', 'regularDeductions', 'grossPay', 'deductions', 'netPay'].includes(key);
+  const step = ['amount', 'price', 'income', 'expenses', 'percentage', 'salary', 'holidayRate', 'allowances', 'bonus', 'commission', 'regularDeductions', 'grossPay', 'deductions', 'netPay'].includes(key) ? '0.01' : undefined;
   const isCalculatedNetPay = active === 'payroll-runs' && key === 'netPay';
   return <label className={key === 'content' ? 'wide-field' : ''}><span>{label}</span>
     {['content', 'notes', ...(active === 'clients' ? ['address'] : [])].includes(key)
@@ -681,12 +714,14 @@ function RecordField({ active, keyName: key, label, record, clients = [], grossP
               ? <select className="select" name={key} defaultValue={record?.[key] || 'Scheduled'}><option>Scheduled</option><option>In progress</option><option>On hold</option><option>Cancelled</option>{record?.[key] && !['Scheduled', 'In progress', 'On hold', 'Cancelled'].includes(record.status) && <option>{record.status}</option>}</select>
             : key === 'status' && active === 'payroll-runs'
               ? <select className="select" name={key} defaultValue={record?.[key] || 'Draft'}><option>Draft</option><option>Processing</option><option>Paid</option><option>Failed</option></select>
+              : key === 'effectiveDate' && active === 'employees'
+                ? <input className="input" name={key} type="date" defaultValue={dateFromValue(record?.[key]) ? toDateValue(dateFromValue(record[key])) : ''} required />
               : key.toLowerCase().includes('date') || key === 'updated'
                 ? <DatePicker name={key} value={record?.[key] || ''} required={key !== 'updated'} />
                 : <input className="input" name={key} placeholder={label} type={isNumeric ? 'number' : key === 'email' ? 'email' : key === 'phone' ? 'tel' : 'text'} step={step}
-                    min={['salary', 'overtimeRate', 'grossPay', 'deductions'].includes(key) ? '0' : undefined}
+                    min={['salary', 'holidayRate', 'grossPay', 'deductions'].includes(key) ? '0' : undefined}
                     value={isCalculatedNetPay ? calculatedNetPay : undefined}
-                    defaultValue={isCalculatedNetPay ? undefined : record?.[key] || ''}
+                    defaultValue={isCalculatedNetPay ? undefined : key === 'holidayRate' && active === 'employees' ? (record?.[key] ?? defaultHolidayRate ?? '') : record?.[key] || ''}
                     readOnly={isCalculatedNetPay}
                     onChange={key === 'grossPay' && active === 'payroll-runs' ? (event) => onGrossPayChange(Number(event.target.value) || 0) : key === 'deductions' && active === 'payroll-runs' ? (event) => onDeductionsChange(Number(event.target.value) || 0) : undefined}
                     required={active === 'clients' ? key === 'name' : active === 'employees' ? ['employeeId', 'name', 'salary'].includes(key) : key !== 'phone'} />}
