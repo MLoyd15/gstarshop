@@ -11,6 +11,7 @@ import {
   Bell,
   Building2,
   Check,
+  CircleDollarSign,
   ChevronLeft,
   ChevronRight,
   CircleDot,
@@ -22,8 +23,11 @@ import {
   NotebookPen,
   NotebookText,
   Package,
+  PanelLeftClose,
+  PanelLeftOpen,
   Pencil,
   Plus,
+  ReceiptText,
   Search,
   Settings,
   Sparkles,
@@ -39,7 +43,7 @@ import {
   X
 } from 'lucide-react';
 
-export { ArrowRight, ArrowUpRight, Bell, Building2, CalendarDays, Check, ChevronLeft, ChevronRight, CircleDot, Ellipsis, ExternalLink, List, Menu, Moon, NotebookText, Package, Pencil, Plus, Search, Settings, Sparkles, Sun, TrendingDown, TrendingUp, UserRound, Users, X };
+export { ArrowRight, ArrowUpRight, Bell, Building2, CalendarDays, Check, ChevronLeft, ChevronRight, CircleDollarSign, CircleDot, Ellipsis, ExternalLink, List, Menu, Moon, NotebookText, Package, PanelLeftClose, PanelLeftOpen, Pencil, Plus, ReceiptText, Search, Settings, Sparkles, Sun, TrendingDown, TrendingUp, UserRound, Users, X };
 
 export function AppIcon({ icon: IconComponent, size = 'md', className, style, ...props }) {
   return <IconComponent
@@ -61,15 +65,17 @@ export function AppIcon({ icon: IconComponent, size = 'md', className, style, ..
 export const navIcons = {
   'supplier-dashboard': LayoutDashboard,
   'supplier-reports': ChartColumn,
-  bookings: CalendarDays,
   clients: Users,
-  employees: IdCard,
-  'payroll-runs': Wallet,
+  bookings: CalendarDays,
   materials: Package,
   products: Boxes,
   suppliers: Truck,
   prices: Tag,
   purchases: ShoppingCart,
+  income: CircleDollarSign,
+  expenses: ReceiptText,
+  employees: IdCard,
+  'payroll-runs': Wallet,
   guide: BookOpen,
   notepad: NotebookPen,
   settings: Settings

@@ -10,10 +10,8 @@ import App from './App.jsx';
 import './styles/glassmorphism.css';
 import './styles/ThemeModes.css';
 import './styles/colorOverrides.css';
-/* Business Operations sidebar module — temporarily hidden in App.jsx.
-   Keep this list as a reminder when restoring the feature:
-   Scheduler, Bookings, Income, Expenses, Profit, Shareholders.
-   Clients is grouped under G4 Sticker.
+/* Finance links for Income and Expenses are visible in App.jsx.
+   Scheduler, Profit, Shareholders, and Excel Sheet remain hidden.
 */
 createRoot(document.getElementById('root')).render(
   <React.StrictMode><App /></React.StrictMode>

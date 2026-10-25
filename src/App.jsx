@@ -18,27 +18,39 @@ import ProductsPage from './pages/ProductsPage.jsx';
 import GuidePage from './pages/GuidePage.jsx';
 import logo from './assets/logo.png';
 import { AppIcon, navIcons } from './components/icons.jsx';
-import { ArrowRight, Bell, CalendarDays, ChevronLeft, ChevronRight, Ellipsis, ExternalLink, Menu, Moon, Search, Sparkles, Sun, X } from './components/icons.jsx';
+import { ArrowRight, Bell, CalendarDays, ChevronLeft, ChevronRight, ExternalLink, Menu, Moon, PanelLeftClose, PanelLeftOpen, Search, Sparkles, Sun, X } from './components/icons.jsx';
 import { Alert, NOTICE_TIMEOUT_MS } from './components/ui/alert.tsx';
 import { Dialog, DialogBody, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from './components/ui/dialog.tsx';
 import { ConfirmDialog } from './components/ui/alert-dialog.tsx';
 
 const sections = [
-  { heading: 'G4 Sticker', items: [
+  { heading: 'Overview', items: [
     { id: 'supplier-dashboard', label: 'Dashboard' },
-    { id: 'suppliers', label: 'Suppliers' },
-    { id: 'products', label: 'Products' },
-    { id: 'materials', label: 'Materials' },
-    { id: 'prices', label: 'Supplier prices' },
-    { id: 'purchases', label: 'Purchases' },
-    { id: 'bookings', label: 'Bookings' },
-    { id: 'supplier-reports', label: 'Reports' },
+    { id: 'supplier-reports', label: 'Reports' }
+  ] },
+  { heading: 'Sales', items: [
     { id: 'clients', label: 'Clients' },
-    { id: 'guide', label: 'Learn the flow' }
+    { id: 'bookings', label: 'Bookings' }
+  ] },
+  { heading: 'Inventory', items: [
+    { id: 'materials', label: 'Materials' },
+    { id: 'products', label: 'Products' }
+  ] },
+  { heading: 'Purchasing', items: [
+    { id: 'suppliers', label: 'Suppliers' },
+    { id: 'prices', label: 'Supplier prices' },
+    { id: 'purchases', label: 'Purchases' }
+  ] },
+  { heading: 'Finance', items: [
+    { id: 'income', label: 'Income' },
+    { id: 'expenses', label: 'Expenses' }
   ] },
   { heading: 'Payroll system', items: [
     { id: 'employees', label: 'Employees' },
     { id: 'payroll-runs', label: 'Pay runs' }
+  ] },
+  { heading: 'Help', items: [
+    { id: 'guide', label: 'Learn the flow' }
   ] }
 ];
 
@@ -69,11 +81,18 @@ const fieldsFor = {
 
 const OVERTIME_RATE_KEY = 'gstarshop.defaultOvertimeRate';
 const HOLIDAY_RATE_KEY = 'gstarshop.defaultHolidayRate';
+const SIDEBAR_COLLAPSED_KEY = 'gstarshop.sidebarCollapsed';
 function readDefaultRate(key) {
   try {
     const value = Number(window.localStorage.getItem(key));
     return Number.isFinite(value) && value >= 0 ? String(value) : '0';
   } catch { return '0'; }
+}
+
+function readSidebarCollapsed() {
+  try {
+    return window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true';
+  } catch { return false; }
 }
 
 const titles = {
@@ -267,7 +286,12 @@ function DatePicker({ name, value, required }) {
 
 function App() {
   const [active, setActive] = useState('supplier-dashboard');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 800px)').matches);
+  const sidebarRef = useRef(null);
+  const mobileMenuRef = useRef(null);
+  const drawerWasOpen = useRef(false);
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -312,6 +336,29 @@ function App() {
   }, []);
 
   useEffect(() => {
+    const media = window.matchMedia('(max-width: 800px)');
+    const updateViewport = (event) => setIsMobileViewport(event.matches);
+    setIsMobileViewport(media.matches);
+    media.addEventListener('change', updateViewport);
+    return () => media.removeEventListener('change', updateViewport);
+  }, []);
+
+  useEffect(() => {
+    if (!mobileOpen || !isMobileViewport) return undefined;
+    sidebarRef.current?.focus();
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setMobileOpen(false);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [mobileOpen, isMobileViewport]);
+
+  useEffect(() => {
+    if (isMobileViewport && drawerWasOpen.current && !mobileOpen) mobileMenuRef.current?.focus();
+    drawerWasOpen.current = mobileOpen;
+  }, [mobileOpen, isMobileViewport]);
+
+  useEffect(() => {
     document.documentElement.style.setProperty('--accent', appearance.accent);
     document.documentElement.style.setProperty('--accent-contrast', accentTextColor(appearance.accent));
     document.documentElement.style.setProperty('--type-scale', String(appearance.textScale));
@@ -326,6 +373,11 @@ function App() {
       setAppearanceError('Your appearance changes are active for now, but could not be saved on this device.');
     }
   }, [appearance]);
+
+  useEffect(() => {
+    try { window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(sidebarCollapsed)); }
+    catch { /* Sidebar preference remains active for the current session. */ }
+  }, [sidebarCollapsed]);
 
   async function refreshNotifications(signal) {
     try {
@@ -487,12 +539,15 @@ function App() {
   );
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${sidebarCollapsed && !isMobileViewport ? ' sidebar-collapsed' : ''}`}>
       {mobileOpen && <button className="mobile-scrim" aria-label="Close navigation" onClick={() => setMobileOpen(false)} />}
-      <aside id="app-sidebar" className={`sidebar ${mobileOpen ? 'sidebar-open' : ''}`}>
+      <aside id="app-sidebar" ref={sidebarRef} tabIndex={-1} inert={isMobileViewport && !mobileOpen ? '' : undefined} className={`sidebar ${mobileOpen ? 'sidebar-open' : ''}`}>
         <div className="brand">
           <div className="brand-mark"><img className="brand-logo" src={logo} alt="G Sticker Works logo" /></div>
           <span className="brand-name">G4 <span>Sticker</span></span>
+          <button type="button" className="btn btn-icon btn-ghost sidebar-collapse-toggle" aria-expanded={!sidebarCollapsed} aria-controls="app-sidebar" aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}>
+            <AppIcon icon={sidebarCollapsed ? PanelLeftOpen : PanelLeftClose} />
+          </button>
           <button type="button" className="btn collapse-button btn-icon btn-ghost" aria-label="Close navigation" aria-expanded={mobileOpen} aria-controls="app-sidebar" title="Close navigation" onClick={() => setMobileOpen(false)}><AppIcon icon={X} /></button>
         </div>
         <nav className="navigation" aria-label="Main">
@@ -502,7 +557,7 @@ function App() {
               <ul className="nav-list">
                 {section.items.map((item) => (
                   <li key={`${section.heading}-${item.id}`}>
-                    <button type="button" className={`btn nav-item btn-ghost${active === item.id ? 'active' : ''}`}
+                    <button type="button" className={`btn nav-item btn-ghost${active === item.id ? ' active' : ''}`}
                       aria-label={item.label} aria-current={active === item.id ? 'page' : undefined} title={item.label}
                       onClick={() => navigate(item.id)}>
                       <AppIcon icon={navIcons[item.id]} /><span className="nav-label">{item.label}</span>
@@ -517,7 +572,7 @@ function App() {
           <ul className="nav-list nav-utility-list">
             {['notepad', 'settings'].map((id) => {
               const label = id === 'notepad' ? 'Notepad' : 'Settings';
-              return <li key={id}><button type="button" className={`btn nav-item btn-ghost${active === id ? 'active' : ''}`}
+              return <li key={id}><button type="button" className={`btn nav-item btn-ghost${active === id ? ' active' : ''}`}
                 aria-label={label} aria-current={active === id ? 'page' : undefined} title={label} onClick={() => navigate(id)}>
                 <AppIcon icon={navIcons[id]} /><span className="nav-label">{label}</span>
               </button></li>;
@@ -525,22 +580,17 @@ function App() {
           </ul>
         </nav>
         <div className="sidebar-bottom">
-          <button type="button" className="help-card" aria-label="Open Learn the flow guide" onClick={() => navigate('guide')}>
+          <button type="button" className="help-card" aria-label="Open Learn the flow guide" title="Open Learn the flow guide" onClick={() => navigate('guide')}>
             <span className="help-icon" aria-hidden="true"><AppIcon icon={Sparkles} size="lg" /></span>
             <span className="help-card-copy"><strong>Need a hand?</strong><span>Learn how the workflow fits together.</span></span>
             <span className="help-card-arrow" aria-hidden="true"><AppIcon icon={ExternalLink} size="sm" /></span>
           </button>
-          <div className="profile-button">
-            <div className="profile-avatar">JD</div>
-            <div className="profile-copy"><strong>Jamie Davis</strong><span>Workspace admin</span></div>
-            <span className="profile-menu" aria-hidden="true"><AppIcon icon={Ellipsis} size="sm" /></span>
-          </div>
         </div>
       </aside>
 
       <main className="main-area">
         <header className="topbar">
-          <button type="button" className="btn mobile-menu-button btn-icon btn-ghost" aria-label={mobileOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={mobileOpen} aria-controls="app-sidebar" title={mobileOpen ? 'Close navigation' : 'Open navigation'} onClick={() => setMobileOpen((open) => !open)}><AppIcon icon={Menu} /></button>
+          <button ref={mobileMenuRef} type="button" className="btn mobile-menu-button btn-icon btn-ghost" aria-label={mobileOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={mobileOpen} aria-controls="app-sidebar" title={mobileOpen ? 'Close navigation' : 'Open navigation'} onClick={() => setMobileOpen((open) => !open)}><AppIcon icon={Menu} /></button>
           <div className="breadcrumbs"><span>Workspace</span><span className="crumb-slash">/</span><strong>{activeLabel}</strong></div>
           <div className="topbar-actions">
             <span className={`connection-status ${health}`}><span className="status-dot" />{health === 'connected' ? 'All systems live' : health === 'checking' ? 'Connecting…' : 'Offline'}</span>
