@@ -7,6 +7,8 @@ import './styles/typography.css';
 import './styles/layout.css';
 import './styles/components.css';
 import App from './App.jsx';
+import AuthProvider from './components/auth/AuthProvider.jsx';
+import './styles/AuthPage.css';
 import './styles/glassmorphism.css';
 import './styles/ThemeModes.css';
 import './styles/colorOverrides.css';
@@ -14,6 +16,6 @@ import './styles/colorOverrides.css';
    Scheduler, Profit, Shareholders, and Excel Sheet remain hidden.
 */
 createRoot(document.getElementById('root')).render(
-  <React.StrictMode><App /></React.StrictMode>
+  <React.StrictMode><AuthProvider><App /></AuthProvider></React.StrictMode>
 );
 

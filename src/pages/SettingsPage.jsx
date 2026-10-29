@@ -21,9 +21,24 @@ function readGuideProgress() {
   }
 }
 
-export default function SettingsPage({ health, appearance, onAppearanceChange, appearanceError, onNavigate }) {
+export default function SettingsPage({ health, appearance, onAppearanceChange, appearanceError, onNavigate, auth }) {
   const [guideProgress, setGuideProgress] = useState(readGuideProgress);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [accountError, setAccountError] = useState('');
+  const [accountMessage, setAccountMessage] = useState('');
+  const [savingAccount, setSavingAccount] = useState(false);
+
+  async function saveAccount(event, endpoint) {
+    event.preventDefault(); setAccountError(''); setAccountMessage(''); setSavingAccount(true);
+    const form = event.currentTarget;
+    const values = Object.fromEntries(new FormData(form));
+    try {
+      await auth.updateUser(values, endpoint);
+      form.reset();
+      setAccountMessage(endpoint.endsWith('password') ? 'Password updated.' : 'Profile updated.');
+    } catch (error) { setAccountError(error.message); }
+    finally { setSavingAccount(false); }
+  }
 
   function resetGuideProgress() {
     try {
@@ -80,7 +95,11 @@ export default function SettingsPage({ health, appearance, onAppearanceChange, a
       </div>
     </section>
     <div className="settings-grid"><section className="panel settings-card"><div className="settings-symbol"><AppIcon icon={Building2} size="lg" /></div><h2>Workspace</h2><p>G4 Sticker</p><div className="settings-detail"><span>Database</span><strong className={health === 'connected' ? 'connected-text' : 'disconnected-text'}>{health === 'connected' ? 'Connected' : health === 'checking' ? 'Checking…' : 'Not connected'}</strong></div></section>
-    <section className="panel settings-card"><div className="settings-symbol lavender"><AppIcon icon={UserRound} size="lg" /></div><h2>Your profile</h2><p>G4 Sticker admin</p><div className="settings-detail"><span>Account</span><strong>Personal workspace</strong></div></section>
+    <section className="panel settings-card"><div className="settings-symbol lavender"><AppIcon icon={UserRound} size="lg" /></div><h2>Your profile</h2><p>Manage your sign-in details.</p>
+      {accountError && <p className="auth-error" role="alert">{accountError}</p>}{accountMessage && <p className="auth-success" role="status">{accountMessage}</p>}
+      <form className="account-settings-form" onSubmit={(event) => saveAccount(event, '/api/auth/profile')}><label>Name<input className="input" name="name" defaultValue={auth?.user?.name || ''} required /></label><label>Email<input className="input" type="email" name="email" defaultValue={auth?.user?.email || ''} required /></label><button className="btn btn-secondary" disabled={savingAccount}>Save profile</button></form>
+      <form className="account-settings-form" onSubmit={(event) => saveAccount(event, '/api/auth/password')}><label>Current password<input className="input" name="currentPassword" type="password" autoComplete="current-password" required /></label><label>New password<input className="input" name="newPassword" type="password" autoComplete="new-password" minLength="12" required /></label><button className="btn btn-secondary" disabled={savingAccount}>Update password</button></form>
+    </section>
     <section className="panel settings-card guide-settings-card"><div className="settings-symbol"><AppIcon icon={ExternalLink} size="lg" /></div><h2>Learn the flow</h2><p className="guide-settings-progress" aria-live="polite">{guideProgress} of {flowSteps.length} steps viewed</p><div className="guide-settings-actions"><button className="btn btn-secondary" type="button" onClick={() => onNavigate('guide')}>Open the guide</button><button className="btn btn-secondary" type="button" onClick={() => setResetConfirmOpen(true)}>Reset guide progress</button></div></section></div>
     <ConfirmDialog open={resetConfirmOpen} title="Reset your Learn the flow progress?" description="" confirmLabel="Reset progress" onConfirm={resetGuideProgress} onCancel={() => setResetConfirmOpen(false)} />
   </div>;

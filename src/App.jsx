@@ -22,6 +22,8 @@ import { ArrowRight, Bell, CalendarDays, ChevronLeft, ChevronRight, ExternalLink
 import { Alert, NOTICE_TIMEOUT_MS } from './components/ui/alert.tsx';
 import { Dialog, DialogBody, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from './components/ui/dialog.tsx';
 import { ConfirmDialog } from './components/ui/alert-dialog.tsx';
+import AccountMenu from './components/auth/AccountMenu.jsx';
+import { useAuth } from './components/auth/AuthProvider.jsx';
 
 const sections = [
   { heading: 'Overview', items: [
@@ -285,6 +287,7 @@ function DatePicker({ name, value, required }) {
 
 
 function App() {
+  const auth = useAuth();
   const [active, setActive] = useState('supplier-dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -627,7 +630,7 @@ function App() {
                 <button type="button" className="btn notification-view-all btn-secondary" onClick={() => { setNotificationsOpen(false); navigate('bookings'); }}>View all bookings <span aria-hidden="true"><AppIcon icon={ArrowRight} size="sm" /></span></button>
               </div>}
             </div>
-            <div className="top-avatar">JD</div>
+            <AccountMenu />
           </div>
         </header>
         <div className="content">
@@ -641,7 +644,7 @@ function App() {
           ) : ['supplier-dashboard', 'supplier-reports'].includes(active) ? (
             <DashboardPage onNavigate={navigate} data={dashboard} loading={dashboardLoading} period={dashboardPeriod} onPeriodChange={setDashboardPeriod} chartMonths={dashboardMonths} onChartMonthsChange={setDashboardMonths} compact="G4 Sticker" />
           ) : active === 'settings' ? (
-            <SettingsPage health={health} appearance={appearance} onAppearanceChange={setAppearance} appearanceError={appearanceError} onNavigate={navigate} />
+            <SettingsPage health={health} appearance={appearance} onAppearanceChange={setAppearance} appearanceError={appearanceError} onNavigate={navigate} auth={auth} />
           ) : active === 'materials' ? (
             <MaterialsPage />
           ) : active === 'suppliers' ? (

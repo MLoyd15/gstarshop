@@ -11,6 +11,7 @@
     "test": "node --test",
     "migrate:product-stock": "node server/scripts/migrate-product-stock.js",
     "seed:sample-data": "node server/scripts/seed-sample-data.js",
+    "reset-password": "node server/scripts/reset-password.js",
     "start": "node server/index.js"
   },
   "dependencies": {
@@ -19,8 +20,10 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "google-auth-library": "^10.9.1",
     "lucide-react": "^1.61.0",
     "mongoose": "^8.9.5",
+    "nodemailer": "^10.2.1",
     "radix-ui": "^1.8.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
