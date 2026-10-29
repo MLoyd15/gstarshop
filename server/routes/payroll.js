@@ -30,7 +30,7 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
       if (!mongoose.isValidObjectId(req.params.employeeId)) return res.status(400).json({ error: 'Employee ID is invalid.' });
       const employeeRecord = await BusinessRecord.findOne({ _id: req.params.employeeId, resource: 'employees' });
       if (!employeeRecord) return res.status(404).json({ error: 'Employee not found.' });
-      if ((employeeRecord.data.salaryType || 'monthly') !== 'hourly') return res.status(409).json({ error: 'Set this employee’s pay basis to Hourly before entering daily hours.' });
+      if (!['hourly', 'daily'].includes(employeeRecord.data.salaryType || 'monthly')) return res.status(409).json({ error: 'Set this employee’s pay basis to Hourly or Daily before entering timesheet records.' });
       const run = await BusinessRecord.findOne({ resource: 'payroll-runs', 'data.employeeRecordId': req.params.employeeId, 'data.period': period }).lean();
       if (run) return res.status(409).json({ error: 'This month already has a payroll run. Edit the draft from Pay runs or reverse the run before changing the sheet.' });
       const validDate = (date) => {
@@ -56,12 +56,15 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
       const totalHours = dailyEntries.reduce((sum, entry) => sum + entry.hours, 0);
       const totalOvertimeHours = dailyEntries.reduce((sum, entry) => sum + entry.overtimeHours, 0);
       const totalAdvances = advances.reduce((sum, entry) => sum + entry.amount, 0);
-      const rate = toMoney(employeeRecord.data.salary ?? employeeRecord.data.baseRate, 'Hourly rate');
+      const totalDays = dailyEntries.filter((entry) => !entry.absent && (entry.hours > 0 || entry.worked !== false)).length;
+      const isDaily = (employeeRecord.data.salaryType || 'monthly') === 'daily';
+      const rate = toMoney(employeeRecord.data.salary ?? employeeRecord.data.baseRate, isDaily ? 'Daily rate' : 'Hourly rate');
       const overtimeRate = req.body.overtimeRate === undefined
         ? toMoney(employeeRecord.data.overtimeRate, 'Overtime rate', { optional: true })
         : toMoney(req.body.overtimeRate, 'Overtime rate', { optional: true });
       const overtimePay = Math.round((overtimeRate * totalOvertimeHours + Number.EPSILON) * 100) / 100;
-      const grossPay = Math.round((rate * totalHours + overtimePay + Number.EPSILON) * 100) / 100;
+      const basicPay = Math.round((rate * (isDaily ? totalDays : totalHours) + Number.EPSILON) * 100) / 100;
+      const grossPay = Math.round((basicPay + overtimePay + Number.EPSILON) * 100) / 100;
       const regularDeductions = toMoney(employeeRecord.data.regularDeductions, 'Regular deductions', { optional: true });
       const additions = ['allowances', 'bonus', 'commission'].reduce((sum, key) => sum + toMoney(employeeRecord.data[key], key, { optional: true }), 0);
       const earningsBeforeAdvance = Math.max(0, grossPay + additions - regularDeductions);
@@ -71,7 +74,7 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
       const advanceOwed = Math.max(0, advanceOwedBefore + totalAdvances - earningsBeforeAdvance);
       const data = {
         employeeRecordId: req.params.employeeId, employee: employeeRecord.data.name, employeeId: employeeRecord.data.employeeId || '',
-        period, rate, overtimeRate, overtimePay, dailyEntries, advances, totalHours, totalOvertimeHours, grossPay, regularDeductions, totalAdvances,
+        period, rate, overtimeRate, overtimePay, dailyEntries, advances, totalHours, totalOvertimeHours, totalDays, grossPay, regularDeductions, totalAdvances,
         advanceOwedBefore, advanceApplied, advanceOwed,
         estimatedNetPay: Math.max(0, earningsBeforeAdvance - advanceApplied), updatedAt: new Date().toISOString()
       };
@@ -113,10 +116,13 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
         const employeeKey = String(employee.employeeId || employee.name || id).toLowerCase();
         if (keys.has(id.toLowerCase()) || keys.has(employeeKey)) { skipped.push({ employee: employee.name || 'Employee', reason: 'A payroll record already exists for this period.' }); return []; }
         const sheet = sheetByEmployee.get(id);
-        const unit = sheet?.totalHours ?? unitsByEmployee[id];
         const salaryType = employee.salaryType || 'monthly';
+        const totalDaysFromEntries = sheet?.dailyEntries?.filter((e) => !e.absent && (e.hours > 0 || e.worked !== false)).length;
+        const daysWorked = sheet?.totalDays ?? (totalDaysFromEntries !== undefined ? totalDaysFromEntries : Number(unitsByEmployee[id] || 0));
+        const unit = salaryType === 'daily' ? daysWorked : (sheet?.totalHours ?? unitsByEmployee[id]);
+
         if (salaryType === 'hourly' && !(Number(unit) > 0)) { skipped.push({ employee: employee.name || 'Employee', reason: 'No hours saved for this period.' }); return []; }
-        if (salaryType === 'daily') { skipped.push({ employee: employee.name || 'Employee', reason: 'Daily pay is not supported by the current timesheet.' }); return []; }
+        if (salaryType === 'daily' && !(Number(unit) > 0)) { skipped.push({ employee: employee.name || 'Employee', reason: 'No days worked saved for this period.' }); return []; }
         const overtimeRate = sharedOvertimeRate ?? toMoney(sheet?.overtimeRate ?? employee.overtimeRate, 'Overtime rate', { optional: true });
         const overtimeHours = Number(sheet?.totalOvertimeHours || 0);
         const overtimePay = Math.round((overtimeRate * overtimeHours + Number.EPSILON) * 100) / 100;
@@ -125,7 +131,7 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
           ? Number(sheet.advanceOwedBefore || 0) + Number(sheet.totalAdvances || 0)
           : toMoney(advancesByEmployee[id], `${employee.name || 'Employee'} advance`, { optional: true });
         const earningsBeforeAdvance = Math.max(0,
-          (Number(employee.salary ?? employee.baseRate) || 0) * (salaryType === 'hourly' ? Number(unit) || 0 : 1) +
+          (Number(employee.salary ?? employee.baseRate) || 0) * (salaryType === 'hourly' || salaryType === 'daily' ? Number(unit) || 0 : 1) +
           Number(employee.allowances || 0) + Number(employee.bonus || 0) + Number(employee.commission || 0) +
           Number(employee.otherEarnings || 0) + overtimePay - regularDeductions
         );

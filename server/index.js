@@ -46,11 +46,23 @@ businessRecordSchema.index(
 const BusinessRecord = mongoose.model('BusinessRecord', businessRecordSchema);
 const inactiveBookingStatuses = ['cancelled', 'canceled', 'complete', 'completed'];
 
+function collectSearchableText(value) {
+  if (typeof value === 'string' || typeof value === 'number') return [String(value)];
+  if (Array.isArray(value)) return value.flatMap(collectSearchableText);
+  if (value && typeof value === 'object') return Object.values(value).flatMap(collectSearchableText);
+  return [];
+}
+
 function isOngoingBooking(record) {
   return !inactiveBookingStatuses.includes(String(record.data.status || 'active').trim().toLowerCase());
 }
 
-app.use(cors());
+const allowedOrigins = (process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:5173,http://127.0.0.1:5173').split(',').map((origin) => origin.trim()).filter(Boolean);
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true
+}));
 app.use(express.json({ limit: '1mb' }));
 
 app.get('/api/health', (_request, response) => {
@@ -104,6 +116,28 @@ app.get('/api/notifications', async (_request, response, next) => {
   }
 });
 
+app.get('/api/search', async (request, response, next) => {
+  const query = String(request.query.q || '').trim().toLocaleLowerCase();
+  if (query.length < 2) return response.json({ results: [] });
+  if (query.length > 120) return response.status(400).json({ error: 'Search text must be 120 characters or fewer.' });
+  try {
+    const excludedResources = ['purchase-order-counters'];
+    const records = await BusinessRecord.find({ resource: { $nin: excludedResources } })
+      .sort({ updatedAt: -1 }).lean();
+    const results = [];
+    for (const record of records) {
+      const data = record.data || {};
+      if (!JSON.stringify(data).toLocaleLowerCase().includes(query)) continue;
+      const title = String(data.name || data.title || data.clientName || data.supplierName || data.employee || data.number || data.period || data.description || data.sku || `${record.resource} record`);
+      const matchedText = collectSearchableText(data).find((value) => value.toLocaleLowerCase().includes(query));
+      const summary = matchedText && matchedText !== title ? matchedText.slice(0, 140) : '';
+      results.push({ id: record._id.toString(), resource: record.resource, title, summary, updatedAt: record.updatedAt });
+      if (results.length >= 30) break;
+    }
+    response.json({ results });
+  } catch (error) { next(error); }
+});
+
 app.get('/api/records/:resource', async (request, response, next) => {
   if (!resources.includes(request.params.resource)) {
     return response.status(404).json({ error: 'This business area does not exist.' });
@@ -135,7 +169,7 @@ app.post('/api/records/:resource', async (request, response, next) => {
     if (request.params.resource === 'payroll-timesheets') return response.status(409).json({ error: 'Use the employee monthly sheet to manage work hours and advances.' });
     if (request.params.resource === 'payroll-runs') return response.status(409).json({ error: 'Use the Pay runs page to generate and manage payroll.' });
     let data = ['income', 'expenses'].includes(request.params.resource)
-      ? validateFinancialEntry(request.body)
+      ? validateFinancialEntry(request.body, { resource: request.params.resource })
       : request.params.resource === 'employees' ? validateEmployeePayrollData(request.body) : request.body;
     if (request.params.resource === 'bookings') {
       const {
@@ -158,6 +192,26 @@ app.post('/api/records/:resource', async (request, response, next) => {
   }
 });
 
+const resourceWhitelists = {
+  income: ['name', 'category', 'amount', 'date', 'notes', 'reference'],
+  expenses: ['name', 'category', 'amount', 'date', 'notes', 'reference'],
+  clients: ['name', 'company', 'email', 'phone', 'address', 'city', 'region', 'postalCode', 'country', 'preferredContact', 'status', 'notes'],
+  scheduler: ['name', 'date', 'time', 'status', 'notes', 'location'],
+  employees: ['employeeId', 'name', 'position', 'email', 'phone', 'salary', 'baseRate', 'overtimeRate', 'holidayRate', 'salaryType', 'allowances', 'bonus', 'commission', 'regularDeductions', 'effectiveDate', 'payFrequency', 'status'],
+  shareholders: ['name', 'email', 'shares', 'percentage', 'notes'],
+  'material-categories': ['name'],
+  'excel-sheet': ['name', 'category', 'owner', 'updated', 'content', 'data'],
+  profit: ['name', 'income', 'expenses', 'amount', 'period', 'notes'],
+  notepad: ['name', 'content', 'updated']
+};
+
+const protectedFields = new Set([
+  '_id', 'id', 'createdAt', 'updatedAt', 'resource',
+  'payrollRunId', 'payrollPaymentId', 'purchaseOrderId', 'purchasePaymentId', 'expenseKind',
+  'materialPlan', 'completion', 'completionHistory', 'payments', 'paymentTrackingStartedAt',
+  'paidAmount', 'balance', 'paymentStatus', 'stockMigratedMaterialId', 'reversedAt', 'voidedAt'
+]);
+
 app.patch('/api/records/:resource/:id', async (request, response, next) => {
   if (!resources.includes(request.params.resource)) {
     return response.status(404).json({ error: 'This business area does not exist.' });
@@ -175,16 +229,37 @@ app.patch('/api/records/:resource/:id', async (request, response, next) => {
     if (request.params.resource === 'expenses') {
       const linked = await BusinessRecord.findOne({ _id: request.params.id, resource: 'expenses' }).lean();
       if (linked?.data?.payrollRunId) return response.status(409).json({ error: 'Payroll linked expenses are managed with their payroll run.' });
+      if (linked?.data?.purchaseOrderId) return response.status(409).json({ error: 'Purchase order linked expenses are managed with their purchase order.' });
     }
-    if (['income', 'expenses'].includes(request.params.resource)) request.body = validateFinancialEntry(request.body);
-    if (request.params.resource === 'employees') request.body = validateEmployeePayrollData(request.body);
-    const record = await BusinessRecord.findOneAndUpdate(
-      { _id: request.params.id, resource: request.params.resource },
-      { $set: { data: request.body, updatedAt: new Date() } },
-      { new: true, runValidators: true }
-    ).lean();
-    if (!record) return response.status(404).json({ error: 'Record not found.' });
-    response.json({ ...record.data, id: record._id.toString(), createdAt: record.createdAt, updatedAt: record.updatedAt });
+    const existing = await BusinessRecord.findOne({ _id: request.params.id, resource: request.params.resource });
+    if (!existing) return response.status(404).json({ error: 'Record not found.' });
+
+    const whitelist = resourceWhitelists[request.params.resource];
+    const patch = {};
+    if (whitelist) {
+      for (const key of whitelist) {
+        if (Object.hasOwn(request.body, key) && !protectedFields.has(key)) {
+          patch[key] = request.body[key];
+        }
+      }
+    } else {
+      for (const [key, value] of Object.entries(request.body)) {
+        if (!protectedFields.has(key)) {
+          patch[key] = value;
+        }
+      }
+    }
+
+    let merged = { ...existing.data, ...patch };
+    if (['income', 'expenses'].includes(request.params.resource)) merged = validateFinancialEntry(merged, { resource: request.params.resource });
+    if (request.params.resource === 'employees') merged = validateEmployeePayrollData(merged);
+
+    existing.data = merged;
+    existing.updatedAt = new Date();
+    existing.markModified('data');
+    await existing.save();
+
+    response.json({ ...existing.data, id: existing._id.toString(), createdAt: existing.createdAt, updatedAt: existing.updatedAt });
   } catch (error) {
     if (error.status === 400) return response.status(400).json({ error: error.message });
     if (error instanceof mongoose.Error.CastError) {
@@ -207,6 +282,7 @@ app.delete('/api/records/:resource/:id', async (request, response, next) => {
     if (request.params.resource === 'expenses') {
       const linked = await BusinessRecord.findOne({ _id: request.params.id, resource: 'expenses' }).lean();
       if (linked?.data?.payrollRunId) return response.status(409).json({ error: 'Payroll linked expenses are managed with their payroll run.' });
+      if (linked?.data?.purchaseOrderId) return response.status(409).json({ error: 'Purchase order linked expenses are managed with their purchase order.' });
     }
     const record = await BusinessRecord.findOneAndDelete({
       _id: request.params.id, resource: request.params.resource
@@ -235,3 +311,5 @@ if (process.env.MONGODB_URI) {
 }
 
 app.listen(port, () => console.log(`Business Hub API listening on http://localhost:${port}`));
+
+export { app };

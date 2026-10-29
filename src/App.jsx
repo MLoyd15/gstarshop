@@ -294,6 +294,7 @@ function App() {
   const [isMobileViewport, setIsMobileViewport] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 800px)').matches);
   const sidebarRef = useRef(null);
   const mobileMenuRef = useRef(null);
+  const globalSearchRef = useRef(null);
   const drawerWasOpen = useRef(false);
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -306,6 +307,11 @@ function App() {
   const [editing, setEditing] = useState(null);
   const [sheetEmployee, setSheetEmployee] = useState(null);
   const [search, setSearch] = useState('');
+  const [searchExpanded, setSearchExpanded] = useState(false);
+  const [searchPanelOpen, setSearchPanelOpen] = useState(false);
+  const [systemSearchResults, setSystemSearchResults] = useState([]);
+  const [systemSearchLoading, setSystemSearchLoading] = useState(false);
+  const [systemSearchError, setSystemSearchError] = useState('');
   const [health, setHealth] = useState('checking');
   const [notice, setNotice] = useState('');
   const noticeTimeoutRef = useRef(null);
@@ -345,6 +351,58 @@ function App() {
     media.addEventListener('change', updateViewport);
     return () => media.removeEventListener('change', updateViewport);
   }, []);
+
+  useEffect(() => {
+    function handleGlobalSearchKeys(event) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setSearchExpanded(true);
+        globalSearchRef.current?.focus();
+      } else if (event.key === 'Escape' && document.activeElement === globalSearchRef.current) {
+        if (searchPanelOpen) setSearchPanelOpen(false);
+        else if (search) setSearch('');
+        else {
+          globalSearchRef.current?.blur();
+          setSearchExpanded(false);
+        }
+      }
+    }
+    window.addEventListener('keydown', handleGlobalSearchKeys);
+    return () => window.removeEventListener('keydown', handleGlobalSearchKeys);
+  }, [search, searchPanelOpen]);
+
+  useEffect(() => {
+    if (searchExpanded) globalSearchRef.current?.focus();
+  }, [searchExpanded]);
+
+  useEffect(() => {
+    const query = search.trim();
+    if (query.length < 2) {
+      setSystemSearchResults([]);
+      setSystemSearchLoading(false);
+      setSystemSearchError('');
+      return undefined;
+    }
+    setSystemSearchResults([]);
+    setSystemSearchLoading(true);
+    setSystemSearchError('');
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setSystemSearchLoading(true);
+      setSystemSearchError('');
+      try {
+        const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`, { signal: controller.signal });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Search is unavailable right now.');
+        setSystemSearchResults(Array.isArray(data.results) ? data.results : []);
+      } catch (error) {
+        if (error.name !== 'AbortError') setSystemSearchError(error.message);
+      } finally {
+        if (!controller.signal.aborted) setSystemSearchLoading(false);
+      }
+    }, 180);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [search]);
 
   useEffect(() => {
     if (!mobileOpen || !isMobileViewport) return undefined;
@@ -460,6 +518,27 @@ function App() {
     setMobileOpen(false);
     setNotificationsOpen(false);
     setSearch('');
+    setSearchExpanded(false);
+    setSearchPanelOpen(false);
+  }
+
+  function openSearchResult(result) {
+    const resourcePages = {
+      suppliers: 'suppliers', products: 'products', inventory: 'materials', materials: 'materials',
+      prices: 'prices', 'supplier-prices': 'prices', purchases: 'purchases', 'purchase-orders': 'purchases',
+      'purchase-order-counters': 'purchases', 'excel-sheet': 'excel-sheet', scheduler: 'scheduler',
+      bookings: 'bookings', clients: 'clients', income: 'income', expenses: 'expenses', profit: 'profit',
+      shareholders: 'shareholders', employees: 'employees', 'payroll-runs': 'payroll-runs',
+      'payroll-timesheets': 'employees', 'stock-movements': 'materials', notepad: 'notepad',
+      'material-categories': 'materials'
+    };
+    const destination = resourcePages[result.resource];
+    if (!destination) return;
+    setActive(destination);
+    setMobileOpen(false);
+    setNotificationsOpen(false);
+    setSearchPanelOpen(false);
+    setSearchExpanded(false);
   }
 
   function openCreate() {
@@ -540,6 +619,8 @@ function App() {
   const filteredRecords = records.filter((record) =>
     Object.values(record).some((value) => String(value).toLowerCase().includes(search.toLowerCase()))
   );
+  const query = search.trim().toLowerCase();
+  const matchingPages = query ? allItems.filter((item) => item.label.toLowerCase().includes(query)).slice(0, 5) : [];
 
   return (
     <div className={`app-shell${sidebarCollapsed && !isMobileViewport ? ' sidebar-collapsed' : ''}`}>
@@ -551,7 +632,6 @@ function App() {
           <button type="button" className="btn btn-icon btn-ghost sidebar-collapse-toggle" aria-expanded={!sidebarCollapsed} aria-controls="app-sidebar" aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}>
             <AppIcon icon={sidebarCollapsed ? PanelLeftOpen : PanelLeftClose} />
           </button>
-          <button type="button" className="btn collapse-button btn-icon btn-ghost" aria-label="Close navigation" aria-expanded={mobileOpen} aria-controls="app-sidebar" title="Close navigation" onClick={() => setMobileOpen(false)}><AppIcon icon={X} /></button>
         </div>
         <nav className="navigation" aria-label="Main">
           {sections.map((section) => (
@@ -599,7 +679,18 @@ function App() {
             <span className={`connection-status ${health}`}><span className="status-dot" />{health === 'connected' ? 'All systems live' : health === 'checking' ? 'Connecting…' : 'Offline'}</span>
             {active !== 'guide' && <>
               <button type="button" className="btn icon-button search-shortcut btn-icon btn-ghost" aria-label="Search" title="Search" onClick={() => document.querySelector('.global-search input')?.focus()}><AppIcon icon={Search} /></button>
-              <label className="global-search"><span aria-hidden="true"><AppIcon icon={Search} size="sm" /></span><input className="input input-sm" placeholder="Search anything..." aria-label="Search anything..." value={search} onChange={(event) => setSearch(event.target.value)} /><kbd>⌘ K</kbd></label>
+              <div className="global-search-wrap">
+                <label className={`global-search${searchExpanded ? ' search-expanded' : ''}`} onClick={() => { if (isMobileViewport) setSearchExpanded(true); }}><span aria-hidden="true"><AppIcon icon={Search} size="sm" /></span><input ref={globalSearchRef} className="input input-sm" placeholder="Search anything..." aria-label="Search anything..." value={search} onFocus={() => setSearchPanelOpen(true)} onChange={(event) => { setSearch(event.target.value); setSearchPanelOpen(true); }} /><kbd>⌘ K</kbd></label>
+                {search && (!isMobileViewport || searchExpanded) && <button type="button" className="search-clear" aria-label="Clear search" title="Clear search" onClick={() => { setSearch(''); setSearchPanelOpen(true); globalSearchRef.current?.focus(); }}><AppIcon icon={X} size="sm" /></button>}
+                {searchPanelOpen && query && <div className="global-search-results" role="region" aria-label="Search results">
+                  {matchingPages.length > 0 && <><div className="global-search-group-label">Sections</div>{matchingPages.map((item) => <button type="button" className="global-search-result" key={item.id} onClick={() => navigate(item.id)}><AppIcon icon={navIcons[item.id] || Search} size="sm" /><span>{item.label}</span><small>Open section</small></button>)}</>}
+                  {systemSearchResults.length > 0 && <><div className="global-search-group-label">Records across G4 Sticker</div>{systemSearchResults.map((result) => <button type="button" className="global-search-result" key={`${result.resource}-${result.id}`} onClick={() => openSearchResult(result)}><AppIcon icon={navIcons[result.resource] || Search} size="sm" /><span>{result.title}{result.summary && <small className="global-search-summary">{result.summary}</small>}</span><small>{result.resource.replaceAll('-', ' ')}</small></button>)}</>}
+                  {systemSearchLoading && <p className="global-search-empty">Searching all sections…</p>}
+                  {systemSearchError && <p className="global-search-empty" role="alert">{systemSearchError}</p>}
+                  {!systemSearchLoading && !systemSearchError && query.length < 2 && !matchingPages.length && <p className="global-search-empty">Type at least 2 characters to search records.</p>}
+                  {!systemSearchLoading && !systemSearchError && query.length >= 2 && !matchingPages.length && !systemSearchResults.length && <p className="global-search-empty">No matching sections or records.</p>}
+                </div>}
+              </div>
             </>}
             <button
               type="button"

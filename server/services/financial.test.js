@@ -24,3 +24,14 @@ test('financial entries require real calendar dates and non-empty categories', (
 test('manual entries cannot impersonate payroll-linked expense records', () => {
   assert.throws(() => validateFinancialEntry({ ...valid, payrollRunId: 'run-1' }), /Pay runs/);
 });
+
+test('manual expense entries reject Materials as an expense category to avoid double-counting', () => {
+  assert.throws(
+    () => validateFinancialEntry({ ...valid, category: 'Materials' }, { resource: 'expenses' }),
+    /Materials cannot be entered manually as an expense category/
+  );
+  assert.throws(
+    () => validateFinancialEntry({ ...valid, category: 'materials' }, { resource: 'expenses' }),
+    /Materials cannot be entered manually as an expense category/
+  );
+});

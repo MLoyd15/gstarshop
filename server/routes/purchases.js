@@ -177,9 +177,23 @@ export function createPurchasesRouter(BusinessRecord, mongoose) {
   });
   router.post('/purchases/:id/order', async (req, res) => {
     try {
-      const order = await getOrder(req.params.id);
-      if (order.data.status !== 'draft') throw new InventoryValidationError('Only a draft purchase order can be ordered.', 409);
-      order.data.status = 'ordered'; order.markModified('data'); await order.save(); res.json(serialize(order));
+      const idempotencyKey = String(req.body?.idempotencyKey || req.body?.id || '').trim();
+      const result = await inTransaction(async (session) => {
+        const order = await getOrder(req.params.id, session);
+        if (order.data.status === 'ordered') {
+          if (!idempotencyKey || !order.data.orderIdempotencyKey || order.data.orderIdempotencyKey === idempotencyKey) {
+            return { ...serialize(order), duplicate: true };
+          }
+          throw new InventoryValidationError('Only a draft purchase order can be ordered.', 409);
+        }
+        if (order.data.status !== 'draft') throw new InventoryValidationError('Only a draft purchase order can be ordered.', 409);
+        order.data.status = 'ordered';
+        if (idempotencyKey) order.data.orderIdempotencyKey = idempotencyKey;
+        order.markModified('data');
+        await order.save({ session });
+        return { ...serialize(order), duplicate: false };
+      });
+      res.json(result);
     } catch (error) { fail(res, error); }
   });
   router.post('/purchases/:id/cancel', async (req, res) => {
@@ -191,13 +205,66 @@ export function createPurchasesRouter(BusinessRecord, mongoose) {
   });
   router.post('/purchases/:id/pay', async (req, res) => {
     try {
+      const paymentId = String(req.body?.paymentId || req.body?.id || req.body?.idempotencyKey || '').trim();
+      if (!paymentId) throw new InventoryValidationError('A payment ID is required.');
       const amount = toUnitCost(req.body?.amount, 'Payment amount', { optional: false });
       if (amount <= 0) throw new InventoryValidationError('Payment amount must be greater than zero.');
-      const order = await getOrder(req.params.id);
-      if (!['received', 'paid'].includes(order.data.status)) throw new InventoryValidationError('A purchase can be paid after all items are received.', 409);
-      if (Number(order.data.paidAmount || 0) + amount > Number(order.data.subtotal) + 0.0001) throw new InventoryValidationError('Payment cannot exceed the remaining balance.');
-      order.data.paidAmount = Math.round((Number(order.data.paidAmount || 0) + amount) * 10000) / 10000;
-      order.data.status = order.data.paidAmount >= order.data.subtotal ? 'paid' : 'received'; order.markModified('data'); await order.save(); res.json(serialize(order));
+      const date = String(req.body?.date || today()).trim();
+
+      const result = await inTransaction(async (session) => {
+        const order = await getOrder(req.params.id, session);
+        const payments = Array.isArray(order.data.payments) ? [...order.data.payments] : [];
+        const prior = payments.find((item) => item.id === paymentId || item.idempotencyKey === paymentId);
+        if (prior) {
+          if (Math.abs(Number(prior.amount) - amount) > 0.0001) {
+            throw new InventoryValidationError('This payment ID was already used with different payment details.', 409);
+          }
+          return { ...serialize(order), duplicate: true, payment: prior };
+        }
+
+        if (!['received', 'paid'].includes(order.data.status)) throw new InventoryValidationError('A purchase can be paid after all items are received.', 409);
+        const currentPaid = Number(order.data.paidAmount || 0);
+        const subtotal = Number(order.data.subtotal || 0);
+        if (currentPaid + amount > subtotal + 0.0001) throw new InventoryValidationError('Payment cannot exceed the remaining balance.');
+
+        const supplier = await find('suppliers', order.data.supplierId, session);
+        const supplierName = supplier?.data?.name || 'Supplier';
+
+        let expense = await BusinessRecord.findOne({ resource: 'expenses', 'data.purchasePaymentId': paymentId }).session(session);
+        const expenseData = {
+          name: `Purchase payment ${order.data.number || order._id} - ${supplierName}`,
+          category: 'Purchases',
+          amount,
+          date,
+          purchaseOrderId: order._id.toString(),
+          purchasePaymentId: paymentId,
+          expenseKind: 'purchase-payment'
+        };
+        if (expense) {
+          expense.data = { ...expense.data, ...expenseData };
+          expense.updatedAt = new Date();
+          await expense.save({ session });
+        } else {
+          [expense] = await BusinessRecord.create([{ resource: 'expenses', data: expenseData }], { session });
+        }
+
+        const paymentRecord = {
+          id: paymentId,
+          amount,
+          date,
+          createdAt: new Date(),
+          expenseId: expense._id.toString()
+        };
+        payments.push(paymentRecord);
+        order.data.payments = payments;
+        order.data.paidAmount = Math.round(payments.reduce((sum, p) => sum + Number(p.amount || 0), 0) * 10000) / 10000;
+        order.data.status = order.data.paidAmount >= subtotal ? 'paid' : 'received';
+        order.markModified('data');
+        await order.save({ session });
+
+        return { ...serialize(order), duplicate: false, payment: paymentRecord };
+      });
+      res.json(result);
     } catch (error) { fail(res, error); }
   });
   router.post('/purchases/:id/receive', async (req, res) => {

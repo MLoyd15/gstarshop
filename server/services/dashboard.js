@@ -50,7 +50,7 @@ export function buildDashboardSummary(records, requestedPeriod, now = new Date()
   });
   const monthByKey = new Map(months.map((item) => [item.key, item]));
   const monthTotals = (key) => monthByKey.get(key);
-  const ordinaryExpenses = (record) => !record.data.payrollRunId && !String(record.data.expenseKind || '').startsWith('payroll-');
+  const ordinaryExpenses = (record) => !record.data.payrollRunId && !String(record.data.expenseKind || '').startsWith('payroll-') && String(record.data.category || '').trim().toLowerCase() !== 'materials';
   const incomes = records.filter((record) => record.resource === 'income' && !isReversed(record.data));
   const expenses = records.filter((record) => record.resource === 'expenses' && ordinaryExpenses(record) && !isReversed(record.data));
   const bookings = records.filter((record) => record.resource === 'bookings');

@@ -12,7 +12,8 @@
     "migrate:product-stock": "node server/scripts/migrate-product-stock.js",
     "seed:sample-data": "node server/scripts/seed-sample-data.js",
     "reset-password": "node server/scripts/reset-password.js",
-    "start": "node server/index.js"
+    "start": "node server/index.js",
+    "migrate:po-payments": "node server/scripts/migrate-purchase-order-payments.js"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

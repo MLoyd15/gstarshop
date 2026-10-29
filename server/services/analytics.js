@@ -66,7 +66,7 @@ export function buildAnalyticsSummary(records = [], requestedPeriod, now = new D
   const monthByKey = new Map(months.map((m) => [m.key, m]));
 
   const ordinaryExpenses = (record) =>
-    !record.data?.payrollRunId && !String(record.data?.expenseKind || '').startsWith('payroll-');
+    !record.data?.payrollRunId && !String(record.data?.expenseKind || '').startsWith('payroll-') && String(record.data?.category || '').trim().toLowerCase() !== 'materials';
 
   const incomes = records.filter((r) => r.resource === 'income' && !isReversed(r.data));
   const expenses = records.filter((r) => r.resource === 'expenses' && ordinaryExpenses(r) && !isReversed(r.data));
