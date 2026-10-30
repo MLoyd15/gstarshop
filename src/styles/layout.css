@@ -28,31 +28,17 @@
 .nav-label { min-width: 0; flex: 1; overflow: hidden; font-size: var(--fs-caption); text-align: left; text-overflow: ellipsis; white-space: nowrap; }
 .nav-badge { margin-left: auto; padding: 2px 5px; border-radius: var(--radius-control); background: var(--accent-soft); color: var(--accent); font-size: var(--fs-caption); font-weight: 700; letter-spacing: .4px; }
 .nav-divider { height: 1px; margin: 1px 8px 11px; background: var(--surface); }
-.sidebar-bottom { flex: 0 0 auto; }
-.help-card { display: flex; width: 100%; align-items: center; gap: 10px; padding: 12px 10px; border: 1px solid var(--line); border-radius: var(--radius-card); color: var(--text); text-align: left; cursor: pointer; transition: border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast); }
-.help-card:hover { transform: translateY(-1px); }
-.help-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-.help-icon { display: grid; width: 32px; height: 32px; flex: 0 0 32px; place-items: center; border-radius: var(--radius-control); background: var(--accent-soft); color: var(--accent); font-size: var(--fs-section); }
-.help-card-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 3px; }
-.help-card strong { color: var(--text); font-size: var(--fs-caption); line-height: 1.25; }
-.help-card-copy > span { color: var(--text-secondary); font-size: var(--fs-caption); line-height: 1.35; }
-.help-card-arrow { flex: 0 0 auto; color: var(--text-secondary); font-size: var(--fs-section); transition: color var(--transition-fast), transform var(--transition-fast); }
-.help-card:hover .help-card-arrow { color: var(--accent); transform: translate(2px, -2px); }
 .app-shell.sidebar-collapsed .sidebar { padding-inline: 12px; }
 .sidebar-collapsed .brand { height: auto; flex-direction: column; gap: 12px; padding: 0; }
 .sidebar-collapsed .brand-name,
 .sidebar-collapsed .nav-label,
-.sidebar-collapsed .nav-badge,
-.sidebar-collapsed .help-card-copy,
-.sidebar-collapsed .help-card-arrow { display: none; }
+.sidebar-collapsed .nav-badge { display: none; }
 .sidebar-collapsed .sidebar-collapse-toggle { margin: 0; }
 .sidebar-collapsed .nav-section { margin-bottom: 12px; }
 .sidebar-collapsed .nav-heading { height: 1px; overflow: hidden; margin: 10px 8px; padding: 0; background: var(--line); font-size: 0; letter-spacing: 0; line-height: 0; }
 .sidebar-collapsed .nav-item { justify-content: center; gap: 0; padding-inline: 0; }
 .sidebar-collapsed .nav-item > svg { margin-inline: auto; }
 .sidebar-collapsed .nav-item.active::before { left: 0; }
-.sidebar-collapsed .help-card { justify-content: center; padding: 3px; }
-.sidebar-collapsed .help-icon { flex: 0 0 32px; }
 .top-avatar { display: grid; width: 31px; height: 31px; place-items: center; border-radius: 50%; background: var(--surface); color: var(--text); font-size: var(--fs-caption); font-weight: 700; }
 .main-area { min-height: 100vh; margin-left: var(--sidebar-width); transition: margin-left 200ms ease; }
 .topbar { position: sticky; top: 0; z-index: 5; height: 65px; display: flex; align-items: center; justify-content: space-between; padding: 0 41px; border-bottom: 1px solid var(--line); background: var(--surface); backdrop-filter: blur(12px); }
@@ -207,11 +193,6 @@ td { height: 46px; padding: 0 14px; border-top: 1px solid var(--line); color: va
   padding: 3px 6px;
   border: 1px solid
     color-mix(in srgb, var(--accent), transparent 86%);
-}
-
-.help-card {
-  border-color: var(--line);
-  background: linear-gradient(135deg, var(--bg-gradient-1), var(--bg-gradient-2));
 }
 
 .topbar {

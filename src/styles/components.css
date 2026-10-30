@@ -106,11 +106,6 @@ button:disabled {
     color-mix(in srgb, var(--accent), transparent 86%);
 }
 
-.help-card {
-  border-color: var(--line);
-  background: linear-gradient(135deg, var(--bg-gradient-1), var(--bg-gradient-2));
-}
-
 /* Top bar */
 
 .topbar {

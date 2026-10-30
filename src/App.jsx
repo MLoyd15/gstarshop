@@ -18,7 +18,7 @@ import ProductsPage from './pages/ProductsPage.jsx';
 import GuidePage from './pages/GuidePage.jsx';
 import logo from './assets/logo.png';
 import { AppIcon, navIcons } from './components/icons.jsx';
-import { ArrowRight, Bell, CalendarDays, ChevronLeft, ChevronRight, ExternalLink, Menu, Moon, PanelLeftClose, PanelLeftOpen, Search, Sparkles, Sun, X } from './components/icons.jsx';
+import { ArrowRight, Bell, CalendarDays, ChevronLeft, ChevronRight, Menu, Moon, PanelLeftClose, PanelLeftOpen, Search, Sun, X } from './components/icons.jsx';
 import { Alert, NOTICE_TIMEOUT_MS } from './components/ui/alert.tsx';
 import { Dialog, DialogBody, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from './components/ui/dialog.tsx';
 import { ConfirmDialog } from './components/ui/alert-dialog.tsx';
@@ -662,13 +662,6 @@ function App() {
             })}
           </ul>
         </nav>
-        <div className="sidebar-bottom">
-          <button type="button" className="help-card" aria-label="Open Learn the flow guide" title="Open Learn the flow guide" onClick={() => navigate('guide')}>
-            <span className="help-icon" aria-hidden="true"><AppIcon icon={Sparkles} size="lg" /></span>
-            <span className="help-card-copy"><strong>Need a hand?</strong><span>Learn how the workflow fits together.</span></span>
-            <span className="help-card-arrow" aria-hidden="true"><AppIcon icon={ExternalLink} size="sm" /></span>
-          </button>
-        </div>
       </aside>
 
       <main className="main-area">
