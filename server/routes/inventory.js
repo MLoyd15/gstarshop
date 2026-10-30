@@ -39,9 +39,13 @@ export function createInventoryRouter(BusinessRecord, mongoose) {
         BusinessRecord.find({ resource: 'materials' }, { 'data.category': 1 }).lean()
       ]);
       const names = new Map();
-      for (const record of [...categoryRecords, ...materials]) {
-        const name = String(record.data.name ?? record.data.category ?? '').trim();
-        if (name && !names.has(name.toLocaleLowerCase())) names.set(name.toLocaleLowerCase(), { id: record._id?.toString() || null, name });
+      for (const record of categoryRecords) {
+        const name = String(record.data?.name ?? '').trim();
+        if (name && !names.has(name.toLocaleLowerCase())) names.set(name.toLocaleLowerCase(), { id: record._id.toString(), name, isCustom: true });
+      }
+      for (const record of materials) {
+        const name = String(record.data?.category ?? '').trim();
+        if (name && !names.has(name.toLocaleLowerCase())) names.set(name.toLocaleLowerCase(), { id: record._id.toString(), name, isCustom: false });
       }
       res.json([...names.values()].sort((a, b) => a.name.localeCompare(b.name)));
     } catch (error) { fail(res, error); }
@@ -60,6 +64,27 @@ export function createInventoryRouter(BusinessRecord, mongoose) {
       if (duplicate) throw new InventoryValidationError('That material category already exists.', 409);
       const [record] = await BusinessRecord.create([{ resource: 'material-categories', data: { name } }]);
       res.status(201).json(serialize(record));
+    } catch (error) { fail(res, error); }
+  });
+
+  router.delete('/categories/:id', async (req, res) => {
+    try {
+      let categoryName = '';
+      if (mongoose.isValidObjectId(req.params.id)) {
+        const record = await BusinessRecord.findOneAndDelete({ _id: req.params.id, resource: 'material-categories' });
+        if (record) categoryName = record.data?.name;
+      }
+      if (!categoryName && req.query.name) {
+        categoryName = String(req.query.name).trim();
+        await BusinessRecord.deleteMany({ resource: 'material-categories', 'data.name': categoryName });
+      }
+      if (categoryName) {
+        await BusinessRecord.updateMany(
+          { resource: 'materials', 'data.category': categoryName },
+          { $set: { 'data.category': '' } }
+        );
+      }
+      res.status(204).end();
     } catch (error) { fail(res, error); }
   });
 
@@ -228,8 +253,12 @@ export function createInventoryRouter(BusinessRecord, mongoose) {
       await session.withTransaction(async () => {
         const material = await BusinessRecord.findOne({ _id: req.params.id, resource: 'materials' }).session(session);
         if (!material) throw new InventoryValidationError('Material not found.', 404);
-        const hasHistory = await BusinessRecord.exists({ resource: 'stock-movements', 'data.materialId': req.params.id }).session(session);
-        if (hasHistory) throw new InventoryValidationError('Materials with stock history cannot be deleted. Mark this material inactive instead.', 409);
+        await BusinessRecord.deleteMany({ resource: 'stock-movements', 'data.materialId': req.params.id }).session(session);
+        await BusinessRecord.deleteMany({ resource: 'supplier-prices', 'data.materialId': req.params.id }).session(session);
+        await BusinessRecord.updateMany(
+          { resource: 'suppliers' },
+          { $pull: { 'data.suppliedMaterialIds': req.params.id } }
+        ).session(session);
         await material.deleteOne({ session });
       });
       res.status(204).end();

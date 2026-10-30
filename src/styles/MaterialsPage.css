@@ -143,6 +143,30 @@
 .materials-page .materials-table-wrap tbody tr { background:var(--surface); color:var(--text); }
 .materials-page .materials-table-wrap tbody tr:hover { background:var(--surface-soft); }
 .materials-page .materials-table-wrap tbody tr:hover td { background:transparent; color:var(--text); }
+
+.materials-category-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+  margin-bottom: 16px;
+}
+.materials-category-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  font-size: var(--fs-caption);
+}
+.materials-category-item span {
+  font-weight: 600;
+  color: var(--text);
+}
+
 @media(max-width:850px) { .materials-toolbar { align-items:flex-start; flex-direction:column; }
  .materials-filters { width:100%; }
  .materials-filters input { width:auto; flex:1; }

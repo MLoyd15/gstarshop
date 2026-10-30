@@ -64,17 +64,28 @@ export function createPurchasesRouter(BusinessRecord, mongoose) {
     } catch (error) { fail(res, error); }
   });
   router.delete('/suppliers/:id', async (req, res) => {
+    let session;
     try {
-      const supplier = await getSupplier(req.params.id);
-      const [linkedMaterials, orders, prices] = await Promise.all([
-        BusinessRecord.exists({ resource: 'materials', 'data.supplierId': req.params.id }),
-        BusinessRecord.exists({ resource: 'purchase-orders', 'data.supplierId': req.params.id }),
-        BusinessRecord.exists({ resource: 'supplier-prices', 'data.supplierId': req.params.id })
-      ]);
-      if (supplier.data.suppliedMaterialIds?.length || linkedMaterials || orders || prices) throw new InventoryValidationError('This supplier is linked to materials or purchasing history. Mark it inactive instead.', 409);
-      await supplier.deleteOne();
+      if (!mongoose.isValidObjectId(req.params.id)) throw new InventoryValidationError('Supplier ID is invalid.');
+      session = await mongoose.startSession();
+      await session.withTransaction(async () => {
+        const supplier = await BusinessRecord.findOne({ _id: req.params.id, resource: 'suppliers' }).session(session);
+        if (!supplier) throw new InventoryValidationError('Supplier not found.', 404);
+        const orders = await BusinessRecord.find({ resource: 'purchase-orders', 'data.supplierId': req.params.id }).session(session);
+        for (const order of orders) {
+          await BusinessRecord.deleteMany({ resource: 'expenses', 'data.purchaseOrderId': order._id.toString() }).session(session);
+          await order.deleteOne({ session });
+        }
+        await BusinessRecord.deleteMany({ resource: 'supplier-prices', 'data.supplierId': req.params.id }).session(session);
+        await BusinessRecord.updateMany(
+          { resource: 'materials', 'data.supplierId': req.params.id },
+          { $set: { 'data.supplierId': '', 'data.supplierNameSnapshot': '' } }
+        ).session(session);
+        await supplier.deleteOne({ session });
+      });
       res.status(204).end();
     } catch (error) { fail(res, error); }
+    finally { await session?.endSession(); }
   });
   router.get('/suppliers/:id', async (req, res) => {
     try {

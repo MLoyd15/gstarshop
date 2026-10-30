@@ -1,3 +1,22 @@
 .suppliers-page { --page-accent: var(--accent); }
 .suppliers-page .records-summary { border-color: color-mix(in srgb, var(--page-accent), white 82%); }
 .suppliers-page .records-welcome .accent-line { background: var(--page-accent); }
+
+.suppliers-table-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+}
+.suppliers-page .dialog-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+.suppliers-page .dialog-footer > div {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AppIcon } from '../components/icons.jsx';
-import { Plus } from '../components/icons.jsx';
+import { AppIcon, Plus, Trash2 } from '../components/icons.jsx';
 import '../styles/MaterialsPage.css';
 import { Alert, NOTICE_TIMEOUT_MS } from '../components/ui/alert.tsx';
 import { Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../components/ui/dialog.tsx';
@@ -193,8 +192,20 @@ export default function MaterialsPage() {
     try {
       await request('/categories', 'POST', { name: form.name });
       await load();
-      setCategoryDialog(false);
       showNotice('Material category added.');
+      event.target.reset();
+    } catch (e) { setError(e.message); }
+    finally { setBusy(false); }
+  }
+
+  async function deleteCategory(category) {
+    setBusy(true);
+    setError('');
+    try {
+      const url = `/categories/${category.id || ''}?name=${encodeURIComponent(category.name)}`;
+      await request(url, 'DELETE');
+      await load();
+      showNotice(`Category "${category.name}" deleted.`);
     } catch (e) { setError(e.message); }
     finally { setBusy(false); }
   }
@@ -225,7 +236,7 @@ export default function MaterialsPage() {
   }
 
   return <section className="materials-page">
-    <header className="materials-heading"><div><div className="t-eyebrow">RAW MATERIALS</div><h1 className="t-page-title">Materials</h1><p>Track stock levels, suppliers, and the supplies used on customer orders.</p></div><div className="materials-header-actions"><button className="btn btn-secondary" onClick={() => setCategoryDialog(true)}><AppIcon icon={Plus} size="sm" /> Add category</button><button className="btn btn-secondary" onClick={() => setDialog({ type: 'create' })}><AppIcon icon={Plus} size="sm" /> Add material</button></div></header>
+    <header className="materials-heading"><div><div className="t-eyebrow">RAW MATERIALS</div><h1 className="t-page-title">Materials</h1><p>Track stock levels, suppliers, and the supplies used on customer orders.</p></div><div className="materials-header-actions"><button className="btn btn-secondary" onClick={() => setCategoryDialog(true)}><AppIcon icon={Plus} size="sm" /> Manage categories</button><button className="btn btn-secondary" onClick={() => setDialog({ type: 'create' })}><AppIcon icon={Plus} size="sm" /> Add material</button></div></header>
     {error && <Alert variant="error" dismissible onDismiss={() => setError('')}>{error}</Alert>}
     {notice && <Alert variant="success">{notice}</Alert>}
     <div className="materials-summary"><article><span>Materials</span><strong>{materials.length}</strong></article><article><span>Low or out of stock</span><strong>{lowCount}</strong></article><article><span>Estimated inventory value</span><strong>{money(inventoryValue)}</strong></article></div>
@@ -260,7 +271,16 @@ export default function MaterialsPage() {
           <h3>Opening stock (optional)</h3><div className="materials-form-row"><label>Starting quantity<input className="input" name="openingQuantity" type="number" min="0" step="0.001" defaultValue="0" /></label><label>Unit cost<input className="input" name="openingUnitCost" type="number" min="0" step="0.0001" defaultValue="0" /></label></div>
           <div className="materials-form-row"><label>Opening date<input className="input" name="openingDate" type="date" defaultValue={today()} /></label><label>Note<input className="input" name="openingNote" defaultValue="Opening balance" maxLength="500" /></label></div>
         </>}
-        </DialogBody><DialogFooter><button className="btn btn-secondary" type="button" disabled={busy} onClick={() => setDialog(null)}>Cancel</button><button className="btn btn-primary" disabled={busy} aria-busy={busy || undefined}>{busy ? 'Saving…' : dialog.type === 'edit' ? 'Save details' : 'Add material'}</button></DialogFooter>
+        </DialogBody>
+        <DialogFooter style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+          {dialog.type === 'edit' ? (
+            <button className="btn btn-danger" type="button" disabled={busy} onClick={() => { const toDelete = dialog.material; setDialog(null); setDeleteTarget(toDelete); }}>Delete material</button>
+          ) : <span />}
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button className="btn btn-secondary" type="button" disabled={busy} onClick={() => setDialog(null)}>Cancel</button>
+            <button className="btn btn-primary" disabled={busy} aria-busy={busy || undefined}>{busy ? 'Saving…' : dialog.type === 'edit' ? 'Save details' : 'Add material'}</button>
+          </div>
+        </DialogFooter>
       </form>}
 
       {dialog.type === 'movement' && <form className="dialog-form material-form" onSubmit={saveMovement}>
@@ -277,8 +297,47 @@ export default function MaterialsPage() {
 
       {dialog.type === 'history' && <div className="dialog-form material-form"><DialogHeader><DialogTitle>Stock movement history</DialogTitle><DialogDescription><strong>{dialog.material.name}</strong> · Current balance: {quantity(dialog.material.quantity)} {dialog.material.unit}</DialogDescription><DialogClose /></DialogHeader><DialogBody>{dialog.historyError ? <Alert variant="error">{dialog.historyError}</Alert> : dialog.movements === null ? <div className="materials-empty">Loading movement history…</div> : !dialog.movements.length ? <div className="materials-empty">No movements recorded.</div> : <div className="materials-history-list">{dialog.movements.map((movement) => <article key={movement.id}><div><strong>{movement.type.replace('_', ' ')}</strong><time>{movement.date}</time></div><div><span className={movement.change < 0 ? 'negative' : 'positive'}>{movement.change > 0 ? '+' : ''}{quantity(movement.change)} {dialog.material.unit}</span><span>Balance: {quantity(movement.balanceAfter)} {dialog.material.unit}</span></div><p>{movement.note || '—'}</p><small>{money(movement.totalCost)} at {money(movement.unitCost)} / {dialog.material.unit}</small>{movement.type === 'purchase_in' && <button className="btn btn-secondary" onClick={() => setDialog({ type: 'movement', material: dialog.material, movementType: 'reversal', movementLabel: 'Reverse receipt', originalMovement: movement })}>Reverse receipt</button>}</article>)}</div>}</DialogBody><DialogFooter><button className="btn btn-secondary" type="button" onClick={() => setDialog(null)}>Close</button></DialogFooter></div>}
     </DialogContent></Dialog>}
-    {categoryDialog && <Dialog open onOpenChange={(open) => { if (!open && !busy) setCategoryDialog(false); }}><DialogContent size="md" busy={busy}><form className="dialog-form material-form category-dialog" onSubmit={saveCategory}><DialogHeader><DialogTitle>Add material category</DialogTitle><DialogDescription>Create a category to use when adding or editing materials.</DialogDescription><DialogClose disabled={busy} /></DialogHeader><DialogBody><label>Category name<input className="input" name="name" required maxLength="80" autoFocus placeholder="Vinyl, laminate, ink…" /></label></DialogBody><DialogFooter><button className="btn btn-secondary" type="button" disabled={busy} onClick={() => setCategoryDialog(false)}>Cancel</button><button className="btn btn-primary" disabled={busy} aria-busy={busy || undefined}>{busy ? 'Saving…' : 'Add category'}</button></DialogFooter></form></DialogContent></Dialog>}
+
+    {categoryDialog && <Dialog open onOpenChange={(open) => { if (!open && !busy) setCategoryDialog(false); }}><DialogContent size="md" busy={busy}>
+      <div className="dialog-form material-form category-dialog">
+        <DialogHeader>
+          <DialogTitle>Manage material categories</DialogTitle>
+          <DialogDescription>Add or remove categories used when adding and editing materials.</DialogDescription>
+          <DialogClose disabled={busy} />
+        </DialogHeader>
+        <DialogBody>
+          {categories.length > 0 && <div className="materials-category-list">
+            {categories.map((category) => (
+              <div className="materials-category-item" key={category.name}>
+                <span>{category.name}</span>
+                <button
+                  type="button"
+                  className="btn btn-icon btn-ghost btn-sm"
+                  aria-label={`Delete category ${category.name}`}
+                  disabled={busy}
+                  onClick={() => deleteCategory(category)}
+                >
+                  <AppIcon icon={Trash2} size="sm" />
+                </button>
+              </div>
+            ))}
+          </div>}
+          <form onSubmit={saveCategory}>
+            <label>New category name
+              <input className="input" name="name" required maxLength="80" autoFocus placeholder="Vinyl, laminate, ink…" />
+            </label>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
+              <button className="btn btn-primary" disabled={busy} aria-busy={busy || undefined}>{busy ? 'Adding…' : 'Add category'}</button>
+            </div>
+          </form>
+        </DialogBody>
+        <DialogFooter>
+          <button className="btn btn-secondary" type="button" disabled={busy} onClick={() => setCategoryDialog(false)}>Close</button>
+        </DialogFooter>
+      </div>
+    </DialogContent></Dialog>}
+
     <ConfirmDialog open={Boolean(toggleTarget)} title={`${toggleTarget?.active === false ? 'Activate' : 'Deactivate'} ${toggleTarget?.name || ''}?`} description="" confirmLabel={toggleTarget?.active === false ? 'Activate' : 'Deactivate'} busy={busy} onCancel={() => setToggleTarget(null)} onConfirm={async () => { const material = toggleTarget; await act(() => request(`/${material.id}`, 'PATCH', { active: material.active === false }), material.active === false ? 'Material activated.' : 'Material deactivated.'); setToggleTarget(null); }} />
-    <ConfirmDialog open={Boolean(deleteTarget)} title={`Delete ${deleteTarget?.name || 'material'}?`} description="Materials with stock movement history cannot be deleted. This action cannot be undone." confirmLabel="Delete material" busy={busy} onCancel={() => setDeleteTarget(null)} onConfirm={async () => { const material = deleteTarget; await act(() => request(`/${material.id}`, 'DELETE'), 'Material deleted.'); setDeleteTarget(null); }} />
+    <ConfirmDialog open={Boolean(deleteTarget)} title={`Delete ${deleteTarget?.name || 'material'}?`} description="This permanently deletes this material and all associated stock records. This action cannot be undone." confirmLabel="Delete material" busy={busy} onCancel={() => setDeleteTarget(null)} onConfirm={async () => { const material = deleteTarget; await act(() => request(`/${material.id}`, 'DELETE'), 'Material deleted.'); setDeleteTarget(null); }} />
   </section>;
 }
