@@ -42,23 +42,53 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
         [record] = await BusinessRecord.create([{ resource: 'payroll-holidays', data }]);
       }
 
-      if (req.body.applyToSheets) {
-        const timesheets = await BusinessRecord.find({ resource: 'payroll-timesheets', 'data.period': period });
+      if (req.body.applyToSheets !== false) {
+        const activeEmployees = await BusinessRecord.find({ resource: 'employees' }).lean();
         const runs = await BusinessRecord.find({ resource: 'payroll-runs', 'data.period': period }).lean();
         const lockedEmpIds = new Set(runs.map((r) => String(r.data.employeeRecordId)));
 
-        for (const ts of timesheets) {
-          if (lockedEmpIds.has(String(ts.data.employeeRecordId))) continue;
-          const employeeRecord = await BusinessRecord.findOne({ _id: ts.data.employeeRecordId, resource: 'employees' }).lean();
-          if (!employeeRecord) continue;
-          const isDaily = (employeeRecord.data.salaryType || 'monthly') === 'daily';
-          const rate = Number(employeeRecord.data.salary ?? employeeRecord.data.baseRate) || 0;
-          const otRate = Number(ts.data.overtimeRate) || 0;
+        for (const employeeRecord of activeEmployees) {
+          const empId = employeeRecord._id.toString();
+          if (!active(employeeRecord.data) || lockedEmpIds.has(empId)) continue;
+          const salaryType = employeeRecord.data.salaryType || 'monthly';
+          if (!['hourly', 'daily'].includes(salaryType)) continue;
 
-          const updatedEntries = (ts.data.dailyEntries || []).map((entry) => ({
-            ...entry,
-            holidayType: holidayMap.get(entry.date) || entry.holidayType || 'regular'
-          }));
+          let ts = await BusinessRecord.findOne({ resource: 'payroll-timesheets', 'data.employeeRecordId': empId, 'data.period': period });
+          const isDaily = salaryType === 'daily';
+          const rate = Number(employeeRecord.data.salary ?? employeeRecord.data.baseRate) || 0;
+          const otRate = Number(ts?.data?.overtimeRate ?? employeeRecord.data.overtimeRate) || 0;
+
+          const existingEntries = ts?.data?.dailyEntries || [];
+          const existingDateMap = new Map(existingEntries.map((e) => [e.date, e]));
+
+          // Build updated entries:
+          // 1. Update existing entries with holidayType strictly from global holidayMap
+          const updatedEntries = existingEntries.map((entry) => {
+            const hType = holidayMap.get(entry.date) || 'regular';
+            return {
+              ...entry,
+              holidayType: hType,
+              ...(hType === 'paid_holiday' ? { hours: 0, overtimeHours: 0, absent: false } : {})
+            };
+          });
+
+          // 2. Ensure all global non-regular holidays are represented
+          for (const holiday of holidays) {
+            if (holiday.type !== 'regular' && !existingDateMap.has(holiday.date)) {
+              updatedEntries.push({
+                date: holiday.date,
+                hours: 0,
+                overtimeHours: 0,
+                absent: false,
+                holidayType: holiday.type
+              });
+            }
+          }
+
+          // 3. Clean up empty regular entries that were auto-created from now-removed holidays
+          const cleanedEntries = updatedEntries.filter((e) =>
+            e.holidayType !== 'regular' || e.absent || (Number(e.hours || 0) + Number(e.overtimeHours || 0) > 0)
+          );
 
           let totalHours = 0;
           let totalOvertimeHours = 0;
@@ -68,8 +98,10 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
           let paidHolidayPay = 0;
           let regularDays = 0;
           let regularHours = 0;
+          let doubleHolidayCount = 0;
+          let paidHolidayCount = 0;
 
-          for (const entry of updatedEntries) {
+          for (const entry of cleanedEntries) {
             totalHours += Number(entry.hours || 0);
             totalOvertimeHours += Number(entry.overtimeHours || 0);
             const calc = calculateDailyEntryPay({ entry, baseRate: rate, isDaily, overtimeRate: otRate });
@@ -77,28 +109,51 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
             holidayPay += calc.holidayPay;
             doubleHolidayPay += calc.doubleHolidayPay || 0;
             paidHolidayPay += calc.paidHolidayPay || 0;
+            if (calc.holidayType === 'double_holiday') doubleHolidayCount += 1;
+            if (calc.holidayType === 'paid_holiday') paidHolidayCount += 1;
             if (calc.regularPay > 0) {
               regularDays += 1;
               regularHours += Number(entry.hours || 0);
             }
           }
-          const overtimePay = Math.round((otRate * totalOvertimeHours + Number.EPSILON) * 100) / 100;
-          const grossPay = Math.round((regularPay + holidayPay + overtimePay + Number.EPSILON) * 100) / 100;
-          const additions = ['allowances', 'bonus', 'commission'].reduce((sum, key) => sum + (Number(employeeRecord.data[key]) || 0), 0);
-          const regularDeductions = Number(ts.data.regularDeductions) || 0;
-          const earningsBeforeAdvance = Math.max(0, grossPay + additions - regularDeductions);
-          const advanceApplied = Math.min(Number(ts.data.advanceOwedBefore || 0) + Number(ts.data.totalAdvances || 0), earningsBeforeAdvance);
-          const advanceOwed = Math.max(0, Number(ts.data.advanceOwedBefore || 0) + Number(ts.data.totalAdvances || 0) - earningsBeforeAdvance);
 
-          ts.data = {
-            ...ts.data,
-            dailyEntries: updatedEntries,
+          const overtimePay = Math.round((otRate * totalOvertimeHours + Number.EPSILON) * 100) / 100;
+          regularPay = Math.round((regularPay + Number.EPSILON) * 100) / 100;
+          holidayPay = Math.round((holidayPay + Number.EPSILON) * 100) / 100;
+          doubleHolidayPay = Math.round((doubleHolidayPay + Number.EPSILON) * 100) / 100;
+          paidHolidayPay = Math.round((paidHolidayPay + Number.EPSILON) * 100) / 100;
+          const grossPay = Math.round((regularPay + holidayPay + overtimePay + Number.EPSILON) * 100) / 100;
+          const totalDays = cleanedEntries.filter((entry) => entry.holidayType === 'paid_holiday' || (!entry.absent && (entry.hours > 0 || entry.worked !== false))).length;
+          const additions = ['allowances', 'bonus', 'commission'].reduce((sum, key) => sum + (Number(employeeRecord.data[key]) || 0), 0);
+          const regularDeductions = Number(ts?.data?.regularDeductions ?? employeeRecord.data.regularDeductions) || 0;
+          const earningsBeforeAdvance = Math.max(0, grossPay + additions - regularDeductions);
+          const advances = ts?.data?.advances || [];
+          const totalAdvances = advances.reduce((sum, entry) => sum + (Number(entry.amount) || 0), 0);
+          const advanceOwedBefore = Number(ts?.data?.advanceOwedBefore || 0);
+          const advanceApplied = Math.min(advanceOwedBefore + totalAdvances, earningsBeforeAdvance);
+          const advanceOwed = Math.max(0, advanceOwedBefore + totalAdvances - earningsBeforeAdvance);
+
+          const sheetData = {
+            ...(ts?.data || {}),
+            employeeRecordId: empId,
+            employee: employeeRecord.data.name,
+            employeeId: employeeRecord.data.employeeId || '',
+            period,
+            rate,
+            overtimeRate: otRate,
+            dailyEntries: cleanedEntries,
+            advances,
+            totalAdvances,
+            advanceOwedBefore,
             regularPay,
             holidayPay,
             doubleHolidayPay,
             paidHolidayPay,
+            doubleHolidayCount,
+            paidHolidayCount,
             regularDays,
             regularHours,
+            totalDays,
             grossPay,
             overtimePay,
             totalHours,
@@ -108,8 +163,14 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
             estimatedNetPay: Math.max(0, earningsBeforeAdvance - advanceApplied),
             updatedAt: new Date().toISOString()
           };
-          ts.updatedAt = new Date();
-          await ts.save();
+
+          if (ts) {
+            ts.data = sheetData;
+            ts.updatedAt = new Date();
+            await ts.save();
+          } else if (cleanedEntries.length > 0) {
+            await BusinessRecord.create([{ resource: 'payroll-timesheets', data: sheetData }]);
+          }
         }
       }
 
@@ -126,7 +187,13 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
       const sheet = await BusinessRecord.findOne({ resource: 'payroll-timesheets', 'data.employeeRecordId': req.params.employeeId, 'data.period': period }).lean();
       const run = await BusinessRecord.findOne({ resource: 'payroll-runs', 'data.employeeRecordId': req.params.employeeId, 'data.period': period }).lean();
       const previous = sheet ? null : await BusinessRecord.findOne({ resource: 'payroll-timesheets', 'data.employeeRecordId': req.params.employeeId, 'data.period': { $lt: period } }).sort({ 'data.period': -1 }).lean();
-      res.json({ ...(sheet ? serialize(sheet) : { employeeRecordId: req.params.employeeId, period, dailyEntries: [], advances: [], advanceOwedBefore: Number(previous?.data.advanceOwed || 0) }), locked: Boolean(run) });
+      const holidayRecord = await BusinessRecord.findOne({ resource: 'payroll-holidays', 'data.period': period }).lean();
+      const holidays = holidayRecord?.data?.holidays || [];
+      res.json({
+        ...(sheet ? serialize(sheet) : { employeeRecordId: req.params.employeeId, period, dailyEntries: [], advances: [], advanceOwedBefore: Number(previous?.data.advanceOwed || 0) }),
+        holidays,
+        locked: Boolean(run)
+      });
     } catch (error) { fail(res, error); }
   });
 
@@ -139,6 +206,11 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
       if (!['hourly', 'daily'].includes(employeeRecord.data.salaryType || 'monthly')) return res.status(409).json({ error: 'Set this employee’s pay basis to Hourly or Daily before entering timesheet records.' });
       const run = await BusinessRecord.findOne({ resource: 'payroll-runs', 'data.employeeRecordId': req.params.employeeId, 'data.period': period }).lean();
       if (run) return res.status(409).json({ error: 'This month already has a payroll run. Edit the draft from Pay runs or reverse the run before changing the sheet.' });
+
+      // Fetch authoritative global holidays for this period
+      const holidayRecord = await BusinessRecord.findOne({ resource: 'payroll-holidays', 'data.period': period }).lean();
+      const holidayMap = new Map((holidayRecord?.data?.holidays || []).map((h) => [h.date, h.type]));
+
       const validDate = (date) => {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date)) || !String(date).startsWith(`${period}-`)) return false;
         const [year, month, day] = String(date).split('-').map(Number);
@@ -146,20 +218,27 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
         return parsed.getFullYear() === year && parsed.getMonth() === month - 1 && parsed.getDate() === day;
       };
 
-      const dailyEntries = (Array.isArray(req.body.dailyEntries) ? req.body.dailyEntries : []).map((entry) => {
-        const hours = Number(entry.hours || 0);
-        const overtimeHours = Number(entry.overtimeHours || 0);
-        const absent = entry.absent === true;
-        const rawHolidayType = String(entry.holidayType || 'regular').trim().toLowerCase();
-        const holidayType = ['double_holiday', 'paid_holiday', 'regular'].includes(rawHolidayType) ? rawHolidayType : 'regular';
+      const rawClientEntries = Array.isArray(req.body.dailyEntries) ? req.body.dailyEntries : [];
+      const clientDateMap = new Map(rawClientEntries.map((e) => [e.date, e]));
+
+      // Combine entries, ensuring any global paid holiday is represented
+      const candidateEntries = [...rawClientEntries];
+      for (const [hDate, hType] of holidayMap.entries()) {
+        if (hType === 'paid_holiday' && !clientDateMap.has(hDate)) {
+          candidateEntries.push({ date: hDate, hours: 0, overtimeHours: 0, absent: false, holidayType: hType });
+        }
+      }
+
+      const dailyEntries = candidateEntries.map((entry) => {
+        const holidayType = holidayMap.get(entry.date) || 'regular';
+        const hours = holidayType === 'paid_holiday' ? 0 : Number(entry.hours || 0);
+        const overtimeHours = holidayType === 'paid_holiday' ? 0 : Number(entry.overtimeHours || 0);
+        const absent = holidayType === 'paid_holiday' ? false : entry.absent === true;
         const totalDayHours = hours + overtimeHours;
         const validHours = Number.isFinite(hours) && Number.isFinite(overtimeHours) && hours >= 0 && overtimeHours >= 0 && totalDayHours <= 24;
 
         if (!validDate(entry.date) || !validHours) {
           throw new PayrollValidationError('Hours must be numbers between 0 and 24 for a valid date in this month.');
-        }
-        if (holidayType === 'paid_holiday' && totalDayHours > 0) {
-          throw new PayrollValidationError('Paid holidays cannot include regular or overtime hours.');
         }
 
         if (absent) {
@@ -228,13 +307,13 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
       paidHolidayPay = Math.round((paidHolidayPay + Number.EPSILON) * 100) / 100;
       const overtimePay = Math.round((overtimeRate * totalOvertimeHours + Number.EPSILON) * 100) / 100;
       const totalDays = dailyEntries.filter((entry) => entry.holidayType === 'paid_holiday' || (!entry.absent && (entry.hours > 0 || entry.worked !== false))).length;
-      const grossPay = Math.round((regularPay + holidayPay + overtimePay + Number.EPSILON) * 100) / 100;
 
-      const regularDeductions = toMoney(employeeRecord.data.regularDeductions, 'Regular deductions', { optional: true });
-      const additions = ['allowances', 'bonus', 'commission'].reduce((sum, key) => sum + toMoney(employeeRecord.data[key], key, { optional: true }), 0);
+      const previous = await BusinessRecord.findOne({ resource: 'payroll-timesheets', 'data.employeeRecordId': req.params.employeeId, 'data.period': { $lt: period } }).sort({ 'data.period': -1 }).lean();
+      const advanceOwedBefore = Number(previous?.data?.advanceOwed || 0);
+      const grossPay = Math.round((regularPay + holidayPay + overtimePay + Number.EPSILON) * 100) / 100;
+      const additions = ['allowances', 'bonus', 'commission'].reduce((sum, key) => sum + (Number(employeeRecord.data[key]) || 0), 0);
+      const regularDeductions = Number(employeeRecord.data.regularDeductions) || 0;
       const earningsBeforeAdvance = Math.max(0, grossPay + additions - regularDeductions);
-      const priorSheets = await BusinessRecord.find({ resource: 'payroll-timesheets', 'data.employeeRecordId': req.params.employeeId, 'data.period': { $lt: period } }).sort({ 'data.period': -1 }).limit(1).lean();
-      const advanceOwedBefore = Number(priorSheets[0]?.data.advanceOwed || 0);
       const advanceApplied = Math.min(advanceOwedBefore + totalAdvances, earningsBeforeAdvance);
       const advanceOwed = Math.max(0, advanceOwedBefore + totalAdvances - earningsBeforeAdvance);
 

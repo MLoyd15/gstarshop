@@ -63,6 +63,19 @@ export function createPurchasesRouter(BusinessRecord, mongoose) {
       res.json(serialize(supplier));
     } catch (error) { fail(res, error); }
   });
+  router.delete('/suppliers/:id', async (req, res) => {
+    try {
+      const supplier = await getSupplier(req.params.id);
+      const [linkedMaterials, orders, prices] = await Promise.all([
+        BusinessRecord.exists({ resource: 'materials', 'data.supplierId': req.params.id }),
+        BusinessRecord.exists({ resource: 'purchase-orders', 'data.supplierId': req.params.id }),
+        BusinessRecord.exists({ resource: 'supplier-prices', 'data.supplierId': req.params.id })
+      ]);
+      if (supplier.data.suppliedMaterialIds?.length || linkedMaterials || orders || prices) throw new InventoryValidationError('This supplier is linked to materials or purchasing history. Mark it inactive instead.', 409);
+      await supplier.deleteOne();
+      res.status(204).end();
+    } catch (error) { fail(res, error); }
+  });
   router.get('/suppliers/:id', async (req, res) => {
     try {
       const supplier = await getSupplier(req.params.id);

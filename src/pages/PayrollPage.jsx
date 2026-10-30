@@ -299,7 +299,7 @@ export default function PayrollPage({ defaultOvertimeRate = '0', onOpenEmployee,
     </div>
 
     {dialog && <Dialog open onOpenChange={(open) => { if (!open && !busy) setDialog(null); }}>
-      <DialogContent size="md" busy={busy} className={`payroll-content ${dialog.type === 'payslip' ? 'payslip' : ''}`}>
+      <DialogContent size={['holidays', 'generate', 'payslip'].includes(dialog.type) ? 'lg' : 'md'} busy={busy} className={`payroll-content ${dialog.type === 'payslip' ? 'payslip' : ''}`}>
         <DialogClose className="no-print" disabled={busy}><AppIcon icon={X} size="sm" /></DialogClose>
 
         {dialog.type === 'holidays' && <form onSubmit={saveHolidays}>
@@ -533,7 +533,7 @@ export default function PayrollPage({ defaultOvertimeRate = '0', onOpenEmployee,
               ['Net pay', money(dialog.run.netPay)],
               ['Paid', money(dialog.run.amountPaid)],
               ['Balance', money(dialog.run.balance ?? dialog.run.netPay)]
-            ].map(([a, b]) => <div key={a}><span>{a}</span><strong>{b}</strong></div>)}
+            ].map(([a, b]) => <div className={a === 'Gross pay' ? 'is-gross-pay' : a === 'Net pay' ? 'is-net-pay' : ''} key={a}><span>{a}</span><strong>{b}</strong></div>)}
           </div>
           <DialogFooter className="no-print">
             <button className="btn btn-secondary" onClick={() => setDialog(null)}>Close</button>

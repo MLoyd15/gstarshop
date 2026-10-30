@@ -20,6 +20,7 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
   const [overtimeHours, setOvertimeHours] = useState({});
   const [absentDays, setAbsentDays] = useState({});
   const [holidayTypes, setHolidayTypes] = useState({});
+  const [holidayNames, setHolidayNames] = useState({});
   const [advances, setAdvances] = useState([]);
   const [carryIn, setCarryIn] = useState(0);
   const [locked, setLocked] = useState(false);
@@ -27,8 +28,6 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [quickDate, setQuickDate] = useState('');
-  const [quickType, setQuickType] = useState('double_holiday');
 
   const noticeTimeoutRef = useRef(null);
   useEffect(() => () => { if (noticeTimeoutRef.current !== null) window.clearTimeout(noticeTimeoutRef.current); }, []);
@@ -46,17 +45,25 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
     ])
       .then(([sheetData, holidaysData]) => {
         if (cancelled) return;
-        const holidayMap = Object.fromEntries((holidaysData.holidays || []).map((h) => [h.date, h.type]));
-        const savedHolidayTypes = Object.fromEntries(
-          (sheetData.dailyEntries || []).map((entry) => [entry.date, entry.holidayType || holidayMap[entry.date] || 'regular'])
-        );
-        // Pre-fill period holidays that are not yet recorded on the sheet
-        const mergedHolidayTypes = { ...holidayMap, ...savedHolidayTypes };
+        // Global holidays are the single source of truth for holidays across all employees
+        const holidaysList = holidaysData.holidays || sheetData.holidays || [];
+        const holidayMap = Object.fromEntries(holidaysList.map((h) => [h.date, h.type]));
+        const holidayNamesMap = Object.fromEntries(holidaysList.map((h) => [h.date, h.name]));
 
-        setHours(Object.fromEntries((sheetData.dailyEntries || []).map((entry) => [entry.date, mergedHolidayTypes[entry.date] === 'paid_holiday' ? '' : String(entry.hours)])));
-        setOvertimeHours(Object.fromEntries((sheetData.dailyEntries || []).filter((entry) => entry.overtimeHours && mergedHolidayTypes[entry.date] !== 'paid_holiday').map((entry) => [entry.date, String(entry.overtimeHours)])));
-        setAbsentDays(Object.fromEntries((sheetData.dailyEntries || []).filter((entry) => entry.absent && mergedHolidayTypes[entry.date] !== 'paid_holiday').map((entry) => [entry.date, true])));
-        setHolidayTypes(mergedHolidayTypes);
+        setHolidayTypes(holidayMap);
+        setHolidayNames(holidayNamesMap);
+
+        setHours(Object.fromEntries((sheetData.dailyEntries || []).map((entry) => [
+          entry.date,
+          holidayMap[entry.date] === 'paid_holiday' ? '' : (entry.hours !== undefined && entry.hours !== null ? String(entry.hours) : '')
+        ])));
+        setOvertimeHours(Object.fromEntries((sheetData.dailyEntries || []).filter((entry) =>
+          entry.overtimeHours && holidayMap[entry.date] !== 'paid_holiday'
+        ).map((entry) => [entry.date, String(entry.overtimeHours)])));
+        setAbsentDays(Object.fromEntries((sheetData.dailyEntries || []).filter((entry) =>
+          entry.absent && holidayMap[entry.date] !== 'paid_holiday'
+        ).map((entry) => [entry.date, true])));
+
         setAdvances(sheetData.advances || []);
         setCarryIn(Number(sheetData.advanceOwedBefore || 0));
         setLocked(Boolean(sheetData.locked));
@@ -161,19 +168,6 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
     setAdvances((items) => [...items, { id: id(), date, amount: '', note: '' }]);
   }
 
-  function applyQuickHoliday() {
-    if (!quickDate) return;
-    setHolidayTypes((prev) => ({ ...prev, [quickDate]: quickType }));
-    if (quickType === 'paid_holiday') {
-      setHours((items) => ({ ...items, [quickDate]: '' }));
-      setOvertimeHours((items) => ({ ...items, [quickDate]: '' }));
-      setAbsentDays((items) => ({ ...items, [quickDate]: false }));
-    }
-    setNotice(`Updated ${quickDate} to ${quickType === 'double_holiday' ? 'Double pay holiday' : quickType === 'paid_holiday' ? 'Paid holiday' : 'Regular pay'}.`);
-    if (noticeTimeoutRef.current !== null) window.clearTimeout(noticeTimeoutRef.current);
-    noticeTimeoutRef.current = window.setTimeout(() => { setNotice(''); noticeTimeoutRef.current = null; }, NOTICE_TIMEOUT_MS);
-  }
-
   async function save() {
     setSaving(true); setError(''); setNotice('');
     const allDates = [...new Set([
@@ -211,7 +205,7 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
       setCarryIn(Number(data.advanceOwedBefore || 0));
       setAdvances(data.advances || []);
       setLocked(Boolean(data.locked));
-      setNotice('Monthly sheet saved with holiday calculations.');
+      setNotice('Monthly sheet saved.');
       if (noticeTimeoutRef.current !== null) window.clearTimeout(noticeTimeoutRef.current);
       noticeTimeoutRef.current = window.setTimeout(() => { setNotice(''); noticeTimeoutRef.current = null; }, NOTICE_TIMEOUT_MS);
     } catch (e) { setError(e.message); }
@@ -234,7 +228,7 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
       <DialogBody className="timesheet-body">
         <div className="timesheet-period">
           <label>Month<input className="input" type="month" value={period} onChange={(event) => setPeriod(event.target.value)} /></label>
-          <span>{locked ? 'Payroll run exists · sheet locked' : 'Track regular hours, overtime, and holiday rates (Double pay, Paid holiday, Regular)'}</span>
+          <span>{locked ? 'Payroll run exists · sheet locked' : 'Track regular hours and overtime · Holidays managed from Pay runs'}</span>
         </div>
 
         {error && <Alert className="timesheet-notice" variant="error" dismissible onDismiss={() => setError('')}>{error}</Alert>}
@@ -257,23 +251,9 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
           <section className="timesheet-section">
             <div className="timesheet-section-heading">
               <div>
-                <h3>Daily hours & holiday pay</h3>
-                <p>Choose <strong>Double pay holiday (200%)</strong>, <strong>Paid holiday (100%)</strong>, or <strong>Regular pay</strong> for each date.</p>
+                <h3>Daily hours & attendance</h3>
+                <p>Track regular hours and overtime. Holidays are applied automatically from <strong>Pay runs &rarr; Manage holidays</strong>.</p>
               </div>
-            </div>
-
-            <div className="timesheet-quick-holiday">
-              <span>Quick set date:</span>
-              <select className="select select-sm" value={quickDate} onChange={(e) => setQuickDate(e.target.value)} disabled={locked}>
-                <option value="">Select date in {period}…</option>
-                {dates.map((d) => <option key={d} value={d}>{d}</option>)}
-              </select>
-              <select className="select select-sm" value={quickType} onChange={(e) => setQuickType(e.target.value)} disabled={locked}>
-                <option value="double_holiday">Double pay holiday (200%)</option>
-                <option value="paid_holiday">Paid holiday (100%)</option>
-                <option value="regular">Regular pay</option>
-              </select>
-              <button type="button" className="btn btn-secondary btn-sm" disabled={locked || !quickDate} onClick={applyQuickHoliday}>Apply</button>
             </div>
 
             <div className="timesheet-days timesheet-days-overtime">
@@ -291,25 +271,10 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
                 return <div className={rowClass} key={date}>
                   <span>{new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
 
-                  <select
-                    className={`select timesheet-pay-type-select ${holidayTypes[date] || 'regular'}`}
-                    aria-label={`Pay option for ${date}`}
-                    value={holidayTypes[date] || 'regular'}
-                    disabled={locked}
-                    onChange={(event) => {
-                      const nextType = event.target.value;
-                      setHolidayTypes((items) => ({ ...items, [date]: nextType }));
-                      if (nextType === 'paid_holiday') {
-                        setHours((items) => ({ ...items, [date]: '' }));
-                        setOvertimeHours((items) => ({ ...items, [date]: '' }));
-                        setAbsentDays((items) => ({ ...items, [date]: false }));
-                      }
-                    }}
-                  >
-                    <option value="regular">Regular pay</option>
-                    <option value="double_holiday">Double pay holiday (200%)</option>
-                    <option value="paid_holiday">Paid holiday (100%)</option>
-                  </select>
+                  <div className="timesheet-day-holiday">
+                    {isDouble && <span className="timesheet-holiday-pill double" title={holidayNames[date] ? `${holidayNames[date]} (Double pay · 200%)` : 'Double pay holiday (200%)'}>Double pay (200%)</span>}
+                    {isPaid && <span className="timesheet-holiday-pill paid" title={holidayNames[date] ? `${holidayNames[date]} (Paid holiday · 100%)` : 'Paid holiday (100%)'}>Paid holiday (100%)</span>}
+                  </div>
 
                   <input
                     className="input"
@@ -318,8 +283,8 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
                     min="0"
                     max="24"
                     step="0.25"
-                    placeholder="Regular"
-                    value={hours[date] || ''}
+                    placeholder={isPaid ? 'Paid' : 'Regular'}
+                    value={isPaid ? '' : (hours[date] || '')}
                     disabled={locked || isPaid || absentDays[date]}
                     onChange={(event) => setHours((items) => ({ ...items, [date]: event.target.value }))}
                   />
@@ -331,8 +296,8 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
                     min="0"
                     max="24"
                     step="0.25"
-                    placeholder="OT"
-                    value={overtimeHours[date] || ''}
+                    placeholder={isPaid ? '—' : 'OT'}
+                    value={isPaid ? '' : (overtimeHours[date] || '')}
                     disabled={locked || isPaid || absentDays[date]}
                     onChange={(event) => setOvertimeHours((items) => ({ ...items, [date]: event.target.value }))}
                   />
@@ -351,7 +316,7 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
                       }
                     }}
                   >
-                    {isPaid ? 'Paid leave' : absentDays[date] ? 'Absent' : 'Mark absent'}
+                    {isPaid ? 'Paid holiday' : absentDays[date] ? 'Absent' : 'Mark absent'}
                   </button>
 
                   <small title={isDouble ? 'Double Pay (200%)' : isPaid ? 'Paid Holiday (100%)' : 'Regular'}>
