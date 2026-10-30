@@ -2,6 +2,7 @@
 import {
   BookOpen,
   Boxes,
+  Calendar,
   CalendarDays,
   ChartColumn,
   IdCard,
@@ -37,6 +38,7 @@ import {
   ShoppingCart,
   Sun,
   Tag,
+  Trash2,
   TrendingDown,
   TrendingUp,
   Truck,
@@ -46,7 +48,7 @@ import {
   X
 } from 'lucide-react';
 
-export { ArrowRight, ArrowUpRight, Bell, Building2, CalendarDays, Check, ChevronLeft, ChevronRight, CircleDollarSign, CircleDot, Ellipsis, ExternalLink, Eye, EyeOff, ShieldCheck, List, Menu, Moon, NotebookText, Package, PanelLeftClose, PanelLeftOpen, Pencil, Plus, ReceiptText, Search, Settings, Sparkles, Sun, TrendingDown, TrendingUp, UserRound, Users, X };
+export { ArrowRight, ArrowUpRight, Bell, Building2, Calendar, CalendarDays, Check, ChevronLeft, ChevronRight, CircleDollarSign, CircleDot, Ellipsis, ExternalLink, Eye, EyeOff, ShieldCheck, List, Menu, Moon, NotebookText, Package, PanelLeftClose, PanelLeftOpen, Pencil, Plus, ReceiptText, Search, Settings, Sparkles, Sun, Trash2, TrendingDown, TrendingUp, UserRound, Users, X };
 
 export function AppIcon({ icon: IconComponent, size = 'md', className, style, ...props }) {
   return <IconComponent

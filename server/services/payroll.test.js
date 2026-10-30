@@ -1,6 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { addPayrollPayment, calculatePayroll, payrollPeriodEnd, PayrollConflictError, PayrollValidationError, toMoney, validPayrollPeriod } from './payroll.js';
+import {
+  addPayrollPayment,
+  calculateDailyEntryPay,
+  calculatePayroll,
+  payrollPeriodEnd,
+  PayrollConflictError,
+  PayrollValidationError,
+  toMoney,
+  validPayrollPeriod
+} from './payroll.js';
 
 test('monthly salary includes additional earnings and deductions', () => {
   assert.deepEqual(calculatePayroll({ salaryType: 'monthly', baseRate: '2500.00', allowances: '100', bonus: '50', commission: '25', deductions: '200' }), {
@@ -13,6 +22,101 @@ test('daily and hourly rates require worked units', () => {
   assert.equal(calculatePayroll({ salaryType: 'daily', baseRate: 80, units: 20 }).grossPay, 1600);
   assert.equal(calculatePayroll({ salaryType: 'hourly', baseRate: 12.5, units: 40 }).grossPay, 500);
   assert.throws(() => calculatePayroll({ salaryType: 'hourly', baseRate: 12.5, units: 0 }), PayrollValidationError);
+});
+
+test('payroll calculation supports holiday pay across salary types', () => {
+  const result = calculatePayroll({
+    salaryType: 'daily',
+    baseRate: 500,
+    units: 10,
+    holidayPay: 1500,
+    allowances: 200,
+    deductions: 100
+  });
+  assert.equal(result.basicEarnings, 5000);
+  assert.equal(result.holidayPay, 1500);
+  assert.equal(result.grossPay, 6700);
+  assert.equal(result.netPay, 6600);
+});
+
+test('holiday 3 options: regular pay, paid holiday, and double pay holiday for hourly employees', () => {
+  const hourlyRate = 100;
+  const overtimeRate = 125;
+
+  // 1. Regular pay: 8 regular hours + 2 OT hours
+  const regularDay = calculateDailyEntryPay({
+    entry: { hours: 8, overtimeHours: 2, holidayType: 'regular' },
+    baseRate: hourlyRate,
+    isDaily: false,
+    overtimeRate
+  });
+  assert.equal(regularDay.basePay, 800);
+  assert.equal(regularDay.overtimePay, 250);
+  assert.equal(regularDay.totalPay, 1050);
+  assert.equal(regularDay.regularPay, 800);
+  assert.equal(regularDay.holidayPay, 0);
+
+  // 2. Paid holiday: unworked (0 hours) gives standard 100% pay (8 hours * rate)
+  const paidHolidayUnworked = calculateDailyEntryPay({
+    entry: { hours: 0, overtimeHours: 0, holidayType: 'paid_holiday' },
+    baseRate: hourlyRate,
+    isDaily: false,
+    overtimeRate
+  });
+  assert.equal(paidHolidayUnworked.basePay, 800);
+  assert.equal(paidHolidayUnworked.totalPay, 800);
+  assert.equal(paidHolidayUnworked.holidayPay, 800);
+  assert.equal(paidHolidayUnworked.regularPay, 0);
+  assert.equal(paidHolidayUnworked.isPaidHoliday, true);
+
+  // 3. Double pay holiday: worked 8 hours gives 200% rate (8 * 100 * 2 = 1600)
+  const doublePayHoliday = calculateDailyEntryPay({
+    entry: { hours: 8, overtimeHours: 1, holidayType: 'double_holiday' },
+    baseRate: hourlyRate,
+    isDaily: false,
+    overtimeRate
+  });
+  assert.equal(doublePayHoliday.basePay, 1600);
+  assert.equal(doublePayHoliday.overtimePay, 125);
+  assert.equal(doublePayHoliday.totalPay, 1725);
+  assert.equal(doublePayHoliday.holidayPay, 1600);
+  assert.equal(doublePayHoliday.isDouble, true);
+});
+
+test('holiday 3 options: regular pay, paid holiday, and double pay holiday for daily employees', () => {
+  const dailyRate = 600;
+
+  // 1. Regular pay: 1 day worked = 600
+  const regularDay = calculateDailyEntryPay({
+    entry: { hours: 8, overtimeHours: 0, holidayType: 'regular' },
+    baseRate: dailyRate,
+    isDaily: true
+  });
+  assert.equal(regularDay.basePay, 600);
+  assert.equal(regularDay.regularPay, 600);
+  assert.equal(regularDay.holidayPay, 0);
+
+  // 2. Paid holiday: 1 day 100% pay even if unworked/0 hours
+  const paidHoliday = calculateDailyEntryPay({
+    entry: { hours: 0, overtimeHours: 0, holidayType: 'paid_holiday' },
+    baseRate: dailyRate,
+    isDaily: true
+  });
+  assert.equal(paidHoliday.basePay, 600);
+  assert.equal(paidHoliday.holidayPay, 600);
+  assert.equal(paidHoliday.regularPay, 0);
+  assert.equal(paidHoliday.isPaidHoliday, true);
+
+  // 3. Double pay holiday: 2x daily rate (200% = 1200)
+  const doubleHoliday = calculateDailyEntryPay({
+    entry: { hours: 8, overtimeHours: 0, holidayType: 'double_holiday' },
+    baseRate: dailyRate,
+    isDaily: true
+  });
+  assert.equal(doubleHoliday.basePay, 1200);
+  assert.equal(doubleHoliday.holidayPay, 1200);
+  assert.equal(doubleHoliday.regularPay, 0);
+  assert.equal(doubleHoliday.isDouble, true);
 });
 
 test('money and deduction validation reject malformed or impossible amounts', () => {

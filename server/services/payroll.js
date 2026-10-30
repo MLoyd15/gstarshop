@@ -1,5 +1,6 @@
 const MONEY_PATTERN = /^\d+(?:\.\d{1,2})?$/;
 const SALARY_TYPES = new Set(['monthly', 'daily', 'hourly']);
+export const HOLIDAY_TYPES = new Set(['regular', 'paid_holiday', 'double_holiday']);
 
 export class PayrollValidationError extends Error {
   constructor(message) {
@@ -81,13 +82,120 @@ export function normalizePayrollPeriod(value) {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
-export function calculatePayroll({ salaryType = 'monthly', baseRate, units, allowances = 0, bonus = 0, commission = 0, otherEarnings = 0, deductions = 0 }) {
+export function calculateDailyEntryPay({ entry, baseRate, isDaily, overtimeRate = 0 }) {
+  const rate = Number(baseRate) || 0;
+  const otRate = Number(overtimeRate) || 0;
+  const rawType = String(entry?.holidayType || 'regular').trim().toLowerCase();
+  const holidayType = HOLIDAY_TYPES.has(rawType) ? rawType : 'regular';
+  const hours = holidayType === 'paid_holiday' ? 0 : Number(entry?.hours) || 0;
+  const overtimeHours = holidayType === 'paid_holiday' ? 0 : Number(entry?.overtimeHours) || 0;
+  const absent = entry?.absent === true;
+  const overtimePay = Math.round((overtimeHours * otRate + Number.EPSILON) * 100) / 100;
+
+  if (isDaily) {
+    if (holidayType === 'double_holiday') {
+      const multiplier = (!absent && (hours > 0 || entry?.worked !== false)) ? 2 : (absent ? 1 : 2);
+      const basePay = Math.round((multiplier * rate + Number.EPSILON) * 100) / 100;
+      return {
+        holidayType,
+        basePay,
+        overtimePay,
+        totalPay: Math.round((basePay + overtimePay + Number.EPSILON) * 100) / 100,
+        holidayPay: basePay,
+        regularPay: 0,
+        doubleHolidayPay: multiplier === 2 ? basePay : 0,
+        paidHolidayPay: multiplier === 1 ? basePay : 0,
+        isDouble: multiplier === 2,
+        isPaidHoliday: multiplier === 1
+      };
+    }
+    if (holidayType === 'paid_holiday') {
+      const basePay = Math.round((rate + Number.EPSILON) * 100) / 100;
+      return {
+        holidayType,
+        basePay,
+        overtimePay,
+        totalPay: Math.round((basePay + overtimePay + Number.EPSILON) * 100) / 100,
+        holidayPay: basePay,
+        regularPay: 0,
+        doubleHolidayPay: 0,
+        paidHolidayPay: basePay,
+        isPaidHoliday: true
+      };
+    }
+    if (absent || (hours === 0 && entry?.worked === false)) {
+      return { holidayType, basePay: 0, overtimePay: 0, totalPay: 0, holidayPay: 0, regularPay: 0, doubleHolidayPay: 0, paidHolidayPay: 0 };
+    }
+    const basePay = Math.round((rate + Number.EPSILON) * 100) / 100;
+    return {
+      holidayType,
+      basePay,
+      overtimePay,
+      totalPay: Math.round((basePay + overtimePay + Number.EPSILON) * 100) / 100,
+      holidayPay: 0,
+      regularPay: basePay,
+      doubleHolidayPay: 0,
+      paidHolidayPay: 0
+    };
+  }
+
+  // Hourly employee:
+  if (holidayType === 'double_holiday') {
+    const effectiveHours = hours > 0 ? hours : (absent ? 0 : 8);
+    const hourlyMultiplier = hours > 0 ? 2 : 1;
+    const basePay = Math.round((effectiveHours * (rate * hourlyMultiplier) + Number.EPSILON) * 100) / 100;
+    return {
+      holidayType,
+      basePay,
+      overtimePay,
+      totalPay: Math.round((basePay + overtimePay + Number.EPSILON) * 100) / 100,
+      holidayPay: basePay,
+      regularPay: 0,
+      doubleHolidayPay: hourlyMultiplier === 2 ? basePay : 0,
+      paidHolidayPay: hourlyMultiplier === 1 ? basePay : 0,
+      isDouble: hourlyMultiplier === 2,
+      isPaidHoliday: hourlyMultiplier === 1
+    };
+  }
+  if (holidayType === 'paid_holiday') {
+    const effectiveHours = 8;
+    const basePay = Math.round((effectiveHours * rate + Number.EPSILON) * 100) / 100;
+    return {
+      holidayType,
+      basePay,
+      overtimePay,
+      totalPay: Math.round((basePay + overtimePay + Number.EPSILON) * 100) / 100,
+      holidayPay: basePay,
+      regularPay: 0,
+      doubleHolidayPay: 0,
+      paidHolidayPay: basePay,
+      isPaidHoliday: true
+    };
+  }
+  if (absent) {
+    return { holidayType, basePay: 0, overtimePay: 0, totalPay: 0, holidayPay: 0, regularPay: 0, doubleHolidayPay: 0, paidHolidayPay: 0 };
+  }
+  const basePay = Math.round((hours * rate + Number.EPSILON) * 100) / 100;
+  return {
+    holidayType,
+    basePay,
+    overtimePay,
+    totalPay: Math.round((basePay + overtimePay + Number.EPSILON) * 100) / 100,
+    holidayPay: 0,
+    regularPay: basePay,
+    doubleHolidayPay: 0,
+    paidHolidayPay: 0
+  };
+}
+
+export function calculatePayroll({ salaryType = 'monthly', baseRate, units, holidayPay, allowances = 0, bonus = 0, commission = 0, otherEarnings = 0, deductions = 0 }) {
   const type = String(salaryType || 'monthly').trim().toLowerCase();
   if (!SALARY_TYPES.has(type)) throw new PayrollValidationError('Salary type must be monthly, daily, or hourly.');
 
   const rate = toMoney(baseRate, 'Base pay rate');
+  const parsedHolidayPay = toMoney(holidayPay, 'Holiday pay', { optional: true });
   const parsedUnits = type === 'monthly' ? 1 : Number(units);
-  if (!Number.isFinite(parsedUnits) || parsedUnits < 0 || (type !== 'monthly' && parsedUnits === 0)) {
+  if (!Number.isFinite(parsedUnits) || parsedUnits < 0 || (type !== 'monthly' && parsedUnits === 0 && !(parsedHolidayPay > 0))) {
     throw new PayrollValidationError(type === 'daily' ? 'Enter days worked for this employee.' : type === 'hourly' ? 'Enter hours worked for this employee.' : 'Units must be zero or greater.');
   }
 
@@ -99,10 +207,10 @@ export function calculatePayroll({ salaryType = 'monthly', baseRate, units, allo
     otherEarnings: toMoney(otherEarnings, 'Other earnings', { optional: true })
   };
   const totalDeductions = toMoney(deductions, 'Deductions', { optional: true });
-  const grossPay = Math.round((basicEarnings + Object.values(earnings).reduce((sum, amount) => sum + amount, 0) + Number.EPSILON) * 100) / 100;
+  const grossPay = Math.round((basicEarnings + parsedHolidayPay + Object.values(earnings).reduce((sum, amount) => sum + amount, 0) + Number.EPSILON) * 100) / 100;
   if (totalDeductions > grossPay) throw new PayrollValidationError('Deductions cannot exceed gross earnings.');
 
-  return {
+  const res = {
     salaryType: type,
     baseRate: rate,
     units: parsedUnits,
@@ -112,6 +220,10 @@ export function calculatePayroll({ salaryType = 'monthly', baseRate, units, allo
     deductions: totalDeductions,
     netPay: Math.round((grossPay - totalDeductions + Number.EPSILON) * 100) / 100
   };
+  if (holidayPay !== undefined) {
+    res.holidayPay = parsedHolidayPay;
+  }
+  return res;
 }
 
 export function validateEmployeePayrollData(data) {
@@ -127,4 +239,3 @@ export function validateEmployeePayrollData(data) {
   }
   return { ...data, salaryType };
 }
-

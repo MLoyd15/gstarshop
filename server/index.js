@@ -19,7 +19,7 @@ const port = Number(process.env.PORT) || 4000;
 const resources = [
   'suppliers', 'products', 'inventory', 'prices', 'purchases', 'purchase-orders', 'purchase-order-counters', 'supplier-prices', 'excel-sheet',
   'scheduler', 'bookings', 'clients', 'income', 'expenses', 'profit', 'shareholders',
-  'employees', 'payroll-runs', 'payroll-timesheets', 'materials', 'stock-movements',
+  'employees', 'payroll-runs', 'payroll-timesheets', 'payroll-holidays', 'materials', 'stock-movements',
   'notepad', 'material-categories'
 ];
 

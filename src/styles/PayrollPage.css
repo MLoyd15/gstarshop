@@ -40,7 +40,7 @@
 .payroll-empty strong{color:var(--text)}
 .payroll-empty p{margin:8px 0 18px}
 .payroll-table-wrap{overflow:auto}
- .payroll-page table{border-collapse:collapse;width:100%;min-width:1050px;text-align:left}
+.payroll-page table{border-collapse:collapse;width:100%;min-width:1100px;text-align:left}
 .payroll-page th{color:var(--text-secondary);background:var(--surface);font-size: var(--fs-caption);font-weight:var(--fw-semibold);text-transform:uppercase;letter-spacing:var(--ls-label);padding:13px 14px;white-space:nowrap}
 .payroll-page td{padding:14px;border-top:1px solid var(--line);color:var(--text);font-size: var(--fs-body-sm);white-space:nowrap}
 .payroll-page td:first-child strong,.payroll-page td:first-child small{display:block}
@@ -71,19 +71,35 @@
 .payslip-lines span{color:var(--text)}
 .payslip-lines div:nth-last-child(3){font-size: var(--fs-section);color:var(--text)}
 .payslip-lines div:nth-last-child(3) strong{color:var(--text)}
+
+/* Holiday manager styles */
+.payroll-holiday-editor{display:grid;gap:14px;margin-top:14px}
+.payroll-holiday-form-row{display:grid;grid-template-columns:minmax(120px,1fr) minmax(140px,1.2fr) minmax(160px,1.2fr) auto;gap:8px;align-items:end;background:var(--surface);padding:12px;border-radius:var(--radius-card);border:1px solid var(--line)}
+.payroll-holiday-form-row label{display:grid;gap:5px;font-size:var(--fs-caption);color:var(--text-secondary)}
+.payroll-holiday-list{display:grid;gap:8px;margin-top:10px;max-height:220px;overflow-y:auto}
+.payroll-holiday-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 12px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-control)}
+.payroll-holiday-row strong{font-size:var(--fs-body-sm)}
+.payroll-holiday-tag{display:inline-block;padding:3px 9px;border-radius:var(--radius-dialog);font-size:11px;font-weight:600}
+.payroll-holiday-tag.double_holiday{background:rgba(245,158,11,0.15);color:#f59e0b}
+.payroll-holiday-tag.paid_holiday{background:rgba(16,185,129,0.15);color:#10b981}
+.payroll-holiday-tag.regular{background:rgba(156,163,175,0.15);color:var(--text-secondary)}
+.payroll-sync-check{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:var(--fs-caption);color:var(--text);cursor:pointer}
+
 @media(max-width:850px){.payroll-heading{align-items:flex-start;flex-direction:column}
-.payroll-heading-actions{width:100%;justify-content:space-between}
+.payroll-heading-actions{width:100%;justify-content:space-between;flex-wrap:wrap}
 .payroll-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
 .payroll-summary article:last-child{grid-column:span 2}
 .payroll-toolbar{align-items:flex-start;flex-direction:column}
 .payroll-filters{width:100%}
 .payroll-filters input{flex:1;min-width:0}
+.payroll-holiday-form-row{grid-template-columns:1fr 1fr}
 }
 @media(max-width:520px){.payroll-page{padding:16px 12px}
 .payroll-heading-actions{align-items:stretch;flex-direction:column}
 .payroll-heading-actions label{max-width:none}
 .payroll-summary article{padding:14px}
 .payroll-filters{flex-direction:column}
+.payroll-holiday-form-row{grid-template-columns:1fr}
 }
 @media print{body *{visibility:hidden!important}
 .payroll-content.payslip,.payroll-content.payslip *{visibility:visible!important}

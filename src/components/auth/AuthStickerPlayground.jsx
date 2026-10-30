@@ -13,14 +13,14 @@ export default function AuthStickerPlayground() {
   function startDrag(event, id) {
     if (event.button !== 0) return;
     const sticker = event.currentTarget;
-    const stack = sticker.parentElement;
-    const current = positions[id] || { x: sticker.offsetLeft, y: sticker.offsetTop };
+    const stickerBounds = sticker.getBoundingClientRect();
     drag.current = {
       id,
       pointerId: event.pointerId,
-      offsetX: event.clientX - stack.getBoundingClientRect().left - current.x,
-      offsetY: event.clientY - stack.getBoundingClientRect().top - current.y,
+      offsetX: event.clientX - stickerBounds.left,
+      offsetY: event.clientY - stickerBounds.top,
     };
+    sticker.classList.add('is-dragging');
     sticker.setPointerCapture(event.pointerId);
     event.preventDefault();
   }
@@ -37,7 +37,10 @@ export default function AuthStickerPlayground() {
   }
 
   function stopDrag(event) {
-    if (drag.current?.pointerId === event.pointerId) drag.current = null;
+    if (drag.current?.pointerId === event.pointerId) {
+      event.currentTarget.classList.remove('is-dragging');
+      drag.current = null;
+    }
   }
 
   function moveByKeyboard(event, sticker) {

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppIcon } from '../components/icons.jsx';
-import { Plus, X } from '../components/icons.jsx';
+import { Calendar, Plus, Trash2, X } from '../components/icons.jsx';
 import '../styles/PayrollPage.css';
 import { Alert, NOTICE_TIMEOUT_MS } from '../components/ui/alert.tsx';
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogTitle } from '../components/ui/dialog.tsx';
@@ -11,38 +11,120 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 export default function PayrollPage({ defaultOvertimeRate = '0', onOpenEmployee, onEditEmployee }) {
   const [period, setPeriod] = useState(new Date().toISOString().slice(0, 7));
-  const [runs, setRuns] = useState([]); const [loading, setLoading] = useState(true); const [error, setError] = useState('');
-  const [notice, setNotice] = useState(''); const [dialog, setDialog] = useState(null); const [busy, setBusy] = useState(false);
+  const [runs, setRuns] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [dialog, setDialog] = useState(null);
+  const [busy, setBusy] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
   const [search, setSearch] = useState('');
-  const [skippedList, setSkippedList] = useState([]); const [status, setStatus] = useState('all');
-  const noticeTimeoutRef = useRef(null);
-  useEffect(() => () => { if (noticeTimeoutRef.current !== null) window.clearTimeout(noticeTimeoutRef.current); }, []);
+  const [skippedList, setSkippedList] = useState([]);
+  const [status, setStatus] = useState('all');
   const [employees, setEmployees] = useState([]);
   const [sheetsByEmployee, setSheetsByEmployee] = useState({});
+  const [periodHolidays, setPeriodHolidays] = useState([]);
+
+  // Holiday dialog local state
+  const [holidayDate, setHolidayDate] = useState('');
+  const [holidayName, setHolidayName] = useState('');
+  const [holidayType, setHolidayType] = useState('double_holiday');
+  const [applyToSheets, setApplyToSheets] = useState(true);
+
+  const noticeTimeoutRef = useRef(null);
+  useEffect(() => () => { if (noticeTimeoutRef.current !== null) window.clearTimeout(noticeTimeoutRef.current); }, []);
+
   async function request(path, method = 'GET', body) {
-    const response = await fetch(`/api/payroll${path}`, { method, headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined });
-    const result = response.status === 204 ? null : await response.json(); if (!response.ok) throw new Error(result?.error || 'Payroll request failed.'); return result;
+    const response = await fetch(`/api/payroll${path}`, {
+      method,
+      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      body: body ? JSON.stringify(body) : undefined
+    });
+    const result = response.status === 204 ? null : await response.json();
+    if (!response.ok) throw new Error(result?.error || 'Payroll request failed.');
+    return result;
   }
-  async function load() { setLoading(true); setError(''); try { setRuns(await request(`/runs?period=${period}`)); } catch (e) { setError(e.message); } finally { setLoading(false); } }
+
+  async function load() {
+    setLoading(true);
+    setError('');
+    try {
+      const [runsData, holidaysData] = await Promise.all([
+        request(`/runs?period=${period}`),
+        request(`/holidays?period=${period}`).catch(() => ({ holidays: [] }))
+      ]);
+      setRuns(runsData);
+      setPeriodHolidays(holidaysData?.holidays || []);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   useEffect(() => { load(); }, [period]);
-  useEffect(() => { fetch('/api/records/employees').then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Could not load employees.'); setEmployees(d); }).catch((e) => setError(e.message)); }, []);
+
+  useEffect(() => {
+    fetch('/api/records/employees')
+      .then(async (r) => {
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || 'Could not load employees.');
+        setEmployees(d);
+      })
+      .catch((e) => setError(e.message));
+  }, []);
+
   const active = employees.filter((e) => !['inactive', 'terminated'].includes(String(e.status || '').toLowerCase()));
-  const totals = useMemo(() => runs.reduce((a, r) => ({ gross: a.gross + Number(r.grossPay || 0), deductions: a.deductions + Number(r.deductions || 0), net: a.net + Number(r.netPay || 0), paid: a.paid + Number(r.amountPaid || 0), balance: a.balance + Number(r.balance ?? r.netPay ?? 0) }), { gross: 0, deductions: 0, net: 0, paid: 0, balance: 0 }), [runs]);
-  const visible = runs.filter((r) => (status === 'all' || r.status === status) && `${r.employee} ${r.employeeId}`.toLowerCase().includes(search.toLowerCase()));
-  async function act(fn, success) { setBusy(true); setError(''); try { const result = await fn(); await load(); setNotice(typeof success === 'function' ? success(result) : success); if (noticeTimeoutRef.current !== null) window.clearTimeout(noticeTimeoutRef.current); noticeTimeoutRef.current = window.setTimeout(() => { setNotice(''); noticeTimeoutRef.current = null; }, NOTICE_TIMEOUT_MS); setDialog(null); } catch (e) { setError(e.message); } finally { setBusy(false); } }
+  const totals = useMemo(() => runs.reduce((a, r) => ({
+    gross: a.gross + Number(r.grossPay || 0),
+    deductions: a.deductions + Number(r.deductions || 0),
+    net: a.net + Number(r.netPay || 0),
+    paid: a.paid + Number(r.amountPaid || 0),
+    balance: a.balance + Number(r.balance ?? r.netPay ?? 0)
+  }), { gross: 0, deductions: 0, net: 0, paid: 0, balance: 0 }), [runs]);
+
+  const visible = runs.filter((r) =>
+    (status === 'all' || r.status === status) &&
+    `${r.employee} ${r.employeeId}`.toLowerCase().includes(search.toLowerCase())
+  );
+
+  async function act(fn, success) {
+    setBusy(true);
+    setError('');
+    try {
+      const result = await fn();
+      await load();
+      setNotice(typeof success === 'function' ? success(result) : success);
+      if (noticeTimeoutRef.current !== null) window.clearTimeout(noticeTimeoutRef.current);
+      noticeTimeoutRef.current = window.setTimeout(() => { setNotice(''); noticeTimeoutRef.current = null; }, NOTICE_TIMEOUT_MS);
+      setDialog(null);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const hasDaysWorked = (emp) => {
     const s = sheetsByEmployee[emp.id];
-    return Number(s?.totalDays) > 0 || (s?.dailyEntries || []).some((e) => !e.absent && Number(e.hours) > 0);
+    return Number(s?.totalDays) > 0 ||
+      Number(s?.holidayPay) > 0 ||
+      (s?.dailyEntries || []).some((e) => e.holidayType === 'paid_holiday' || (!e.absent && Number(e.hours) > 0));
   };
+
   function generate(event) {
     event.preventDefault();
     const eligibleIds = active.filter((employee) =>
       employee.salaryType === 'monthly' ||
-      (employee.salaryType === 'hourly' && Number(sheetsByEmployee[employee.id]?.totalHours) > 0) ||
+      (employee.salaryType === 'hourly' && (Number(sheetsByEmployee[employee.id]?.totalHours) > 0 || Number(sheetsByEmployee[employee.id]?.holidayPay) > 0)) ||
       (employee.salaryType === 'daily' && hasDaysWorked(employee))
     ).map((employee) => employee.id);
-    act(() => request('/runs/generate', 'POST', { period, employeeIds: eligibleIds, overtimeRate: Number(defaultOvertimeRate) || 0 }), (result) => {
+
+    act(() => request('/runs/generate', 'POST', {
+      period,
+      employeeIds: eligibleIds,
+      overtimeRate: Number(defaultOvertimeRate) || 0
+    }), (result) => {
       if (Array.isArray(result.skipped) && result.skipped.length > 0) {
         setSkippedList(result.skipped);
       } else {
@@ -51,60 +133,428 @@ export default function PayrollPage({ defaultOvertimeRate = '0', onOpenEmployee,
       return `Generated ${result.created.length} payroll record${result.created.length === 1 ? '' : 's'}; skipped ${result.skipped.length} employee${result.skipped.length === 1 ? '' : 's'}.`;
     });
   }
+
   async function startGenerate() {
     setError('');
     try {
       const sheets = await Promise.all(active.map(async (employee) => [employee.id, await request(`/employees/${employee.id}/sheet?period=${period}`)]));
       setSheetsByEmployee(Object.fromEntries(sheets));
       setDialog({ type: 'generate' });
-    } catch (e) { setError(e.message); }
+    } catch (e) {
+      setError(e.message);
+    }
   }
+
+  function openHolidays() {
+    setHolidayDate(`${period}-01`);
+    setHolidayName('');
+    setHolidayType('double_holiday');
+    setApplyToSheets(true);
+    setDialog({ type: 'holidays', list: [...periodHolidays] });
+  }
+
+  function addHolidayItem() {
+    if (!holidayDate) return;
+    setDialog((prev) => {
+      if (!prev || prev.type !== 'holidays') return prev;
+      const filtered = prev.list.filter((h) => h.date !== holidayDate);
+      return {
+        ...prev,
+        list: [...filtered, { date: holidayDate, name: holidayName.trim(), type: holidayType }].sort((a, b) => a.date.localeCompare(b.date))
+      };
+    });
+    setHolidayName('');
+  }
+
+  function removeHolidayItem(date) {
+    setDialog((prev) => {
+      if (!prev || prev.type !== 'holidays') return prev;
+      return { ...prev, list: prev.list.filter((h) => h.date !== date) };
+    });
+  }
+
+  async function saveHolidays(e) {
+    e.preventDefault();
+    if (!dialog?.list) return;
+    act(() => request('/holidays', 'PUT', {
+      period,
+      holidays: dialog.list,
+      applyToSheets
+    }), 'Period holidays saved and synchronized.');
+  }
+
   return <section className="payroll-page">
-    <header className="payroll-heading"><div><div className="t-eyebrow">PAYROLL SYSTEM</div><h1 className="t-page-title">Pay runs</h1><p>Prepare, review, finalize, and track employee payments.</p></div><div className="payroll-heading-actions"><label>Pay period<input className="input" type="month" value={period} onChange={(e) => setPeriod(e.target.value)} /></label><button className="btn btn-primary" onClick={startGenerate}><AppIcon icon={Plus} size="sm" /> Generate payroll</button></div></header>
-    {error && <Alert variant="error" dismissible onDismiss={() => setError('')}>{error}</Alert>}{notice && <Alert variant="success">{notice}</Alert>}
-    {skippedList.length > 0 && <Alert variant="warning" dismissible onDismiss={() => setSkippedList([])}><div><strong>Skipped employees ({skippedList.length}):</strong><ul style={{ margin: '4px 0 0 16px', padding: 0 }}>{skippedList.map((item, idx) => <li key={idx}><strong>{item.employee}</strong>: {item.reason}</li>)}</ul></div></Alert>}
-    <div className="payroll-summary">{[['Gross earnings', totals.gross], ['Deductions', totals.deductions], ['Net payroll', totals.net], ['Paid', totals.paid], ['Outstanding', totals.balance]].map(([label, value]) => <article key={label}><span>{label}</span><strong>{money(value)}</strong></article>)}</div>
-    <div className="payroll-panel"><div className="payroll-toolbar"><div><h2>Payroll records</h2><p>{runs.length} employee {runs.length === 1 ? 'record' : 'records'} for {period}</p></div><div className="payroll-filters"><input className="input input-sm" aria-label="Search employees" placeholder="Search employee…" value={search} onChange={(e) => setSearch(e.target.value)} /><select className="select" aria-label="Filter status" value={status} onChange={(e) => setStatus(e.target.value)}><option value="all">All statuses</option>{['draft','finalized','partially-paid','paid','reversed'].map((x) => <option key={x} value={x}>{x.replace('-', ' ')}</option>)}</select></div></div>
-    {loading ? <div className="payroll-empty">Loading payroll…</div> : !visible.length ? <div className="payroll-empty"><strong>{runs.length ? 'No matching records' : 'No payroll records yet'}</strong><p>{runs.length ? 'Change your search or status filter.' : 'Generate a draft from active employees to get started.'}</p>{!runs.length && <button className="btn btn-primary" onClick={startGenerate}>Generate payroll</button>}</div> : <div className="payroll-table-wrap"><table><thead><tr><th>Employee</th><th>Hours</th><th>Gross</th><th>Advance</th><th>Other deductions</th><th>Net pay</th><th>Paid</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead><tbody>{visible.map((r) => <tr key={r.id}><td><strong>{r.employee}</strong><small>{r.employeeId || 'Employee'}</small></td><td>{r.salaryType === 'hourly' ? r.units : `${r.salaryType} · ${r.units}`}</td><td>{money(r.grossPay)}</td><td>{money(r.advanceDeduction)}</td><td>{money(r.regularDeductions ?? (Number(r.deductions) - Number(r.advanceDeduction || 0)))}</td><td><strong>{money(r.netPay)}</strong></td><td>{money(r.amountPaid)}</td><td>{money(r.balance ?? r.netPay)}</td><td><span className={`payroll-status ${r.status}`}>{r.status?.replace('-', ' ')}</span></td><td><div className="payroll-row-actions"><button className="btn btn-secondary btn-sm" onClick={() => setDialog({ type: 'payslip', run: r })}>Payslip</button>{r.status === 'draft' && <><button className="btn btn-secondary btn-sm" onClick={() => setDialog({ type: 'edit', run: r })}>Edit</button><button className="btn btn-secondary btn-sm" onClick={() => setConfirmAction({ title: `Finalize ${r.employee}'s ${r.period} payroll? This locks the run.`, confirmLabel: 'Finalize', description: 'Finalizing locks this payroll run.', action: () => act(() => request(`/runs/${r.id}/finalize`, 'POST', {}), 'Payroll finalized. Expense is recorded as payments are made.') })}>Finalize</button></>}{['finalized','partially-paid'].includes(r.status) && <button className="btn btn-secondary btn-sm" onClick={() => setDialog({ type: 'payment', run: r, paymentId: globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}` })}>Record payment</button>}{r.status === 'finalized' && <button className="btn btn-secondary btn-sm" onClick={() => setDialog({ type: 'reverse', run: r })}>Reverse</button>}<button className="btn btn-secondary btn-sm payroll-delete" onClick={() => setConfirmAction({ title: `Delete ${r.employee}'s ${r.period} payroll record? This cannot be undone.`, confirmLabel: 'Delete record', description: `This permanently deletes the ${r.status} payroll record and its linked payroll expenses.`, action: () => act(() => request(`/runs/${r.id}`, 'DELETE'), 'Payroll record and linked expenses deleted.') })}>Delete</button></div></td></tr>)}</tbody></table></div>}
+    <header className="payroll-heading">
+      <div>
+        <div className="t-eyebrow">PAYROLL SYSTEM</div>
+        <h1 className="t-page-title">Pay runs</h1>
+        <p>Prepare, review, finalize, and track employee payments with holiday pay options.</p>
+      </div>
+      <div className="payroll-heading-actions">
+        <label>Pay period<input className="input" type="month" value={period} onChange={(e) => setPeriod(e.target.value)} /></label>
+        <button className="btn btn-secondary" onClick={openHolidays}>
+          <AppIcon icon={Calendar} size="sm" /> Manage holidays {periodHolidays.length > 0 && `(${periodHolidays.length})`}
+        </button>
+        <button className="btn btn-primary" onClick={startGenerate}>
+          <AppIcon icon={Plus} size="sm" /> Generate payroll
+        </button>
+      </div>
+    </header>
+
+    {error && <Alert variant="error" dismissible onDismiss={() => setError('')}>{error}</Alert>}
+    {notice && <Alert variant="success">{notice}</Alert>}
+    {skippedList.length > 0 && <Alert variant="warning" dismissible onDismiss={() => setSkippedList([])}>
+      <div>
+        <strong>Skipped employees ({skippedList.length}):</strong>
+        <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+          {skippedList.map((item, idx) => <li key={idx}><strong>{item.employee}</strong>: {item.reason}</li>)}
+        </ul>
+      </div>
+    </Alert>}
+
+    <div className="payroll-summary">
+      {[
+        ['Gross earnings', totals.gross],
+        ['Deductions', totals.deductions],
+        ['Net payroll', totals.net],
+        ['Paid', totals.paid],
+        ['Outstanding', totals.balance]
+      ].map(([label, value]) => <article key={label}><span>{label}</span><strong>{money(value)}</strong></article>)}
     </div>
-    {dialog && <Dialog open onOpenChange={(open) => { if (!open && !busy) setDialog(null); }}><DialogContent size="md" busy={busy} className={`payroll-content ${dialog.type === 'payslip' ? 'payslip' : ''}`}><DialogClose className="no-print" disabled={busy}>
-      <AppIcon icon={X} size="sm" />
-    </DialogClose>
-      {dialog.type === 'generate' && <form onSubmit={generate}>
-        <DialogTitle>Review monthly sheets</DialogTitle><p>Pay period: {period}. Hours and advances come from each employee’s saved monthly sheet.</p>
-        {!active.length ? <p>Add employees before generating payroll.</p> : <div className="payroll-units">
-          {active.map((employee) => {
-            const sheet = sheetsByEmployee[employee.id];
-            const needsHours = employee.salaryType === 'hourly' && !(Number(sheet?.totalHours) > 0);
-            const sheetGross = employee.salaryType === 'hourly' && sheet
-              ? (Number(employee.salary) || 0) * (Number(sheet.totalHours) || 0) + (Number(defaultOvertimeRate) || 0) * (Number(sheet.totalOvertimeHours) || 0)
-              : Number(sheet?.grossPay) || 0;
-            const sheetAdvanceOwed = sheet
-              ? Math.max(0, Number(sheet.advanceOwedBefore || 0) + Number(sheet.totalAdvances || 0) - Math.max(0, sheetGross + Number(employee.allowances || 0) + Number(employee.bonus || 0) + Number(employee.commission || 0) - Number(employee.regularDeductions || 0)))
-              : 0;
-            return <div className="payroll-entry" key={employee.id}>
-              <div className="payroll-entry-heading"><strong>{employee.name}</strong><span>{money(employee.salary)} / {employee.salaryType === 'hourly' ? 'hour' : (employee.salaryType || 'month')}</span></div>
-              {employee.salaryType === 'hourly' && Number(sheet?.totalHours) > 0
-                ? <div className="payroll-sheet-summary"><span>{sheet.totalHours} hours worked</span><span>{money(sheetGross)} gross pay</span><span>{sheet.totalOvertimeHours || 0} OT hrs · {money((Number(defaultOvertimeRate) || 0) * (Number(sheet.totalOvertimeHours) || 0))}</span><span>{money(sheet.totalAdvances)} advances</span><span>{money(sheetAdvanceOwed)} still owed</span></div>
-                : employee.salaryType === 'hourly'
-                  ? <div className="payroll-sheet-missing"><span>No hours saved for this month. This employee will be skipped.</span><button type="button" className="btn btn-secondary payroll-open-sheet" onClick={() => { setDialog(null); onOpenEmployee?.(employee); }}>Open monthly sheet</button></div>
-                  : employee.salaryType === 'monthly'
-                    ? <div className="payroll-sheet-summary"><span>Monthly salary</span><span>Hours are not used for this employee.</span></div>
-                    : employee.salaryType === 'daily'
-                      ? hasDaysWorked(employee)
-                        ? <div className="payroll-sheet-summary"><span>{sheetsByEmployee[employee.id]?.totalDays ?? (sheetsByEmployee[employee.id]?.dailyEntries || []).filter((e) => !e.absent && Number(e.hours) > 0).length} days worked</span><span>{money((sheetsByEmployee[employee.id]?.totalDays ?? (sheetsByEmployee[employee.id]?.dailyEntries || []).filter((e) => !e.absent && Number(e.hours) > 0).length) * (Number(employee.salary) || 0))} gross pay</span></div>
-                        : <div className="payroll-sheet-missing"><span>No days worked saved for this month. This employee will be skipped.</span><button type="button" className="btn btn-secondary payroll-open-sheet" onClick={() => { setDialog(null); onOpenEmployee?.(employee); }}>Open monthly sheet</button></div>
-                      : <div className="payroll-sheet-missing"><span>Set pay basis to Hourly, Daily, or Monthly. This employee will be skipped.</span><button type="button" className="btn btn-secondary payroll-open-sheet" onClick={() => { setDialog(null); onEditEmployee?.(employee); }}>Change employee pay basis</button></div>}
-            </div>;
-          })}
-        </div>}
-        <DialogFooter><button className="btn btn-secondary" type="button" onClick={() => setDialog(null)}>Cancel</button><button className="btn btn-primary" disabled={busy || !active.some((employee) => employee.salaryType === 'monthly' || (employee.salaryType === 'hourly' && Number(sheetsByEmployee[employee.id]?.totalHours) > 0) || (employee.salaryType === 'daily' && hasDaysWorked(employee)))}>{busy ? 'Generating…' : 'Create payroll draft'}</button></DialogFooter>
-      </form>}
-      {dialog.type === 'edit' && <form onSubmit={(e) => { e.preventDefault(); const d = Object.fromEntries(new FormData(e.currentTarget)); act(() => request(`/runs/${dialog.run.id}`, 'PATCH', { ...d, units: Number(d.units), regularDeductions: Number(d.regularDeductions), advanceDeduction: Number(d.advanceDeduction) }), 'Draft updated.'); }}><DialogTitle>Edit payroll draft</DialogTitle>{[['units','Hours worked',dialog.run.units],['allowances','Allowances',dialog.run.allowances],['bonus','Bonus',dialog.run.bonus],['commission','Commission',dialog.run.commission],['otherEarnings','Other earnings',dialog.run.otherEarnings],['regularDeductions','Other deductions',dialog.run.regularDeductions ?? (Number(dialog.run.deductions) - Number(dialog.run.advanceDeduction || 0))],['advanceDeduction','Advance already paid',dialog.run.advanceDeduction]].map(([name,label,value]) => <label className="payroll-form-field" key={name}>{label}<input className="input" name={name} type="number" min="0" step="0.01" defaultValue={value ?? 0} /></label>)}<label className="payroll-form-field">Advance date<input className="input" type="date" name="advanceDate" defaultValue={dialog.run.advanceDate || today()} /></label><p>Net pay = hourly earnings + extras − deductions − advances.</p><DialogFooter><button className="btn btn-secondary" type="button" onClick={() => setDialog(null)}>Cancel</button><button className="btn btn-primary" disabled={busy}>Save draft</button></DialogFooter></form>}
-      {dialog.type === 'payment' && <form onSubmit={(e) => { e.preventDefault(); const d = Object.fromEntries(new FormData(e.currentTarget)); act(() => request(`/runs/${dialog.run.id}/payments`, 'POST', { ...d, paymentId: dialog.paymentId }), 'Payment recorded and added to company expenses.'); }}><DialogTitle>Record wage payment</DialogTitle><p>Outstanding: <strong>{money(dialog.run.balance)}</strong>. This payment will be added to company expenses.</p><label className="payroll-form-field">Amount<input className="input" name="amount" type="number" min="0.01" max={dialog.run.balance} step="0.01" required /></label><label className="payroll-form-field">Payment date<input className="input" name="date" type="date" defaultValue={today()} required /></label><label className="payroll-form-field">Method<select className="select" name="method"><option>Cash</option><option>Bank transfer</option><option>Cheque</option><option>Other</option></select></label><label className="payroll-form-field">Reference (optional)<input className="input" name="reference" /></label><label className="payroll-form-field">Notes (optional)<input className="input" name="notes" /></label><DialogFooter><button className="btn btn-secondary" type="button" onClick={() => setDialog(null)}>Cancel</button><button className="btn btn-primary" disabled={busy}>Save payment</button></DialogFooter></form>}
-      {dialog.type === 'reverse' && <form onSubmit={(e) => { e.preventDefault(); const reason = new FormData(e.currentTarget).get('reason'); setConfirmAction({ title: 'Reverse this finalized payroll run? A reversal expense will be recorded.', confirmLabel: 'Reverse run', description: 'A reversal will be recorded in the payroll audit history.', action: () => act(() => request(`/runs/${dialog.run.id}/reverse`, 'POST', { reason }), 'Payroll run reversed with an audit record.') }); }}><DialogTitle>Reverse payroll run</DialogTitle><p>{dialog.run.employee} · {dialog.run.period}</p><label className="payroll-form-field">Reason<textarea className="textarea" name="reason" required /></label><DialogFooter><button className="btn btn-secondary" type="button" onClick={() => setDialog(null)}>Cancel</button><button className="btn btn-primary" disabled={busy}>Reverse run</button></DialogFooter></form>}
-      {dialog.type === 'payslip' && <><div className="t-eyebrow">PAYSLIP · {dialog.run.period}</div><DialogTitle>{dialog.run.employee}</DialogTitle><p>{dialog.run.employeeSnapshot?.position} {dialog.run.employeeId && `· ${dialog.run.employeeId}`}</p><div className="payslip-lines">{[['Hourly rate',`${money(dialog.run.baseRate)} × ${dialog.run.units} hours`],...(Number(dialog.run.overtimeHours) > 0 ? [['Overtime',`${dialog.run.overtimeHours} hours × ${money(dialog.run.overtimeRate)} = ${money(dialog.run.overtimePay)}`]] : []),['Basic earnings',money(dialog.run.basicEarnings)],['Allowances',money(dialog.run.allowances)],['Bonus',money(dialog.run.bonus)],['Commission',money(dialog.run.commission)],['Other earnings',money(dialog.run.otherEarnings)],['Gross pay',money(dialog.run.grossPay)],['Other deductions',`− ${money(dialog.run.regularDeductions ?? (Number(dialog.run.deductions) - Number(dialog.run.advanceDeduction || 0)))}`],...(Number(dialog.run.advanceDeduction) > 0 ? [[`Pay advance${dialog.run.advanceDate ? ` · ${dialog.run.advanceDate}` : ''}`,`− ${money(dialog.run.advanceDeduction)}`]] : []),['Net pay',money(dialog.run.netPay)],['Paid',money(dialog.run.amountPaid)],['Balance',money(dialog.run.balance ?? dialog.run.netPay)]].map(([a,b]) => <div key={a}><span>{a}</span><strong>{b}</strong></div>)}</div><DialogFooter className="no-print"><button className="btn btn-secondary" onClick={() => setDialog(null)}>Close</button><button className="btn btn-primary" onClick={() => window.print()}>Print payslip</button></DialogFooter></>}
-    </DialogContent></Dialog>}
-    <ConfirmDialog open={Boolean(confirmAction)} title={confirmAction?.title || ''} description={confirmAction?.description || ''} confirmLabel={confirmAction?.confirmLabel || 'Confirm'} busy={busy} onCancel={() => setConfirmAction(null)} onConfirm={async () => { const pending = confirmAction; if (pending) await pending.action(); setConfirmAction(null); }} />
+
+    <div className="payroll-panel">
+      <div className="payroll-toolbar">
+        <div>
+          <h2>Payroll records</h2>
+          <p>{runs.length} employee {runs.length === 1 ? 'record' : 'records'} for {period}</p>
+        </div>
+        <div className="payroll-filters">
+          <input className="input input-sm" aria-label="Search employees" placeholder="Search employee…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <select className="select" aria-label="Filter status" value={status} onChange={(e) => setStatus(e.target.value)}>
+            <option value="all">All statuses</option>
+            {['draft','finalized','partially-paid','paid','reversed'].map((x) => <option key={x} value={x}>{x.replace('-', ' ')}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {loading ? <div className="payroll-empty">Loading payroll…</div> : !visible.length ? <div className="payroll-empty">
+        <strong>{runs.length ? 'No matching records' : 'No payroll records yet'}</strong>
+        <p>{runs.length ? 'Change your search or status filter.' : 'Generate a draft from active employees to get started.'}</p>
+        {!runs.length && <button className="btn btn-primary" onClick={startGenerate}>Generate payroll</button>}
+      </div> : <div className="payroll-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Hours / days</th>
+              <th>Holiday pay</th>
+              <th>Gross</th>
+              <th>Advance</th>
+              <th>Other deductions</th>
+              <th>Net pay</th>
+              <th>Paid</th>
+              <th>Balance</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visible.map((r) => <tr key={r.id}>
+              <td><strong>{r.employee}</strong><small>{r.employeeId || 'Employee'}</small></td>
+              <td>{r.salaryType === 'hourly' ? `${r.units} hrs` : `${r.salaryType} · ${r.units}`}</td>
+              <td>{Number(r.holidayPay) > 0 ? <strong>{money(r.holidayPay)}</strong> : '—'}</td>
+              <td>{money(r.grossPay)}</td>
+              <td>{money(r.advanceDeduction)}</td>
+              <td>{money(r.regularDeductions ?? (Number(r.deductions) - Number(r.advanceDeduction || 0)))}</td>
+              <td><strong>{money(r.netPay)}</strong></td>
+              <td>{money(r.amountPaid)}</td>
+              <td>{money(r.balance ?? r.netPay)}</td>
+              <td><span className={`payroll-status ${r.status}`}>{r.status?.replace('-', ' ')}</span></td>
+              <td>
+                <div className="payroll-row-actions">
+                  <button className="btn btn-secondary btn-sm" onClick={() => setDialog({ type: 'payslip', run: r })}>Payslip</button>
+                  {r.status === 'draft' && <>
+                    <button className="btn btn-secondary btn-sm" onClick={() => setDialog({ type: 'edit', run: r })}>Edit</button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => setConfirmAction({
+                      title: `Finalize ${r.employee}'s ${r.period} payroll? This locks the run.`,
+                      confirmLabel: 'Finalize',
+                      description: 'Finalizing locks this payroll run.',
+                      action: () => act(() => request(`/runs/${r.id}/finalize`, 'POST', {}), 'Payroll finalized. Expense is recorded as payments are made.')
+                    })}>Finalize</button>
+                  </>}
+                  {['finalized','partially-paid'].includes(r.status) && <button className="btn btn-secondary btn-sm" onClick={() => setDialog({ type: 'payment', run: r, paymentId: globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}` })}>Record payment</button>}
+                  {r.status === 'finalized' && <button className="btn btn-secondary btn-sm" onClick={() => setDialog({ type: 'reverse', run: r })}>Reverse</button>}
+                  <button className="btn btn-secondary btn-sm payroll-delete" onClick={() => setConfirmAction({
+                    title: `Delete ${r.employee}'s ${r.period} payroll record? This cannot be undone.`,
+                    confirmLabel: 'Delete record',
+                    description: `This permanently deletes the ${r.status} payroll record and its linked payroll expenses.`,
+                    action: () => act(() => request(`/runs/${r.id}`, 'DELETE'), 'Payroll record and linked expenses deleted.')
+                  })}>Delete</button>
+                </div>
+              </td>
+            </tr>)}
+          </tbody>
+        </table>
+      </div>}
+    </div>
+
+    {dialog && <Dialog open onOpenChange={(open) => { if (!open && !busy) setDialog(null); }}>
+      <DialogContent size="md" busy={busy} className={`payroll-content ${dialog.type === 'payslip' ? 'payslip' : ''}`}>
+        <DialogClose className="no-print" disabled={busy}><AppIcon icon={X} size="sm" /></DialogClose>
+
+        {dialog.type === 'holidays' && <form onSubmit={saveHolidays}>
+          <DialogTitle>Manage holidays for {period}</DialogTitle>
+          <p>Configure holidays for this pay period. Choose between <strong>Double pay holiday (200%)</strong>, <strong>Paid holiday (100%)</strong>, and <strong>Regular pay</strong>.</p>
+
+          <div className="payroll-holiday-editor">
+            <div className="payroll-holiday-form-row">
+              <label>Date
+                <input
+                  className="input input-sm"
+                  type="date"
+                  value={holidayDate}
+                  min={`${period}-01`}
+                  onChange={(e) => setHolidayDate(e.target.value)}
+                />
+              </label>
+              <label>Holiday name
+                <input
+                  className="input input-sm"
+                  placeholder="e.g. Christmas Day"
+                  value={holidayName}
+                  onChange={(e) => setHolidayName(e.target.value)}
+                />
+              </label>
+              <label>Pay option
+                <select className="select select-sm" value={holidayType} onChange={(e) => setHolidayType(e.target.value)}>
+                  <option value="double_holiday">Double pay holiday (200%)</option>
+                  <option value="paid_holiday">Paid holiday (100%)</option>
+                  <option value="regular">Regular pay</option>
+                </select>
+              </label>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={addHolidayItem} disabled={!holidayDate}>
+                Add / Update
+              </button>
+            </div>
+
+            <div className="payroll-holiday-list">
+              {!dialog.list?.length ? <p className="payroll-empty" style={{ padding: '20px 0' }}>No holidays added for this period yet.</p> : dialog.list.map((h) => (
+                <div className="payroll-holiday-row" key={h.date}>
+                  <div>
+                    <strong>{h.date}</strong> · <span>{h.name || 'Holiday'}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span className={`payroll-holiday-tag ${h.type}`}>
+                      {h.type === 'double_holiday' ? 'Double pay (200%)' : h.type === 'paid_holiday' ? 'Paid holiday (100%)' : 'Regular pay'}
+                    </span>
+                    <button type="button" className="btn btn-icon btn-ghost btn-sm" aria-label="Remove holiday" onClick={() => removeHolidayItem(h.date)}>
+                      <AppIcon icon={Trash2} size="sm" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <label className="payroll-sync-check">
+              <input type="checkbox" checked={applyToSheets} onChange={(e) => setApplyToSheets(e.target.checked)} />
+              Sync these holidays to active employee timesheets for {period}
+            </label>
+          </div>
+
+          <DialogFooter>
+            <button className="btn btn-secondary" type="button" onClick={() => setDialog(null)}>Cancel</button>
+            <button className="btn btn-primary" disabled={busy}>Save holidays</button>
+          </DialogFooter>
+        </form>}
+
+        {dialog.type === 'generate' && <form onSubmit={generate}>
+          <DialogTitle>Review monthly sheets</DialogTitle>
+          <p>Pay period: {period}. Hours, holidays, and advances come from each employee’s saved monthly sheet.</p>
+          {!active.length ? <p>Add employees before generating payroll.</p> : <div className="payroll-units">
+            {active.map((employee) => {
+              const sheet = sheetsByEmployee[employee.id];
+              const sheetGross = Number(sheet?.grossPay) || 0;
+              const sheetHolidayPay = Number(sheet?.holidayPay) || 0;
+              const sheetAdvanceOwed = sheet
+                ? Math.max(0, Number(sheet.advanceOwedBefore || 0) + Number(sheet.totalAdvances || 0) - Math.max(0, sheetGross + Number(employee.allowances || 0) + Number(employee.bonus || 0) + Number(employee.commission || 0) - Number(employee.regularDeductions || 0)))
+                : 0;
+              const hasHoursOrHoliday = employee.salaryType === 'hourly' && (Number(sheet?.totalHours) > 0 || sheetHolidayPay > 0);
+              const hasDaysOrHoliday = employee.salaryType === 'daily' && (hasDaysWorked(employee) || sheetHolidayPay > 0);
+
+              return <div className="payroll-entry" key={employee.id}>
+                <div className="payroll-entry-heading">
+                  <strong>{employee.name}</strong>
+                  <span>{money(employee.salary)} / {employee.salaryType === 'hourly' ? 'hour' : (employee.salaryType || 'month')}</span>
+                </div>
+                {employee.salaryType === 'hourly' && hasHoursOrHoliday
+                  ? <div className="payroll-sheet-summary">
+                      <span>{sheet.totalHours || 0} hours worked</span>
+                      {sheetHolidayPay > 0 && <span>{money(sheetHolidayPay)} holiday pay</span>}
+                      <span>{sheet.totalOvertimeHours || 0} OT hrs · {money((Number(defaultOvertimeRate) || 0) * (Number(sheet.totalOvertimeHours) || 0))}</span>
+                      <span>{money(sheetGross)} gross pay</span>
+                      <span>{money(sheet.totalAdvances)} advances</span>
+                      <span>{money(sheetAdvanceOwed)} still owed</span>
+                    </div>
+                  : employee.salaryType === 'hourly'
+                    ? <div className="payroll-sheet-missing">
+                        <span>No hours or holidays saved for this month. This employee will be skipped.</span>
+                        <button type="button" className="btn btn-secondary payroll-open-sheet" onClick={() => { setDialog(null); onOpenEmployee?.(employee); }}>Open monthly sheet</button>
+                      </div>
+                    : employee.salaryType === 'monthly'
+                      ? <div className="payroll-sheet-summary">
+                          <span>Monthly salary</span>
+                          <span>Fixed monthly pay basis.</span>
+                        </div>
+                      : employee.salaryType === 'daily'
+                        ? hasDaysOrHoliday
+                          ? <div className="payroll-sheet-summary">
+                              <span>{sheet?.totalDays ?? (sheet?.dailyEntries || []).filter((e) => e.holidayType === 'paid_holiday' || (!e.absent && Number(e.hours) > 0)).length} days</span>
+                              {sheetHolidayPay > 0 && <span>{money(sheetHolidayPay)} holiday pay</span>}
+                              <span>{money(sheetGross || (sheet?.totalDays || 0) * (Number(employee.salary) || 0))} gross pay</span>
+                            </div>
+                          : <div className="payroll-sheet-missing">
+                              <span>No days worked or holidays saved for this month. This employee will be skipped.</span>
+                              <button type="button" className="btn btn-secondary payroll-open-sheet" onClick={() => { setDialog(null); onOpenEmployee?.(employee); }}>Open monthly sheet</button>
+                            </div>
+                        : <div className="payroll-sheet-missing">
+                            <span>Set pay basis to Hourly, Daily, or Monthly. This employee will be skipped.</span>
+                            <button type="button" className="btn btn-secondary payroll-open-sheet" onClick={() => { setDialog(null); onEditEmployee?.(employee); }}>Change employee pay basis</button>
+                          </div>}
+              </div>;
+            })}
+          </div>}
+          <DialogFooter>
+            <button className="btn btn-secondary" type="button" onClick={() => setDialog(null)}>Cancel</button>
+            <button className="btn btn-primary" disabled={busy || !active.some((employee) =>
+              employee.salaryType === 'monthly' ||
+              (employee.salaryType === 'hourly' && (Number(sheetsByEmployee[employee.id]?.totalHours) > 0 || Number(sheetsByEmployee[employee.id]?.holidayPay) > 0)) ||
+              (employee.salaryType === 'daily' && (hasDaysWorked(employee) || Number(sheetsByEmployee[employee.id]?.holidayPay) > 0))
+            )}>
+              {busy ? 'Generating…' : 'Create payroll draft'}
+            </button>
+          </DialogFooter>
+        </form>}
+
+        {dialog.type === 'edit' && <form onSubmit={(e) => {
+          e.preventDefault();
+          const d = Object.fromEntries(new FormData(e.currentTarget));
+          act(() => request(`/runs/${dialog.run.id}`, 'PATCH', {
+            ...d,
+            units: Number(d.units),
+            holidayPay: Number(d.holidayPay || 0),
+            regularDeductions: Number(d.regularDeductions),
+            advanceDeduction: Number(d.advanceDeduction)
+          }), 'Draft updated.');
+        }}>
+          <DialogTitle>Edit payroll draft</DialogTitle>
+          {[
+            ['units', 'Hours / days worked', dialog.run.units],
+            ['holidayPay', 'Holiday pay', dialog.run.holidayPay ?? 0],
+            ['allowances', 'Allowances', dialog.run.allowances],
+            ['bonus', 'Bonus', dialog.run.bonus],
+            ['commission', 'Commission', dialog.run.commission],
+            ['otherEarnings', 'Other earnings', dialog.run.otherEarnings],
+            ['regularDeductions', 'Other deductions', dialog.run.regularDeductions ?? (Number(dialog.run.deductions) - Number(dialog.run.advanceDeduction || 0))],
+            ['advanceDeduction', 'Advance already paid', dialog.run.advanceDeduction]
+          ].map(([name, label, value]) => (
+            <label className="payroll-form-field" key={name}>
+              {label}
+              <input className="input" name={name} type="number" min="0" step="0.01" defaultValue={value ?? 0} />
+            </label>
+          ))}
+          <label className="payroll-form-field">
+            Advance date
+            <input className="input" type="date" name="advanceDate" defaultValue={dialog.run.advanceDate || today()} />
+          </label>
+          <p>Net pay = earnings + holiday pay + extras − deductions − advances.</p>
+          <DialogFooter>
+            <button className="btn btn-secondary" type="button" onClick={() => setDialog(null)}>Cancel</button>
+            <button className="btn btn-primary" disabled={busy}>Save draft</button>
+          </DialogFooter>
+        </form>}
+
+        {dialog.type === 'payment' && <form onSubmit={(e) => {
+          e.preventDefault();
+          const d = Object.fromEntries(new FormData(e.currentTarget));
+          act(() => request(`/runs/${dialog.run.id}/payments`, 'POST', { ...d, paymentId: dialog.paymentId }), 'Payment recorded and added to company expenses.');
+        }}>
+          <DialogTitle>Record wage payment</DialogTitle>
+          <p>Outstanding: <strong>{money(dialog.run.balance)}</strong>. This payment will be added to company expenses.</p>
+          <label className="payroll-form-field">Amount<input className="input" name="amount" type="number" min="0.01" max={dialog.run.balance} step="0.01" required /></label>
+          <label className="payroll-form-field">Payment date<input className="input" name="date" type="date" defaultValue={today()} required /></label>
+          <label className="payroll-form-field">Method<select className="select" name="method"><option>Cash</option><option>Bank transfer</option><option>Cheque</option><option>Other</option></select></label>
+          <label className="payroll-form-field">Reference (optional)<input className="input" name="reference" /></label>
+          <label className="payroll-form-field">Notes (optional)<input className="input" name="notes" /></label>
+          <DialogFooter>
+            <button className="btn btn-secondary" type="button" onClick={() => setDialog(null)}>Cancel</button>
+            <button className="btn btn-primary" disabled={busy}>Save payment</button>
+          </DialogFooter>
+        </form>}
+
+        {dialog.type === 'reverse' && <form onSubmit={(e) => {
+          e.preventDefault();
+          const reason = new FormData(e.currentTarget).get('reason');
+          setConfirmAction({
+            title: 'Reverse this finalized payroll run? A reversal expense will be recorded.',
+            confirmLabel: 'Reverse run',
+            description: 'A reversal will be recorded in the payroll audit history.',
+            action: () => act(() => request(`/runs/${dialog.run.id}/reverse`, 'POST', { reason }), 'Payroll run reversed with an audit record.')
+          });
+        }}>
+          <DialogTitle>Reverse payroll run</DialogTitle>
+          <p>{dialog.run.employee} · {dialog.run.period}</p>
+          <label className="payroll-form-field">Reason<textarea className="textarea" name="reason" required /></label>
+          <DialogFooter>
+            <button className="btn btn-secondary" type="button" onClick={() => setDialog(null)}>Cancel</button>
+            <button className="btn btn-primary" disabled={busy}>Reverse run</button>
+          </DialogFooter>
+        </form>}
+
+        {dialog.type === 'payslip' && <>
+          <div className="t-eyebrow">PAYSLIP · {dialog.run.period}</div>
+          <DialogTitle>{dialog.run.employee}</DialogTitle>
+          <p>{dialog.run.employeeSnapshot?.position} {dialog.run.employeeId && `· ${dialog.run.employeeId}`}</p>
+          <div className="payslip-lines">
+            {[
+              ['Rate', `${money(dialog.run.baseRate)} × ${dialog.run.units} ${dialog.run.salaryType === 'hourly' ? 'hours' : dialog.run.salaryType === 'daily' ? 'days' : 'month'}`],
+              ...(Number(dialog.run.overtimeHours) > 0 ? [['Overtime', `${dialog.run.overtimeHours} hours × ${money(dialog.run.overtimeRate)} = ${money(dialog.run.overtimePay)}`]] : []),
+              ['Basic earnings', money(dialog.run.basicEarnings)],
+              ...(Number(dialog.run.holidayPay) > 0 ? [[
+                'Holiday pay',
+                `${money(dialog.run.holidayPay)}${dialog.run.doubleHolidayCount ? ` (${dialog.run.doubleHolidayCount} double pay` : ''}${dialog.run.paidHolidayCount ? `${dialog.run.doubleHolidayCount ? ', ' : ' ('}${dialog.run.paidHolidayCount} paid holiday` : ''}${dialog.run.doubleHolidayCount || dialog.run.paidHolidayCount ? ')' : ''}`
+              ]] : []),
+              ['Allowances', money(dialog.run.allowances)],
+              ['Bonus', money(dialog.run.bonus)],
+              ['Commission', money(dialog.run.commission)],
+              ['Other earnings', money(dialog.run.otherEarnings)],
+              ['Gross pay', money(dialog.run.grossPay)],
+              ['Other deductions', `− ${money(dialog.run.regularDeductions ?? (Number(dialog.run.deductions) - Number(dialog.run.advanceDeduction || 0)))}`],
+              ...(Number(dialog.run.advanceDeduction) > 0 ? [[`Pay advance${dialog.run.advanceDate ? ` · ${dialog.run.advanceDate}` : ''}`, `− ${money(dialog.run.advanceDeduction)}`]] : []),
+              ['Net pay', money(dialog.run.netPay)],
+              ['Paid', money(dialog.run.amountPaid)],
+              ['Balance', money(dialog.run.balance ?? dialog.run.netPay)]
+            ].map(([a, b]) => <div key={a}><span>{a}</span><strong>{b}</strong></div>)}
+          </div>
+          <DialogFooter className="no-print">
+            <button className="btn btn-secondary" onClick={() => setDialog(null)}>Close</button>
+            <button className="btn btn-primary" onClick={() => window.print()}>Print payslip</button>
+          </DialogFooter>
+        </>}
+      </DialogContent>
+    </Dialog>}
+
+    <ConfirmDialog
+      open={Boolean(confirmAction)}
+      title={confirmAction?.title || ''}
+      description={confirmAction?.description || ''}
+      confirmLabel={confirmAction?.confirmLabel || 'Confirm'}
+      busy={busy}
+      onCancel={() => setConfirmAction(null)}
+      onConfirm={async () => {
+        const pending = confirmAction;
+        if (pending) await pending.action();
+        setConfirmAction(null);
+      }}
+    />
   </section>;
 }

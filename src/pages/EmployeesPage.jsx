@@ -6,7 +6,7 @@ import { Dialog, DialogBody, DialogClose, DialogContent, DialogFooter, DialogHea
 
 const money = (value) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(value) || 0);
 
-export default function EmployeesPage({ employees = [], loading, search, setSearch, defaultOvertimeRate = '0', onDefaultOvertimeRateChange, defaultHolidayRate = '0', onDefaultHolidayRateChange, onCreate, onEdit, onDelete, onSelect }) {
+export default function EmployeesPage({ employees = [], loading, search, setSearch, defaultOvertimeRate = '0', onDefaultOvertimeRateChange, onCreate, onEdit, onDelete, onSelect }) {
   const [status, setStatus] = useState('all');
   const [sort, setSort] = useState('name');
   const [editingRate, setEditingRate] = useState(null);
@@ -17,10 +17,10 @@ export default function EmployeesPage({ employees = [], loading, search, setSear
       : new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0)), [employees, sort, status]);
   const activeCount = employees.filter((employee) => !['inactive','terminated'].includes(String(employee.status || 'active').toLowerCase())).length;
   return <section className="employees-page">
-    <header className="employees-welcome"><div><span className="t-eyebrow">PAYROLL SYSTEM</span><h1 className="t-page-title">Employees</h1><p>Keep employee details, hourly rates, and monthly work sheets together.</p></div><div className="employees-welcome-actions"><button className="btn btn-secondary" type="button" onClick={() => setEditingRate('overtime')}>Overtime rate · {money(defaultOvertimeRate)} / hour</button><button className="btn btn-secondary" type="button" onClick={() => setEditingRate('holiday')}>Holiday rate · {money(defaultHolidayRate)} / hour</button><button className="btn btn-secondary" onClick={onCreate}><AppIcon icon={Plus} size="sm" /> Add employee</button></div></header>
+    <header className="employees-welcome"><div><span className="t-eyebrow">PAYROLL SYSTEM</span><h1 className="t-page-title">Employees</h1><p>Keep employee details, hourly rates, and monthly work sheets together.</p></div><div className="employees-welcome-actions"><button className="btn btn-secondary" type="button" onClick={() => setEditingRate('overtime')}>Overtime rate · {money(defaultOvertimeRate)} / hour</button><button className="btn btn-secondary" onClick={onCreate}><AppIcon icon={Plus} size="sm" /> Add employee</button></div></header>
     <Dialog open={Boolean(editingRate)} onOpenChange={(open) => { if (!open) setEditingRate(null); }}>
       <DialogContent size="sm">
-        {editingRate && <RateEditor type={editingRate} value={editingRate === 'overtime' ? defaultOvertimeRate : defaultHolidayRate} onChange={editingRate === 'overtime' ? onDefaultOvertimeRateChange : onDefaultHolidayRateChange} onClose={() => setEditingRate(null)} />}
+        {editingRate && <RateEditor value={defaultOvertimeRate} onChange={onDefaultOvertimeRateChange} onClose={() => setEditingRate(null)} />}
       </DialogContent>
     </Dialog>
     <div className="employees-summary"><article><span>All employees</span><strong>{employees.length}</strong></article><article><span>Active employees</span><strong>{activeCount}</strong></article><article><span>Payroll basis</span><strong>Hourly</strong><small>New employees default to hourly pay</small></article></div>
@@ -36,12 +36,12 @@ export default function EmployeesPage({ employees = [], loading, search, setSear
   </section>;
 }
 
-function RateEditor({ type, value, onChange, onClose }) {
-  const label = type === 'overtime' ? 'Overtime rate per hour' : 'Holiday rate per hour';
+function RateEditor({ value, onChange, onClose }) {
+  const label = 'Overtime rate per hour';
   return <>
-    <DialogHeader><DialogTitle>{type === 'overtime' ? 'Set shared overtime rate' : `Set default ${label.toLowerCase()}`}</DialogTitle><DialogClose /></DialogHeader>
+    <DialogHeader><DialogTitle>Set shared overtime rate</DialogTitle><DialogClose /></DialogHeader>
     <DialogBody><label className="employees-rate-field"><span>{label}</span><div><span>₱</span><input aria-label={label} type="number" min="0" step="0.01" value={value} onChange={(event) => onChange?.(event.target.value)} /></div></label>
-    <p className="employees-rate-help">{type === 'overtime' ? 'This shared rate is used for every employee’s overtime calculations and payroll.' : 'Saved on this device and prefilled for new employees. Adjust each employee’s rate in their profile.'}</p></DialogBody>
+    <p className="employees-rate-help">This shared rate is used for every employee’s overtime calculations and payroll.</p></DialogBody>
     <DialogFooter><button type="button" className="btn btn-primary" onClick={onClose}>Done</button></DialogFooter>
   </>;
 }
