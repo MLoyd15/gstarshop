@@ -110,6 +110,12 @@
 .booking-payment-status.overpaid { color:#e16878 !important; }
 .booking-legacy-payment-note { grid-column:1/-1; color:#dfa83a; font-size: var(--fs-caption); }
 .booking-payment-history { display:grid; gap:4px; padding-top:9px; border-top:1px solid var(--line); }
+.booking-history-trigger { display:flex; width:100%; min-height:40px; align-items:center; gap:8px; margin-top:10px; padding:8px 11px; border:1px solid var(--line); border-radius:var(--radius-control); background:var(--surface); color:var(--text); font:inherit; font-size:var(--fs-caption); text-align:left; cursor:pointer; transition:border-color 160ms ease,background 160ms ease; }
+.booking-history-trigger:hover { border-color:var(--accent-border); background:var(--accent-soft); }
+.booking-history-trigger:focus-visible { outline:2px solid var(--focus-ring); outline-offset:2px; }
+.booking-history-trigger span:nth-child(2) { padding:2px 7px; border-radius:999px; background:var(--surface-soft); color:var(--text-secondary); font-variant-numeric:tabular-nums; }
+.booking-history-trigger span:last-child { margin-left:auto; color:var(--accent); font-weight:650; }
+.booking-shell .booking-payment-history { padding-top:0; border-top:0; }
 .booking-payment-row { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 0; }
 .booking-payment-row > span { display:grid; min-width:0; gap:3px; }
 .booking-payment-row strong { color:var(--text); font-size: var(--fs-caption); }

@@ -16,43 +16,26 @@ import PurchasesPage from './pages/PurchasesPage.jsx';
 import SupplierPricesPage from './pages/SupplierPricesPage.jsx';
 import ProductsPage from './pages/ProductsPage.jsx';
 import GuidePage from './pages/GuidePage.jsx';
+import EmployeeFormFields from './components/EmployeeFormFields.jsx';
 import logo from './assets/logo.png';
-import { AppIcon, navIcons } from './components/icons.jsx';
-import { ArrowRight, Bell, CalendarDays, ChevronLeft, ChevronRight, Menu, Moon, PanelLeftClose, PanelLeftOpen, Search, Sun, X } from './components/icons.jsx';
-import { Alert, NOTICE_TIMEOUT_MS } from './components/ui/alert.tsx';
-import { Dialog, DialogBody, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from './components/ui/dialog.tsx';
-import { ConfirmDialog } from './components/ui/alert-dialog.tsx';
-import AccountMenu from './components/auth/AccountMenu.jsx';
-import { useAuth } from './components/auth/AuthProvider.jsx';
+import { Icon } from './shared.jsx';
 
 const sections = [
-  { heading: 'Overview', items: [
-    { id: 'supplier-dashboard', label: 'Dashboard' },
-    { id: 'supplier-reports', label: 'Reports' }
-  ] },
-  { heading: 'Sales', items: [
-    { id: 'clients', label: 'Clients' },
-    { id: 'bookings', label: 'Bookings' }
-  ] },
-  { heading: 'Inventory', items: [
-    { id: 'materials', label: 'Materials' },
-    { id: 'products', label: 'Products' }
-  ] },
-  { heading: 'Purchasing', items: [
-    { id: 'suppliers', label: 'Suppliers' },
-    { id: 'prices', label: 'Supplier prices' },
-    { id: 'purchases', label: 'Purchases' }
-  ] },
-  { heading: 'Finance', items: [
-    { id: 'income', label: 'Income' },
-    { id: 'expenses', label: 'Expenses' }
+  { heading: 'G4 Sticker', items: [
+    { id: 'supplier-dashboard', label: 'Dashboard', icon: '◫' },
+    { id: 'suppliers', label: 'Suppliers', icon: '♙' },
+    { id: 'products', label: 'Products', icon: '▧' },
+    { id: 'materials', label: 'Materials', icon: '▦' },
+    { id: 'prices', label: 'Supplier prices', icon: '＄' },
+    { id: 'purchases', label: 'Purchases', icon: '🛒' },
+    { id: 'bookings', label: 'Bookings', icon: '▣' },
+    { id: 'supplier-reports', label: 'Reports', icon: '▥' },
+    { id: 'clients', label: 'Clients', icon: '◎' },
+    { id: 'guide', label: 'Learn the flow', icon: '?' }
   ] },
   { heading: 'Payroll system', items: [
-    { id: 'employees', label: 'Employees' },
-    { id: 'payroll-runs', label: 'Pay runs' }
-  ] },
-  { heading: 'Help', items: [
-    { id: 'guide', label: 'Learn the flow' }
+    { id: 'employees', label: 'Employees', icon: '♙' },
+    { id: 'payroll-runs', label: 'Pay runs', icon: '＄' }
   ] }
 ];
 
@@ -76,26 +59,10 @@ const fieldsFor = {
   expenses: [['name', 'Description'], ['category', 'Category'], ['amount', 'Amount'], ['date', 'Date']],
   profit: [['name', 'Period'], ['income', 'Income'], ['expenses', 'Expenses'], ['amount', 'Net profit']],
   shareholders: [['name', 'Shareholder'], ['email', 'Email'], ['shares', 'Shares'], ['percentage', 'Ownership %']],
-  employees: [['employeeId', 'Employee ID'], ['name', 'Full name'], ['position', 'Position'], ['email', 'Email'], ['phone', 'Phone'], ['salary', 'Hourly rate / pay rate'], ['holidayRate', 'Holiday rate per hour'], ['salaryType', 'Pay basis'], ['allowances', 'Regular allowances'], ['bonus', 'Regular bonus'], ['commission', 'Regular commission'], ['regularDeductions', 'Regular deductions'], ['effectiveDate', 'Rate effective date'], ['payFrequency', 'Pay frequency'], ['status', 'Status']],
+  employees: [['employeeId', 'Employee ID'], ['name', 'Full name'], ['position', 'Position'], ['email', 'Email'], ['phone', 'Phone'], ['salary', 'Hourly rate / pay rate'], ['salaryType', 'Pay basis'], ['allowances', 'Regular allowances'], ['bonus', 'Regular bonus'], ['commission', 'Regular commission'], ['regularDeductions', 'Regular deductions'], ['effectiveDate', 'Rate effective date'], ['status', 'Status']],
   'payroll-runs': [],
   notepad: [['name', 'Title'], ['content', 'Note'], ['updated', 'Last updated']]
 };
-
-const OVERTIME_RATE_KEY = 'gstarshop.defaultOvertimeRate';
-const HOLIDAY_RATE_KEY = 'gstarshop.defaultHolidayRate';
-const SIDEBAR_COLLAPSED_KEY = 'gstarshop.sidebarCollapsed';
-function readDefaultRate(key) {
-  try {
-    const value = Number(window.localStorage.getItem(key));
-    return Number.isFinite(value) && value >= 0 ? String(value) : '0';
-  } catch { return '0'; }
-}
-
-function readSidebarCollapsed() {
-  try {
-    return window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true';
-  } catch { return false; }
-}
 
 const titles = {
   'supplier-dashboard': 'G4 Sticker dashboard', suppliers: 'Suppliers',
@@ -106,22 +73,14 @@ const titles = {
   notepad: 'Notepad', settings: 'Settings', guide: 'Learn the flow'
 };
 
-const defaultAppearance = { accent: '#0878b8', textScale: 1.15, nightMode: true };
+const defaultAppearance = { accent: '#6967d9', textScale: 1.15, nightMode: true };
 const accentPresets = [
-  { label: 'Cyan', value: '#0878b8' },
   { label: 'Violet', value: '#6967d9' },
+  { label: 'Ocean', value: '#2878c7' },
   { label: 'Forest', value: '#26836b' },
-  { label: 'Coral', value: '#b94753' },
-  { label: 'Amber', value: '#a66a10' }
+  { label: 'Coral', value: '#d46a70' },
+  { label: 'Amber', value: '#bd7d28' }
 ];
-
-function accentTextColor(hex) {
-  const channel = (start) => { const value = parseInt(hex.slice(start, start + 2), 16) / 255; return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4; };
-  const luminance = 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
-  const whiteContrast = 1.05 / (luminance + 0.05);
-  const darkContrast = (luminance + 0.05) / 0.05;
-  return whiteContrast >= darkContrast ? '#ffffff' : '#04101c';
-}
 
 function readAppearance() {
   try {
@@ -149,23 +108,15 @@ function toDateValue(date) {
 
 function dateFromValue(value) {
   if (!value) return null;
-  const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!match) return null;
-  const [, yearText, monthText, dayText] = match;
-  const year = Number(yearText);
-  const month = Number(monthText);
-  const day = Number(dayText);
+  const [year, month, day] = value.split('-').map(Number);
   const date = new Date(year, month - 1, day);
-  return !Number.isNaN(date.getTime()) && date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day
-    ? date
-    : null;
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function DatePicker({ name, value, required }) {
   const wrapperRef = useRef(null);
   const popoverRef = useRef(null);
-  const normalizedValue = dateFromValue(value) ? toDateValue(dateFromValue(value)) : '';
-  const [selectedValue, setSelectedValue] = useState(normalizedValue);
+  const [selectedValue, setSelectedValue] = useState(value);
   const selectedDate = dateFromValue(selectedValue);
   const [open, setOpen] = useState(false);
   const [popoverPosition, setPopoverPosition] = useState({ top: 0, left: 0 });
@@ -173,12 +124,6 @@ function DatePicker({ name, value, required }) {
     const initialDate = selectedDate || new Date();
     return new Date(initialDate.getFullYear(), initialDate.getMonth(), 1);
   });
-
-  useEffect(() => {
-    setSelectedValue(normalizedValue);
-    const nextDate = dateFromValue(normalizedValue);
-    if (nextDate) setVisibleMonth(new Date(nextDate.getFullYear(), nextDate.getMonth(), 1));
-  }, [normalizedValue]);
 
   function updatePopoverPosition() {
     const rect = wrapperRef.current?.getBoundingClientRect();
@@ -232,7 +177,7 @@ function DatePicker({ name, value, required }) {
   return (
     <div className="date-picker" ref={wrapperRef}>
       <input type="hidden" name={name} value={selectedValue} />
-      <button type="button" className={`input date-picker-trigger${open ? 'is-open' : ''}`}
+      <button type="button" className={`date-picker-trigger ${open ? 'is-open' : ''}`}
         aria-label={selectedDate ? `Selected date: ${selectedDate.toLocaleDateString()}` : 'Choose a date'}
         aria-haspopup="dialog" aria-expanded={open} aria-required={required || undefined}
         onClick={() => {
@@ -243,15 +188,15 @@ function DatePicker({ name, value, required }) {
         <span className={selectedDate ? '' : 'date-placeholder'}>
           {selectedDate ? selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Choose a date'}
         </span>
-        <AppIcon icon={CalendarDays} size="sm" className="date-trigger-icon" />
+        <span className="date-trigger-icon" aria-hidden="true">▦</span>
       </button>
       {open && createPortal(
-        <div className="calendar-popover" ref={popoverRef} style={{ top: popoverPosition.top, left: popoverPosition.left }} role="group" aria-label="Choose a date">
+        <div className="calendar-popover" ref={popoverRef} style={{ top: popoverPosition.top, left: popoverPosition.left }} role="dialog" aria-label="Choose a date">
           <div className="calendar-heading">
             <div className="calendar-heading-copy"><span>SELECT DATE</span><strong>{monthLabel}</strong></div>
             <div className="calendar-month-nav">
-              <button className="btn btn-icon btn-ghost" type="button" aria-label="Previous month" onClick={() => changeMonth(-1)}><AppIcon icon={ChevronLeft} /></button>
-              <button className="btn btn-icon btn-ghost" type="button" aria-label="Next month" onClick={() => changeMonth(1)}><AppIcon icon={ChevronRight} /></button>
+              <button type="button" aria-label="Previous month" onClick={() => changeMonth(-1)}>‹</button>
+              <button type="button" aria-label="Next month" onClick={() => changeMonth(1)}>›</button>
             </div>
           </div>
           <div className="calendar-weekdays" aria-hidden="true">
@@ -269,15 +214,15 @@ function DatePicker({ name, value, required }) {
                 dateValue === selectedValue ? 'selected' : '',
                 dateValue === todayValue ? 'today' : ''
               ].filter(Boolean).join(' ');
-              return <button type="button" className={`btn btn-ghost btn-sm ${dayClasses}`} key={dateValue}
+              return <button type="button" className={dayClasses} key={dateValue}
                 aria-label={date.toLocaleDateString('en-US', { dateStyle: 'full' })}
                 aria-pressed={dateValue === selectedValue}
                 onClick={() => chooseDate(date)}>{date.getDate()}</button>;
             })}
           </div>
           <div className="calendar-footer">
-            <button type="button" className="btn calendar-clear btn-secondary" onClick={() => { setSelectedValue(''); setOpen(false); }}>Clear date</button>
-            <button type="button" className="btn calendar-today btn-secondary" onClick={() => chooseDate(new Date())}>Today</button>
+            <button type="button" className="calendar-clear" onClick={() => { setSelectedValue(''); setOpen(false); }}>Clear date</button>
+            <button type="button" className="calendar-today" onClick={() => chooseDate(new Date())}>Today</button>
           </div>
         </div>, document.body
       )}
@@ -287,37 +232,19 @@ function DatePicker({ name, value, required }) {
 
 
 function App() {
-  const auth = useAuth();
   const [active, setActive] = useState('supplier-dashboard');
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [isMobileViewport, setIsMobileViewport] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 800px)').matches);
-  const sidebarRef = useRef(null);
-  const mobileMenuRef = useRef(null);
-  const globalSearchRef = useRef(null);
-  const drawerWasOpen = useRef(false);
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [modal, setModal] = useState(false);
   const [modalError, setModalError] = useState('');
-  const [modalSaving, setModalSaving] = useState(false);
-  const [confirmDialog, setConfirmDialog] = useState(null);
-  const [confirmBusy, setConfirmBusy] = useState(false);
   const [editing, setEditing] = useState(null);
   const [sheetEmployee, setSheetEmployee] = useState(null);
   const [search, setSearch] = useState('');
-  const [searchExpanded, setSearchExpanded] = useState(false);
-  const [searchPanelOpen, setSearchPanelOpen] = useState(false);
-  const [systemSearchResults, setSystemSearchResults] = useState([]);
-  const [systemSearchLoading, setSystemSearchLoading] = useState(false);
-  const [systemSearchError, setSystemSearchError] = useState('');
   const [health, setHealth] = useState('checking');
   const [notice, setNotice] = useState('');
-  const noticeTimeoutRef = useRef(null);
   const [appearance, setAppearance] = useState(readAppearance);
-  const [defaultOvertimeRate, setDefaultOvertimeRate] = useState(() => readDefaultRate(OVERTIME_RATE_KEY));
-  const [defaultHolidayRate, setDefaultHolidayRate] = useState(() => readDefaultRate(HOLIDAY_RATE_KEY));
   const [dashboardPeriod, setDashboardPeriod] = useState(new Date().toISOString().slice(0, 7));
   const [dashboardMonths, setDashboardMonths] = useState(6);
   const [dashboardLoading, setDashboardLoading] = useState(true);
@@ -340,88 +267,8 @@ function App() {
   const resource = resourceFor[active];
   const fields = fieldsFor[active] || [];
 
-  useEffect(() => () => {
-    if (noticeTimeoutRef.current !== null) window.clearTimeout(noticeTimeoutRef.current);
-  }, []);
-
   useEffect(() => {
-    const media = window.matchMedia('(max-width: 800px)');
-    const updateViewport = (event) => setIsMobileViewport(event.matches);
-    setIsMobileViewport(media.matches);
-    media.addEventListener('change', updateViewport);
-    return () => media.removeEventListener('change', updateViewport);
-  }, []);
-
-  useEffect(() => {
-    function handleGlobalSearchKeys(event) {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        setSearchExpanded(true);
-        globalSearchRef.current?.focus();
-      } else if (event.key === 'Escape' && document.activeElement === globalSearchRef.current) {
-        if (searchPanelOpen) setSearchPanelOpen(false);
-        else if (search) setSearch('');
-        else {
-          globalSearchRef.current?.blur();
-          setSearchExpanded(false);
-        }
-      }
-    }
-    window.addEventListener('keydown', handleGlobalSearchKeys);
-    return () => window.removeEventListener('keydown', handleGlobalSearchKeys);
-  }, [search, searchPanelOpen]);
-
-  useEffect(() => {
-    if (searchExpanded) globalSearchRef.current?.focus();
-  }, [searchExpanded]);
-
-  useEffect(() => {
-    const query = search.trim();
-    if (query.length < 2) {
-      setSystemSearchResults([]);
-      setSystemSearchLoading(false);
-      setSystemSearchError('');
-      return undefined;
-    }
-    setSystemSearchResults([]);
-    setSystemSearchLoading(true);
-    setSystemSearchError('');
-    const controller = new AbortController();
-    const timer = window.setTimeout(async () => {
-      setSystemSearchLoading(true);
-      setSystemSearchError('');
-      try {
-        const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`, { signal: controller.signal });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Search is unavailable right now.');
-        setSystemSearchResults(Array.isArray(data.results) ? data.results : []);
-      } catch (error) {
-        if (error.name !== 'AbortError') setSystemSearchError(error.message);
-      } finally {
-        if (!controller.signal.aborted) setSystemSearchLoading(false);
-      }
-    }, 180);
-    return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [search]);
-
-  useEffect(() => {
-    if (!mobileOpen || !isMobileViewport) return undefined;
-    sidebarRef.current?.focus();
-    const closeOnEscape = (event) => {
-      if (event.key === 'Escape') setMobileOpen(false);
-    };
-    window.addEventListener('keydown', closeOnEscape);
-    return () => window.removeEventListener('keydown', closeOnEscape);
-  }, [mobileOpen, isMobileViewport]);
-
-  useEffect(() => {
-    if (isMobileViewport && drawerWasOpen.current && !mobileOpen) mobileMenuRef.current?.focus();
-    drawerWasOpen.current = mobileOpen;
-  }, [mobileOpen, isMobileViewport]);
-
-  useEffect(() => {
-    document.documentElement.style.setProperty('--accent', appearance.accent);
-    document.documentElement.style.setProperty('--accent-contrast', accentTextColor(appearance.accent));
+    document.documentElement.style.setProperty('--purple', appearance.accent);
     document.documentElement.style.setProperty('--type-scale', String(appearance.textScale));
     document.documentElement.dataset.theme = appearance.nightMode ? 'dark' : 'light';
     const themeColor = document.querySelector('meta[name="theme-color"]');
@@ -434,11 +281,6 @@ function App() {
       setAppearanceError('Your appearance changes are active for now, but could not be saved on this device.');
     }
   }, [appearance]);
-
-  useEffect(() => {
-    try { window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(sidebarCollapsed)); }
-    catch { /* Sidebar preference remains active for the current session. */ }
-  }, [sidebarCollapsed]);
 
   async function refreshNotifications(signal) {
     try {
@@ -518,27 +360,6 @@ function App() {
     setMobileOpen(false);
     setNotificationsOpen(false);
     setSearch('');
-    setSearchExpanded(false);
-    setSearchPanelOpen(false);
-  }
-
-  function openSearchResult(result) {
-    const resourcePages = {
-      suppliers: 'suppliers', products: 'products', inventory: 'materials', materials: 'materials',
-      prices: 'prices', 'supplier-prices': 'prices', purchases: 'purchases', 'purchase-orders': 'purchases',
-      'purchase-order-counters': 'purchases', 'excel-sheet': 'excel-sheet', scheduler: 'scheduler',
-      bookings: 'bookings', clients: 'clients', income: 'income', expenses: 'expenses', profit: 'profit',
-      shareholders: 'shareholders', employees: 'employees', 'payroll-runs': 'payroll-runs',
-      'payroll-timesheets': 'employees', 'stock-movements': 'materials', notepad: 'notepad',
-      'material-categories': 'materials'
-    };
-    const destination = resourcePages[result.resource];
-    if (!destination) return;
-    setActive(destination);
-    setMobileOpen(false);
-    setNotificationsOpen(false);
-    setSearchPanelOpen(false);
-    setSearchExpanded(false);
   }
 
   function openCreate() {
@@ -564,7 +385,6 @@ function App() {
       ? resource === 'bookings' ? `/api/bookings/${editing.id}` : `/api/records/${resource}/${editing.id}`
       : `/api/records/${resource}`;
     setModalError('');
-    setModalSaving(true);
     try {
       const response = await fetch(url, {
         method: editing ? 'PATCH' : 'POST',
@@ -579,27 +399,15 @@ function App() {
       if (resource === 'bookings') refreshNotifications();
       setModal(false);
       setNotice(editing ? 'Changes saved successfully.' : 'Record added successfully.');
-      if (noticeTimeoutRef.current !== null) window.clearTimeout(noticeTimeoutRef.current);
-      noticeTimeoutRef.current = window.setTimeout(() => {
-        setNotice('');
-        noticeTimeoutRef.current = null;
-      }, NOTICE_TIMEOUT_MS);
+      window.setTimeout(() => setNotice(''), 3000);
     } catch (saveError) {
       setModalError(saveError.message);
-    } finally {
-      setModalSaving(false);
     }
   }
 
-  function deleteRecord(record) {
-    setConfirmDialog({ record, title: `Delete "${record[fields[0]?.[0]] || 'this record'}"?` });
-  }
-
-  async function confirmDelete() {
-    if (!confirmDialog) return;
-    setConfirmBusy(true);
+  async function deleteRecord(record) {
+    if (!window.confirm(`Delete "${record[fields[0]?.[0]] || 'this record'}"? This can’t be undone.`)) return;
     try {
-      const { record } = confirmDialog;
       const url = resource === 'bookings' ? `/api/bookings/${record.id}` : `/api/records/${resource}/${record.id}`;
       const response = await fetch(url, { method: 'DELETE' });
       if (!response.ok) {
@@ -610,116 +418,104 @@ function App() {
       if (resource === 'bookings') refreshNotifications();
     } catch (deleteError) {
       setError(deleteError.message);
-    } finally {
-      setConfirmDialog(null);
-      setConfirmBusy(false);
     }
   }
 
   const filteredRecords = records.filter((record) =>
     Object.values(record).some((value) => String(value).toLowerCase().includes(search.toLowerCase()))
   );
-  const query = search.trim().toLowerCase();
-  const matchingPages = query ? allItems.filter((item) => item.label.toLowerCase().includes(query)).slice(0, 5) : [];
 
   return (
-    <div className={`app-shell${sidebarCollapsed && !isMobileViewport ? ' sidebar-collapsed' : ''}`}>
+    <div className="app-shell">
       {mobileOpen && <button className="mobile-scrim" aria-label="Close navigation" onClick={() => setMobileOpen(false)} />}
-      <aside id="app-sidebar" ref={sidebarRef} tabIndex={-1} inert={isMobileViewport && !mobileOpen ? '' : undefined} className={`sidebar ${mobileOpen ? 'sidebar-open' : ''}`}>
+      <aside className={`sidebar ${mobileOpen ? 'sidebar-open' : ''}`}>
         <div className="brand">
           <div className="brand-mark"><img className="brand-logo" src={logo} alt="G Sticker Works logo" /></div>
           <span className="brand-name">G4 <span>Sticker</span></span>
-          <button type="button" className="btn btn-icon btn-ghost sidebar-collapse-toggle" aria-expanded={!sidebarCollapsed} aria-controls="app-sidebar" aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}>
-            <AppIcon icon={sidebarCollapsed ? PanelLeftOpen : PanelLeftClose} />
-          </button>
+          <button className="collapse-button" aria-label="Toggle navigation" onClick={() => setMobileOpen(false)}>‹</button>
         </div>
-        <nav className="navigation" aria-label="Main">
+        <nav className="navigation" aria-label="Main navigation">
           {sections.map((section) => (
             <div className="nav-section" key={section.heading}>
               <div className="nav-heading">{section.heading}</div>
-              <ul className="nav-list">
-                {section.items.map((item) => (
-                  <li key={`${section.heading}-${item.id}`}>
-                    <button type="button" className={`btn nav-item btn-ghost${active === item.id ? ' active' : ''}`}
-                      aria-label={item.label} aria-current={active === item.id ? 'page' : undefined} title={item.label}
-                      onClick={() => navigate(item.id)}>
-                      <AppIcon icon={navIcons[item.id]} /><span className="nav-label">{item.label}</span>
-                      {item.badge && <span className="nav-badge">{item.badge}</span>}
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              {section.items.map((item) => (
+                <button key={`${section.heading}-${item.id}`} className={`nav-item ${active === item.id ? 'active' : ''}`}
+                  onClick={() => navigate(item.id)}>
+                  <Icon>{item.icon}</Icon><span className="nav-label">{item.label}</span>
+                  {item.badge && <span className="nav-badge">{item.badge}</span>}
+                </button>
+              ))}
             </div>
           ))}
           <div className="nav-divider" />
-          <ul className="nav-list nav-utility-list">
-            {['notepad', 'settings'].map((id) => {
-              const label = id === 'notepad' ? 'Notepad' : 'Settings';
-              return <li key={id}><button type="button" className={`btn nav-item btn-ghost${active === id ? ' active' : ''}`}
-                aria-label={label} aria-current={active === id ? 'page' : undefined} title={label} onClick={() => navigate(id)}>
-                <AppIcon icon={navIcons[id]} /><span className="nav-label">{label}</span>
-              </button></li>;
-            })}
-          </ul>
+          {[{ id: 'notepad', label: 'Notepad', icon: '▤' }].map((item) => (
+            <button key={item.id} className={`nav-item ${active === item.id ? 'active' : ''}`} onClick={() => navigate(item.id)}>
+              <Icon>{item.icon}</Icon><span className="nav-label">{item.label}</span>
+            </button>
+          ))}
+          <button className={`nav-item ${active === 'settings' ? 'active' : ''}`} onClick={() => navigate('settings')}>
+            <Icon>⚙</Icon><span className="nav-label">Settings</span>
+          </button>
         </nav>
+        <div className="sidebar-bottom">
+          <button type="button" className="help-card" aria-label="Open Learn the flow guide" onClick={() => navigate('guide')}>
+            <span className="help-icon" aria-hidden="true">✳</span>
+            <span className="help-card-copy"><strong>Need a hand?</strong><span>Learn how the workflow fits together.</span></span>
+            <span className="help-card-arrow" aria-hidden="true">↗</span>
+          </button>
+          <div className="profile-button">
+            <div className="profile-avatar">JD</div>
+            <div className="profile-copy"><strong>Jamie Davis</strong><span>Workspace admin</span></div>
+            <span className="profile-menu">···</span>
+          </div>
+        </div>
       </aside>
 
       <main className="main-area">
         <header className="topbar">
-          <button ref={mobileMenuRef} type="button" className="btn mobile-menu-button btn-icon btn-ghost" aria-label={mobileOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={mobileOpen} aria-controls="app-sidebar" title={mobileOpen ? 'Close navigation' : 'Open navigation'} onClick={() => setMobileOpen((open) => !open)}><AppIcon icon={Menu} /></button>
+          <button className="mobile-menu-button" aria-label="Open navigation" onClick={() => setMobileOpen(true)}>☰</button>
           <div className="breadcrumbs"><span>Workspace</span><span className="crumb-slash">/</span><strong>{activeLabel}</strong></div>
           <div className="topbar-actions">
             <span className={`connection-status ${health}`}><span className="status-dot" />{health === 'connected' ? 'All systems live' : health === 'checking' ? 'Connecting…' : 'Offline'}</span>
             {active !== 'guide' && <>
-              <button type="button" className="btn icon-button search-shortcut btn-icon btn-ghost" aria-label="Search" title="Search" onClick={() => document.querySelector('.global-search input')?.focus()}><AppIcon icon={Search} /></button>
-              <div className="global-search-wrap">
-                <label className={`global-search${searchExpanded ? ' search-expanded' : ''}`} onClick={() => { if (isMobileViewport) setSearchExpanded(true); }}><span aria-hidden="true"><AppIcon icon={Search} size="sm" /></span><input ref={globalSearchRef} className="input input-sm" placeholder="Search anything..." aria-label="Search anything..." value={search} onFocus={() => setSearchPanelOpen(true)} onChange={(event) => { setSearch(event.target.value); setSearchPanelOpen(true); }} /><kbd>⌘ K</kbd></label>
-                {search && (!isMobileViewport || searchExpanded) && <button type="button" className="search-clear" aria-label="Clear search" title="Clear search" onClick={() => { setSearch(''); setSearchPanelOpen(true); globalSearchRef.current?.focus(); }}><AppIcon icon={X} size="sm" /></button>}
-                {searchPanelOpen && query && <div className="global-search-results" role="region" aria-label="Search results">
-                  {matchingPages.length > 0 && <><div className="global-search-group-label">Sections</div>{matchingPages.map((item) => <button type="button" className="global-search-result" key={item.id} onClick={() => navigate(item.id)}><AppIcon icon={navIcons[item.id] || Search} size="sm" /><span>{item.label}</span><small>Open section</small></button>)}</>}
-                  {systemSearchResults.length > 0 && <><div className="global-search-group-label">Records across G4 Sticker</div>{systemSearchResults.map((result) => <button type="button" className="global-search-result" key={`${result.resource}-${result.id}`} onClick={() => openSearchResult(result)}><AppIcon icon={navIcons[result.resource] || Search} size="sm" /><span>{result.title}{result.summary && <small className="global-search-summary">{result.summary}</small>}</span><small>{result.resource.replaceAll('-', ' ')}</small></button>)}</>}
-                  {systemSearchLoading && <p className="global-search-empty">Searching all sections…</p>}
-                  {systemSearchError && <p className="global-search-empty" role="alert">{systemSearchError}</p>}
-                  {!systemSearchLoading && !systemSearchError && query.length < 2 && !matchingPages.length && <p className="global-search-empty">Type at least 2 characters to search records.</p>}
-                  {!systemSearchLoading && !systemSearchError && query.length >= 2 && !matchingPages.length && !systemSearchResults.length && <p className="global-search-empty">No matching sections or records.</p>}
-                </div>}
-              </div>
+              <button className="icon-button search-shortcut" aria-label="Search" onClick={() => document.querySelector('.global-search')?.focus()}>⌕</button>
+              <label className="global-search"><span>⌕</span><input placeholder="Search anything..." aria-label="Search records" value={search} onChange={(event) => setSearch(event.target.value)} /><kbd>⌘ K</kbd></label>
             </>}
             <button
               type="button"
-              className="btn icon-button theme-toggle btn-icon btn-ghost"
+              className="icon-button theme-toggle"
               aria-label={appearance.nightMode ? 'Switch to light mode' : 'Switch to dark mode'}
               title={appearance.nightMode ? 'Switch to light mode' : 'Switch to dark mode'}
               onClick={() => setAppearance((prev) => ({ ...prev, nightMode: !prev.nightMode }))}
             >
-              <AppIcon icon={appearance.nightMode ? Sun : Moon} />
+              {appearance.nightMode ? '☀' : '☾'}
             </button>
             <div className="notification-wrap">
-              <button className={`btn icon-button notification-button btn-icon btn-ghost${notificationsOpen ? 'is-open' : ''}`}
-                aria-label="Notifications" aria-expanded={notificationsOpen}
-                title="Notifications" onClick={() => setNotificationsOpen((open) => !open)}>
-                <AppIcon icon={Bell} />{notifications.count > 0 && <span className="notification-count">{notifications.count > 99 ? '99+' : notifications.count}</span>}
+              <button className={`icon-button notification-button ${notificationsOpen ? 'is-open' : ''}`}
+                aria-label={`Notifications${notifications.count ? `, ${notifications.count} ongoing bookings` : ''}`}
+                aria-expanded={notificationsOpen} onClick={() => setNotificationsOpen((open) => !open)}>
+                ♧{notifications.count > 0 && <span className="notification-count">{notifications.count > 99 ? '99+' : notifications.count}</span>}
               </button>
-              {notificationsOpen && <div id="notifications-popover" className="notification-popover">
+              {notificationsOpen && <div className="notification-popover">
                 <div className="notification-heading"><div><strong>Notifications</strong><span>Ongoing bookings</span></div><span className="notification-heading-count">{notifications.count}</span></div>
                 {notificationsError ? <p className="notification-empty">{notificationsError}</p>
                   : notifications.bookings.length ? <div className="notification-list">{notifications.bookings.map((booking) => (
                     <button className="notification-item" key={booking.id} onClick={() => { setNotificationsOpen(false); navigate('bookings'); }}>
-                      <span className="notification-item-icon" aria-hidden="true"><AppIcon icon={navIcons.bookings} size="sm" /></span>
+                      <span className="notification-item-icon">▣</span>
                       <span className="notification-item-copy"><strong>{booking.name}</strong>
                         <span>{[booking.client, booking.date ? new Date(`${booking.date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '', booking.status].filter(Boolean).join(' · ')}</span>
-                      </span><span className="notification-item-arrow" aria-hidden="true"><AppIcon icon={ArrowRight} size="sm" /></span>
+                      </span><span className="notification-item-arrow">→</span>
                     </button>
                   ))}</div> : <p className="notification-empty">No ongoing bookings right now. New active bookings will appear here.</p>}
-                <button type="button" className="btn notification-view-all btn-secondary" onClick={() => { setNotificationsOpen(false); navigate('bookings'); }}>View all bookings <span aria-hidden="true"><AppIcon icon={ArrowRight} size="sm" /></span></button>
+                <button className="notification-view-all" onClick={() => { setNotificationsOpen(false); navigate('bookings'); }}>View all bookings <span>→</span></button>
               </div>}
             </div>
-            <AccountMenu />
+            <div className="top-avatar">JD</div>
           </div>
         </header>
         <div className="content">
-          {error && <Alert variant="error" title="Couldn’t load your data" dismissible onDismiss={() => setError('')}>{error} Check your server and MongoDB connection, then refresh.</Alert>}
-          {notice && <Alert variant="success">{notice}</Alert>}
+          {error && <div className="error-banner"><span>!</span><div><strong>Couldn’t load your data</strong><p>{error} Check your server and MongoDB connection, then refresh.</p></div><button onClick={() => setError('')} aria-label="Dismiss error">×</button></div>}
+          {notice && <div className="success-banner">✓ &nbsp;{notice}</div>}
           {active === 'guide' ? (
             <GuidePage onNavigate={navigate} />
           ) : active === 'clients' ? (
@@ -728,7 +524,7 @@ function App() {
           ) : ['supplier-dashboard', 'supplier-reports'].includes(active) ? (
             <DashboardPage onNavigate={navigate} data={dashboard} loading={dashboardLoading} period={dashboardPeriod} onPeriodChange={setDashboardPeriod} chartMonths={dashboardMonths} onChartMonthsChange={setDashboardMonths} compact="G4 Sticker" />
           ) : active === 'settings' ? (
-            <SettingsPage health={health} appearance={appearance} onAppearanceChange={setAppearance} appearanceError={appearanceError} onNavigate={navigate} auth={auth} />
+            <SettingsPage health={health} appearance={appearance} onAppearanceChange={setAppearance} appearanceError={appearanceError} onNavigate={navigate} />
           ) : active === 'materials' ? (
             <MaterialsPage />
           ) : active === 'suppliers' ? (
@@ -752,17 +548,9 @@ function App() {
               search={search} setSearch={setSearch} onCreate={openCreate}
               onEdit={openEdit} onDelete={deleteRecord} />
           ) : active === 'payroll-runs' ? (
-            <PayrollPage defaultOvertimeRate={defaultOvertimeRate} onOpenEmployee={setSheetEmployee} onEditEmployee={openEdit} />
+            <PayrollPage onOpenEmployee={setSheetEmployee} onEditEmployee={openEdit} />
           ) : active === 'employees' ? (
             <EmployeesPage employees={filteredRecords} loading={loading} search={search} setSearch={setSearch}
-              defaultOvertimeRate={defaultOvertimeRate} onDefaultOvertimeRateChange={(value) => {
-                setDefaultOvertimeRate(value);
-                try { window.localStorage.setItem(OVERTIME_RATE_KEY, value); } catch { /* Storage may be unavailable. */ }
-              }}
-              defaultHolidayRate={defaultHolidayRate} onDefaultHolidayRateChange={(value) => {
-                setDefaultHolidayRate(value);
-                try { window.localStorage.setItem(HOLIDAY_RATE_KEY, value); } catch { /* Storage may be unavailable. */ }
-              }}
               onCreate={openCreate} onEdit={openEdit} onDelete={deleteRecord} onSelect={setSheetEmployee} />
           ) : (
             <RecordManagementPage active={active} title={activeLabel} fields={fields} records={filteredRecords} loading={loading}
@@ -774,14 +562,13 @@ function App() {
           )}
         </div>
       </main>
-      {modal && <RecordModal title={activeLabel} active={active} fields={fields} record={editing} defaultHolidayRate={defaultHolidayRate} saveError={modalError} saving={modalSaving} onClose={() => setModal(false)} onSave={saveRecord} />}
-      <ConfirmDialog open={Boolean(confirmDialog)} title={confirmDialog?.title || ''} description="This can’t be undone." confirmLabel="Delete" busy={confirmBusy} onCancel={() => setConfirmDialog(null)} onConfirm={confirmDelete} />
-      {sheetEmployee && <EmployeeMonthlySheet employee={sheetEmployee} overtimeRate={defaultOvertimeRate} onClose={() => setSheetEmployee(null)} />}
+      {modal && <RecordModal title={activeLabel} active={active} fields={fields} record={editing} saveError={modalError} onClose={() => setModal(false)} onSave={saveRecord} />}
+      {sheetEmployee && <EmployeeMonthlySheet employee={sheetEmployee} onClose={() => setSheetEmployee(null)} />}
     </div>
   );
 }
 
-function RecordModal({ title, active, fields, record, defaultHolidayRate, saveError, saving, onClose, onSave }) {
+function RecordModal({ title, active, fields, record, saveError, onClose, onSave }) {
   const [dateError, setDateError] = useState('');
   const [bookingClients, setBookingClients] = useState([]);
   const [grossPay, setGrossPay] = useState(Number(record?.grossPay) || 0);
@@ -798,7 +585,7 @@ function RecordModal({ title, active, fields, record, defaultHolidayRate, saveEr
   }, [active]);
   function handleSubmit(event) {
     const formData = new FormData(event.currentTarget);
-    const requiredDate = fields.find(([key]) =>
+    const requiredDate = active !== 'employees' && fields.find(([key]) =>
       key.toLowerCase().includes('date') && key !== 'updated' && !formData.get(key)
     );
     if (requiredDate) {
@@ -820,12 +607,16 @@ function RecordModal({ title, active, fields, record, defaultHolidayRate, saveEr
         </DialogHeader>
         <DialogBody>
           {saveError && <Alert variant="error">{saveError}</Alert>}
-          <div className="record-fields">{fields.map(([key, label]) => (
-        <RecordField key={key} active={active} keyName={key} label={label} record={record} defaultHolidayRate={defaultHolidayRate}
-          clients={bookingClients}
-          grossPay={grossPay} deductions={deductions} calculatedNetPay={calculatedNetPay}
-          onGrossPayChange={setGrossPay} onDeductionsChange={setDeductions} />
-          ))}</div>
+          {active === 'employees' ? (
+            <EmployeeFormFields record={record} />
+          ) : (
+            <div className="record-fields">{fields.map(([key, label]) => (
+              <RecordField key={key} active={active} keyName={key} label={label} record={record} defaultHolidayRate={defaultHolidayRate}
+                clients={bookingClients}
+                grossPay={grossPay} deductions={deductions} calculatedNetPay={calculatedNetPay}
+                onGrossPayChange={setGrossPay} onDeductionsChange={setDeductions} />
+            ))}</div>
+          )}
           {dateError && <p className="field-error" role="alert">{dateError}</p>}
         </DialogBody>
         <DialogFooter>
@@ -837,35 +628,33 @@ function RecordModal({ title, active, fields, record, defaultHolidayRate, saveEr
   </Dialog>;
 }
 
-function RecordField({ active, keyName: key, label, record, defaultHolidayRate, clients = [], grossPay, deductions, calculatedNetPay, onGrossPayChange, onDeductionsChange }) {
-  const isNumeric = ['amount', 'price', 'income', 'expenses', 'stock', 'shares', 'percentage', 'salary', 'holidayRate', 'allowances', 'bonus', 'commission', 'regularDeductions', 'grossPay', 'deductions', 'netPay'].includes(key);
-  const step = ['amount', 'price', 'income', 'expenses', 'percentage', 'salary', 'holidayRate', 'allowances', 'bonus', 'commission', 'regularDeductions', 'grossPay', 'deductions', 'netPay'].includes(key) ? '0.01' : undefined;
+function RecordField({ active, keyName: key, label, record, clients = [], grossPay, deductions, calculatedNetPay, onGrossPayChange, onDeductionsChange }) {
+  const isNumeric = ['amount', 'price', 'income', 'expenses', 'stock', 'shares', 'percentage', 'salary', 'overtimeRate', 'allowances', 'bonus', 'commission', 'regularDeductions', 'grossPay', 'deductions', 'netPay'].includes(key);
+  const step = ['amount', 'price', 'income', 'expenses', 'percentage', 'salary', 'overtimeRate', 'allowances', 'bonus', 'commission', 'regularDeductions', 'grossPay', 'deductions', 'netPay'].includes(key) ? '0.01' : undefined;
   const isCalculatedNetPay = active === 'payroll-runs' && key === 'netPay';
   return <label className={key === 'content' ? 'wide-field' : ''}><span>{label}</span>
     {['content', 'notes', ...(active === 'clients' ? ['address'] : [])].includes(key)
-      ? <textarea className="textarea" name={key} placeholder={label} defaultValue={record?.[key] || ''} rows={key === 'notes' ? 4 : 3} required={active === 'clients' ? key === 'name' : key === 'content'} />
+      ? <textarea name={key} placeholder={label} defaultValue={record?.[key] || ''} rows={key === 'notes' ? 4 : 3} required={active === 'clients' ? key === 'name' : key === 'content'} />
       : key === 'category' && active === 'products'
-        ? <select className="select" name={key} defaultValue={record?.[key] || ''} required><option value="" disabled>Select a product type</option>{['Sticker', 'Cap', 'Mug', 'Tarpaulin', ...(record?.[key] && !['Sticker', 'Cap', 'Mug', 'Tarpaulin'].includes(record[key]) ? [record[key]] : [])].map((category) => <option key={category} value={category}>{category}</option>)}</select>
+        ? <select name={key} defaultValue={record?.[key] || ''} required><option value="" disabled>Select a product type</option>{['Sticker', 'Cap', 'Mug', 'Tarpaulin', ...(record?.[key] && !['Sticker', 'Cap', 'Mug', 'Tarpaulin'].includes(record[key]) ? [record[key]] : [])].map((category) => <option key={category} value={category}>{category}</option>)}</select>
         : key === 'client' && active === 'bookings'
-          ? <select className="select" name={key} defaultValue={record?.[key] || ''} required><option value="" disabled>Select a client</option>{record?.[key] && !clients.some((client) => client.name === record.client) && <option value={record.client}>{record.client}</option>}{clients.map((client) => <option key={client.id} value={client.name}>{client.name}</option>)}</select>
+          ? <select name={key} defaultValue={record?.[key] || ''} required><option value="" disabled>Select a client</option>{record?.[key] && !clients.some((client) => client.name === record.client) && <option value={record.client}>{record.client}</option>}{clients.map((client) => <option key={client.id} value={client.name}>{client.name}</option>)}</select>
         : key === 'payFrequency' && active === 'employees'
-          ? <select className="select" name={key} defaultValue={record?.[key] || 'Monthly'}><option>Weekly</option><option>Biweekly</option><option>Semimonthly</option><option>Monthly</option></select>
+          ? <select name={key} defaultValue={record?.[key] || 'Monthly'}><option>Weekly</option><option>Biweekly</option><option>Semimonthly</option><option>Monthly</option></select>
           : key === 'salaryType' && active === 'employees'
-            ? <select className="select" name={key} defaultValue={record?.[key] || 'hourly'}><option value="hourly">Hourly rate</option><option value="daily">Daily rate</option><option value="monthly">Monthly salary</option></select>
+            ? <select name={key} defaultValue={record?.[key] || 'hourly'}><option value="hourly">Hourly rate</option><option value="daily">Daily rate</option><option value="monthly">Monthly salary</option></select>
           : key === 'status' && active === 'employees'
-            ? <select className="select" name={key} defaultValue={record?.[key] || 'Active'}><option>Active</option><option>On leave</option><option>Inactive</option></select>
+            ? <select name={key} defaultValue={record?.[key] || 'Active'}><option>Active</option><option>On leave</option><option>Inactive</option></select>
             : key === 'status' && active === 'bookings'
-              ? <select className="select" name={key} defaultValue={record?.[key] || 'Scheduled'}><option>Scheduled</option><option>In progress</option><option>On hold</option><option>Cancelled</option>{record?.[key] && !['Scheduled', 'In progress', 'On hold', 'Cancelled'].includes(record.status) && <option>{record.status}</option>}</select>
+              ? <select name={key} defaultValue={record?.[key] || 'Scheduled'}><option>Scheduled</option><option>In progress</option><option>On hold</option><option>Cancelled</option>{record?.[key] && !['Scheduled', 'In progress', 'On hold', 'Cancelled'].includes(record.status) && <option>{record.status}</option>}</select>
             : key === 'status' && active === 'payroll-runs'
-              ? <select className="select" name={key} defaultValue={record?.[key] || 'Draft'}><option>Draft</option><option>Processing</option><option>Paid</option><option>Failed</option></select>
-              : key === 'effectiveDate' && active === 'employees'
-                ? <input className="input" name={key} type="date" defaultValue={dateFromValue(record?.[key]) ? toDateValue(dateFromValue(record[key])) : ''} required />
+              ? <select name={key} defaultValue={record?.[key] || 'Draft'}><option>Draft</option><option>Processing</option><option>Paid</option><option>Failed</option></select>
               : key.toLowerCase().includes('date') || key === 'updated'
                 ? <DatePicker name={key} value={record?.[key] || ''} required={key !== 'updated'} />
-                : <input className="input" name={key} placeholder={label} type={isNumeric ? 'number' : key === 'email' ? 'email' : key === 'phone' ? 'tel' : 'text'} step={step}
-                    min={['salary', 'holidayRate', 'grossPay', 'deductions'].includes(key) ? '0' : undefined}
+                : <input name={key} placeholder={label} type={isNumeric ? 'number' : key === 'email' ? 'email' : key === 'phone' ? 'tel' : 'text'} step={step}
+                    min={['salary', 'overtimeRate', 'grossPay', 'deductions'].includes(key) ? '0' : undefined}
                     value={isCalculatedNetPay ? calculatedNetPay : undefined}
-                    defaultValue={isCalculatedNetPay ? undefined : key === 'holidayRate' && active === 'employees' ? (record?.[key] ?? defaultHolidayRate ?? '') : record?.[key] || ''}
+                    defaultValue={isCalculatedNetPay ? undefined : record?.[key] || ''}
                     readOnly={isCalculatedNetPay}
                     onChange={key === 'grossPay' && active === 'payroll-runs' ? (event) => onGrossPayChange(Number(event.target.value) || 0) : key === 'deductions' && active === 'payroll-runs' ? (event) => onDeductionsChange(Number(event.target.value) || 0) : undefined}
                     required={active === 'clients' ? key === 'name' : active === 'employees' ? ['employeeId', 'name', 'salary'].includes(key) : key !== 'phone'} />}

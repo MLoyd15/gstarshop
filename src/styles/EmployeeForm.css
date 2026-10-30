@@ -1,0 +1,168 @@
+.employee-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.employee-form-section-title {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+
+.employee-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.employee-form-field {
+  display: grid;
+  gap: 6px;
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+}
+
+.employee-form-field span {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.employee-pay-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.employee-pay-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.employee-pay-card:hover {
+  border-color: var(--line-strong);
+  background: var(--surface-hover);
+}
+
+.employee-pay-card.selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.employee-pay-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.employee-pay-card-header input[type="radio"] {
+  margin: 0;
+  cursor: pointer;
+}
+
+.employee-pay-card-title {
+  font-size: var(--fs-body-sm);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.employee-pay-card-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.35;
+  margin-left: 26px;
+}
+
+.employee-rate-container {
+  display: grid;
+  gap: 6px;
+}
+
+.employee-rate-hint {
+  display: block;
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+}
+
+.employee-basis-notice {
+  padding: 10px 14px;
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, #f59e0b 12%, transparent);
+  border: 1px solid color-mix(in srgb, #f59e0b 35%, transparent);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.input-with-prefix {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.input-with-prefix .input-prefix {
+  position: absolute;
+  left: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: var(--fs-body);
+  pointer-events: none;
+  user-select: none;
+}
+
+.input-with-prefix .input {
+  padding-left: 28px;
+}
+
+.employee-form-details {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  padding: 12px 14px;
+  background: var(--surface-strong);
+}
+
+.employee-form-details summary {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.employee-form-details[open] summary {
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.employee-extras-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .employee-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .employee-pay-cards {
+    grid-template-columns: 1fr;
+  }
+  .employee-extras-grid {
+    grid-template-columns: 1fr;
+  }
+}
+

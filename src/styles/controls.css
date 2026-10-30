@@ -53,7 +53,7 @@
 .input[readonly]:focus-visible, .textarea[readonly]:focus-visible { outline: none; border-color: var(--input-border); }
 .input[aria-invalid="true"], .select[aria-invalid="true"], .textarea[aria-invalid="true"] { border-color: var(--danger); }
 .input[aria-invalid="true"]:focus-visible, .select[aria-invalid="true"]:focus-visible, .textarea[aria-invalid="true"]:focus-visible { outline-color: var(--danger); }
-.input:required:invalid, .select:required:invalid, .textarea:required:invalid { border-color: var(--danger); }
+.input:user-invalid, .select:user-invalid, .textarea:user-invalid { border-color: var(--danger); }
 .field { display: grid; gap: 6px; }
 .field-error { color: var(--danger); }
 .input-sm { height: var(--control-h-sm); padding-inline: var(--control-px-sm); }

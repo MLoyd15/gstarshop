@@ -263,7 +263,9 @@
 .client-card-actions { display:flex; gap:7px; margin-top:13px; padding-top:12px; border-top:1px solid var(--line); }
 .client-card-actions button { font:inherit; font-size: var(--fs-caption); }
 .client-card-actions .client-edit-action { flex:1; border-color:var(--line); background:var(--surface); color:var(--text); font-weight:700; }
-.client-card-actions .client-delete-action:hover { border-color:#b94f63; color:#ffb2be; }
+.client-card-actions .client-delete-action { border-color:color-mix(in srgb,var(--danger) 68%,var(--line)); background:color-mix(in srgb,var(--danger) 9%,var(--surface)); color:var(--danger); font-weight:650; }
+.client-card-actions .client-delete-action:hover:not(:disabled) { border-color:var(--danger); background:var(--danger-soft); color:var(--danger-strong,var(--danger)); box-shadow:0 0 0 1px color-mix(in srgb,var(--danger) 18%,transparent); }
+.client-card-actions .client-delete-action:focus-visible { outline-color:var(--danger); }
 .clients-empty { padding:52px 18px; color:var(--text); text-align:center; font-size: var(--fs-caption); }
 .clients-empty strong { color:var(--text); font-size: var(--fs-section); }
 .clients-empty p { margin:7px 0 15px; }

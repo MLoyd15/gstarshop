@@ -68,7 +68,7 @@
 .materials-page .btn-primary { font:inherit; font-size: var(--fs-caption); font-weight:700; }
 .supplier-prices-page .materials-heading>label { display:flex; align-items:center; gap:8px; color:var(--text); font-size: var(--fs-caption); }
 .supplier-prices-page .materials-heading input { width:90px; }
-.reorder-group>.btn-primary { margin-top:10px; }
+.reorder-group-content > .btn { margin-top:10px; }
 .product-recipe-line { grid-template-columns:minmax(0,1.5fr) minmax(120px,1fr) auto; align-items:end; margin:8px 0; }
 .product-cost-preview { display:flex; justify-content:space-between; gap:14px; grid-column:1/-1; padding:13px; border:1px solid var(--line); border-radius:var(--radius-card); background:var(--surface); color:var(--text); font-size: var(--fs-caption); }
 .product-cost-preview span { display:grid; gap:4px; }
@@ -100,15 +100,23 @@
 .materials-panel .materials-empty { color:var(--text); }
 .materials-panel .materials-empty strong { color:var(--text); }
 .reorder-panel .materials-toolbar { border-bottom:1px solid var(--line); }
-.reorder-group { padding:14px 19px 16px; border-bottom:1px solid var(--line); }
+.reorder-group { padding:0; border-bottom:1px solid var(--line); }
 .reorder-group:last-child { border-bottom:0; }
-.reorder-group h3 { display:flex; align-items:center; gap:8px; margin:0 0 10px; color:var(--text); font-size: var(--fs-caption); }
-.reorder-group h3 span { padding:3px 7px; border-radius:var(--radius-card); background:var(--surface); color:var(--text); font-size: var(--fs-caption); }
-.reorder-group>div { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr)); gap:8px; }
+.reorder-disclosure > summary { display:flex; min-height:52px; align-items:center; gap:9px; padding:10px 19px; color:var(--text); font-size:var(--fs-caption); cursor:pointer; list-style:none; transition:background 160ms ease; }
+.reorder-disclosure > summary::-webkit-details-marker { display:none; }
+.reorder-disclosure > summary::after { width:8px; height:8px; margin-left:auto; border-right:1.5px solid var(--text-secondary); border-bottom:1.5px solid var(--text-secondary); content:""; transform:rotate(45deg) translateY(-2px); transition:transform 180ms ease; }
+.reorder-disclosure > summary:hover { background:var(--surface-soft); }
+.reorder-disclosure > summary:focus-visible { outline:2px solid var(--focus-ring); outline-offset:-3px; }
+.reorder-disclosure[open] > summary::after { transform:rotate(225deg) translate(-2px,-1px); }
+.reorder-count { padding:3px 7px; border-radius:999px; background:var(--surface); color:var(--text-secondary); font-size:var(--fs-caption); font-variant-numeric:tabular-nums; }
+.reorder-group-content { padding:0 19px 16px; animation:reorder-reveal 180ms ease both; }
+.reorder-group-content > div { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr)); gap:8px; }
 .reorder-group article { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 12px; border:1px solid var(--line); border-radius:var(--radius-card); background:var(--surface); }
 .reorder-group article strong { display:block; color:var(--text); font-size: var(--fs-caption); }
 .reorder-group article small { display:block; margin-top:4px; color:var(--text); font-size: var(--fs-caption); }
 .reorder-group article .btn-primary { flex:0 0 auto; font-size: var(--fs-caption); }
+@keyframes reorder-reveal { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+@media (prefers-reduced-motion:reduce) { .reorder-disclosure > summary,.reorder-disclosure > summary::after { transition:none; }.reorder-group-content { animation:none; } }
 .material-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr)); gap:13px; padding:16px; }
 .material-card { min-width:0; padding:16px; border:1px solid var(--line); border-radius:var(--radius-card); background:linear-gradient(145deg,var(--bg-gradient-1),var(--bg-gradient-2)); transition:transform .16s,border-color .16s,background .16s; }
 .material-card:hover { transform:translateY(-2px); border-color:rgba(69,195,222,.42); background:linear-gradient(145deg,rgba(34,70,95,.35),rgba(226,232,240,.025)); }
