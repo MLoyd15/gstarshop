@@ -137,7 +137,8 @@
 .booking-card-actions { display:flex; flex-wrap:wrap; gap:7px; margin-top:8px; padding-top:12px; border-top:1px solid var(--line); }
 .bookings-page .booking-card-actions button { font:inherit; font-size: var(--fs-caption); }
 .bookings-page .booking-card-actions .booking-complete-action { flex:1; border-color:var(--line); background:var(--surface); color:var(--text); font-weight:700; }
-.bookings-page .booking-card-actions .booking-delete-action:hover { border-color:#b94f63; color:#ffb2be; }
+.bookings-page .booking-card-actions .booking-delete-action { border-color:color-mix(in srgb,var(--danger) 68%,var(--line)); background:color-mix(in srgb,var(--danger) 9%,var(--surface)); color:var(--danger); }
+.bookings-page .booking-card-actions .booking-delete-action:hover:not(:disabled) { border-color:var(--danger); background:var(--danger-soft); color:var(--danger-strong,var(--danger)); }
 .booking-empty { padding:52px 18px; color:var(--text); text-align:center; font-size: var(--fs-caption); }
 .booking-empty strong { color:var(--text); font-size: var(--fs-section); }
 .booking-empty p { margin:7px 0 15px; }
