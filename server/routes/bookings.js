@@ -24,6 +24,29 @@ export function createBookingsRouter(BusinessRecord, mongoose) {
     if (!booking) throw new InventoryValidationError('Booking not found.', 404);
     return booking;
   };
+  const reverseCompletionInSession = async (booking, session, reason, date) => {
+    const completion = booking.data.completion;
+    const reversalIds = [];
+    for (const line of completion.materials || []) {
+      for (const movementId of line.movementIds || []) {
+        const original = await BusinessRecord.findOne({ _id: movementId, resource: 'stock-movements' }).session(session).lean();
+        if (!original || Number(original.data.change) >= 0) continue;
+        const reversed = await applyStockMovement(BusinessRecord, session, line.materialId, {
+          type: 'reversal', change: -Number(original.data.change), unitCost: Number(original.data.unitCost || 0), date,
+          note: `Correction for booking ${booking.data.name || booking._id}: ${reason}`,
+          referenceType: 'booking', referenceId: booking._id.toString(),
+          idempotencyKey: `booking:${booking._id}:reversal:${completion.id}:${original._id}`,
+          extraData: { bookingId: booking._id.toString(), completionId: completion.id, reversalOfMovementId: original._id.toString(), correctionReason: reason }
+        });
+        reversalIds.push(reversed.movement._id.toString());
+      }
+    }
+    completion.status = 'reversed'; completion.reversedAt = new Date(); completion.reversalReason = reason; completion.reversalMovementIds = reversalIds;
+    booking.data.completionHistory = [...(booking.data.completionHistory || []), completion];
+    booking.data.status = booking.data.statusBeforeCompletion || 'Active'; delete booking.data.statusBeforeCompletion;
+    booking.markModified('data');
+    return reversalIds;
+  };
 
   router.patch('/:id', async (req, res) => {
     try {
@@ -38,13 +61,30 @@ export function createBookingsRouter(BusinessRecord, mongoose) {
   });
 
   router.delete('/:id', async (req, res) => {
+    let session;
     try {
       const booking = await getBooking(req.params.id);
-      if (activeCompletion(booking.data)) throw new InventoryValidationError('Reverse the completed job before deleting its booking.', 409);
-      if ((booking.data.payments || []).length) throw new InventoryValidationError('Bookings with payment history cannot be deleted. Keep the booking for its payment audit history.', 409);
-      await booking.deleteOne();
+      const payments = Array.isArray(booking.data.payments) ? booking.data.payments : [];
+      if (payments.some((payment) => !payment.voidedAt)) throw new InventoryValidationError('Void every payment before deleting this booking. Voided payment history will be removed with the booking.', 409);
+      if (activeCompletion(booking.data)) {
+        if (req.body?.confirmReturned !== true) throw new InventoryValidationError('Confirm all recorded materials are physically returned and reusable before deleting a completed booking.', 409);
+        const reason = String(req.body.reason || '').trim().slice(0, 500);
+        if (!reason) throw new InventoryValidationError('Enter a reason for deleting this completed booking.');
+        const date = validateBusinessDate(req.body.date);
+        session = await mongoose.startSession();
+        await session.withTransaction(async () => {
+          const current = await getBooking(req.params.id, session);
+          const currentPayments = Array.isArray(current.data.payments) ? current.data.payments : [];
+          if (currentPayments.some((payment) => !payment.voidedAt)) throw new InventoryValidationError('Void every payment before deleting this booking. Voided payment history will be removed with the booking.', 409);
+          if (activeCompletion(current.data)) await reverseCompletionInSession(current, session, reason, date);
+          await current.deleteOne({ session });
+        });
+      } else {
+        await booking.deleteOne();
+      }
       res.status(204).end();
     } catch (error) { fail(res, error); }
+    finally { await session?.endSession(); }
   });
 
   router.patch('/:id/materials', async (req, res) => {
@@ -135,26 +175,8 @@ export function createBookingsRouter(BusinessRecord, mongoose) {
       let updated;
       await session.withTransaction(async () => {
         const booking = await getBooking(req.params.id, session);
-        const completion = booking.data.completion;
         if (!activeCompletion(booking.data)) throw new InventoryValidationError('This booking has no active completion to reverse.', 409);
-        const reversalIds = [];
-        for (const line of completion.materials) {
-          for (const movementId of line.movementIds || []) {
-            const original = await BusinessRecord.findOne({ _id: movementId, resource: 'stock-movements' }).session(session).lean();
-            if (!original || Number(original.data.change) >= 0) continue;
-            const reversed = await applyStockMovement(BusinessRecord, session, line.materialId, {
-              type: 'reversal', change: -Number(original.data.change), unitCost: Number(original.data.unitCost || 0), date,
-              note: `Correction for booking ${booking.data.name || booking._id}: ${reason}`,
-              referenceType: 'booking', referenceId: booking._id.toString(),
-              idempotencyKey: `booking:${booking._id}:reversal:${completion.id}:${original._id}`,
-              extraData: { bookingId: booking._id.toString(), completionId: completion.id, reversalOfMovementId: original._id.toString(), correctionReason: reason }
-            });
-            reversalIds.push(reversed.movement._id.toString());
-          }
-        }
-        completion.status = 'reversed'; completion.reversedAt = new Date(); completion.reversalReason = reason; completion.reversalMovementIds = reversalIds;
-        booking.data.completionHistory = [...(booking.data.completionHistory || []), completion];
-        booking.data.status = booking.data.statusBeforeCompletion || 'Active'; delete booking.data.statusBeforeCompletion;
+        await reverseCompletionInSession(booking, session, reason, date);
         booking.markModified('data'); await booking.save({ session }); updated = booking.toObject();
       });
       res.json(serialize(updated));

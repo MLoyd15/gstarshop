@@ -1,18 +1,12 @@
 import { useRef, useState } from 'react';
 
 const INITIAL_STICKERS = [
-  { id: 'g4', w: 140, h: 140, kind: 'circle', fill: '#EC008C', text: 'G4', textColor: '#FFD500', fontSize: 54, textY: 89, left: 5, top: 14, rot: -8 },
-  { id: 'new', w: 140, h: 140, kind: 'star', fill: '#FFD500', text: 'NEW', textColor: '#14121F', fontSize: 30, textY: 81, left: 80, top: 9, rot: 12 },
-  { id: 'signage', w: 210, h: 100, kind: 'rect', fill: '#00AEEF', text: 'SIGNAGE', textColor: '#FFFFFF', fontSize: 30, textY: 61, left: 7, top: 68, rot: -5 },
-  { id: 'tarpaulin', w: 180, h: 120, kind: 'rect', fill: '#FFD500', text: 'TARPAULIN', textColor: '#14121F', fontSize: 21, textY: 68, left: 77, top: 56, rot: 6 },
-  { id: 'decals', w: 200, h: 96, kind: 'pill', fill: '#14121F', text: 'DECALS', textColor: '#FFFFFF', fontSize: 32, textY: 60, left: 66, top: 82, rot: -10 },
+  { id: 'new', w: 110, h: 110, kind: 'star', fill: '#2FD0FF', text: 'NEW', textColor: '#060B1F', left: 82, top: 14, rot: 12 },
+  { id: 'tarpaulin', w: 150, h: 70, kind: 'rect', fill: '#0A9CF4', text: 'TARPAULIN', textColor: '#060B1F', left: 78, top: 62, rot: 5 },
+  { id: 'signage', w: 150, h: 70, kind: 'rect', fill: '#043CD4', text: 'SIGNAGE', textColor: '#FFFFFF', left: 8, top: 20, rot: -6 },
+  { id: 'vinyl', w: 140, h: 66, kind: 'trapezoid', fill: '#042CAC', text: 'VINYL', textColor: '#2FD0FF', left: 9, top: 66, rot: 4 },
+  { id: 'decals', w: 140, h: 64, kind: 'pill', fill: '#060B1F', text: 'DECALS', textColor: '#FFFFFF', left: 38, top: 84, rot: -8 },
 ];
-
-const starPoints = Array.from({ length: 28 }, (_, i) => {
-  const r = i % 2 ? 46 : 60;
-  const rad = (Math.PI * i) / 14;
-  return `${(70 + r * Math.sin(rad)).toFixed(1)},${(70 - r * Math.cos(rad)).toFixed(1)}`;
-}).join(' ');
 
 export default function AuthStickerPlayground() {
   const [positions, setPositions] = useState(() =>
@@ -84,15 +78,6 @@ export default function AuthStickerPlayground() {
     });
   }
 
-  function resetStickers() {
-    setPositions(
-      INITIAL_STICKERS.reduce((acc, s) => {
-        acc[s.id] = { left: s.left, top: s.top, rot: s.rot };
-        return acc;
-      }, {})
-    );
-  }
-
   return (
     <div className="auth-sticker-playground" aria-hidden="true">
       {INITIAL_STICKERS.map((s) => {
@@ -101,10 +86,10 @@ export default function AuthStickerPlayground() {
         return (
           <div
             key={s.id}
-            className={`auth-stk${isDragging ? ' drag' : ''}`}
+            className={`auth-stk${isDragging ? ' is-dragging' : ''}`}
             style={{
-              '--w': `${s.w}px`,
-              '--r': `${pos.rot}deg`,
+              width: `${s.w}px`,
+              transform: `rotate(${pos.rot}deg)`,
               left: `${pos.left}%`,
               top: `${pos.top}%`,
             }}
@@ -114,79 +99,78 @@ export default function AuthStickerPlayground() {
             onPointerCancel={handlePointerUp}
             onDoubleClick={() => handleDoubleClick(s.id)}
           >
-            <svg viewBox={`0 0 ${s.w} ${s.h}`} aria-hidden="true">
-              {s.kind === 'circle' && (
-                <circle
-                  cx="70"
-                  cy="70"
-                  r="58"
-                  fill={s.fill}
-                  stroke="#fff"
-                  strokeWidth="14"
-                  strokeLinejoin="round"
-                  paintOrder="stroke"
-                />
-              )}
-              {s.kind === 'star' && (
+            {s.kind === 'star' && (
+              <svg width={s.w} height={s.h} viewBox="0 0 100 100">
                 <polygon
-                  points={starPoints}
+                  points="50,5 61,35 95,35 68,57 79,91 50,70 21,91 32,57 5,35 39,35"
                   fill={s.fill}
-                  stroke="#fff"
-                  strokeWidth="14"
+                  stroke="#FFFFFF"
+                  strokeWidth="6"
                   strokeLinejoin="round"
-                  paintOrder="stroke"
                 />
-              )}
-              {s.kind === 'rect' && (
-                <rect
-                  x="12"
-                  y="12"
-                  width={s.w - 24}
-                  height={s.h - 24}
-                  rx="14"
-                  fill={s.fill}
-                  stroke="#fff"
-                  strokeWidth="14"
-                  strokeLinejoin="round"
-                  paintOrder="stroke"
-                />
-              )}
-              {s.kind === 'pill' && (
-                <rect
-                  x="12"
-                  y="12"
-                  width={s.w - 24}
-                  height={s.h - 24}
-                  rx={(s.h - 24) / 2}
-                  fill={s.fill}
-                  stroke="#fff"
-                  strokeWidth="14"
-                  strokeLinejoin="round"
-                  paintOrder="stroke"
-                />
-              )}
-              <text
-                x={s.w / 2}
-                y={s.textY}
-                textAnchor="middle"
-                fontSize={s.fontSize}
-                fill={s.textColor}
-                fontFamily="Bowlby One, Impact, sans-serif"
-              >
-                {s.text}
-              </text>
-            </svg>
+                <text
+                  x="50"
+                  y="58"
+                  textAnchor="middle"
+                  fontFamily="'Bowlby One', Impact, sans-serif"
+                  fontSize="18"
+                  fill={s.textColor}
+                >
+                  {s.text}
+                </text>
+              </svg>
+            )}
+
+            {s.kind === 'rect' && (
+              <svg width={s.w} height={s.h} viewBox="0 0 150 70">
+                <rect x="6" y="6" width="138" height="58" rx="14" fill={s.fill} stroke="#FFFFFF" strokeWidth="6" />
+                <text
+                  x="75"
+                  y="43"
+                  textAnchor="middle"
+                  fontFamily="'Bowlby One', Impact, sans-serif"
+                  fontSize={s.id === 'tarpaulin' ? '16' : '18'}
+                  fill={s.textColor}
+                >
+                  {s.text}
+                </text>
+              </svg>
+            )}
+
+            {s.kind === 'trapezoid' && (
+              <svg width={s.w} height={s.h} viewBox="0 0 140 66">
+                <polygon points="12,6 128,6 134,60 6,60" fill={s.fill} stroke="#FFFFFF" strokeWidth="6" strokeLinejoin="round" />
+                <text
+                  x="70"
+                  y="42"
+                  textAnchor="middle"
+                  fontFamily="'Bowlby One', Impact, sans-serif"
+                  fontSize="19"
+                  fill={s.textColor}
+                >
+                  {s.text}
+                </text>
+              </svg>
+            )}
+
+            {s.kind === 'pill' && (
+              <svg width={s.w} height={s.h} viewBox="0 0 140 64">
+                <rect x="6" y="6" width="128" height="52" rx="26" fill={s.fill} stroke="#FFFFFF" strokeWidth="5" />
+                <text
+                  x="70"
+                  y="40"
+                  textAnchor="middle"
+                  fontFamily="'Bowlby One', Impact, sans-serif"
+                  fontSize="18"
+                  fill={s.textColor}
+                >
+                  {s.text}
+                </text>
+              </svg>
+            )}
           </div>
         );
       })}
-      <button
-        className="auth-pill auth-reset-btn"
-        type="button"
-        tabIndex={-1}
-        onClick={resetStickers}
-      >
-        Reset stickers
-      </button>
     </div>
   );
 }

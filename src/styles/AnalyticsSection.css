@@ -417,6 +417,16 @@
   font-weight: 600;
 }
 
+/* Financial Trends uses the same interface typeface for all displayed values. */
+.analytics-card-full-width .analytics-pill.peak,
+.analytics-card-full-width .analytics-tooltip-header,
+.analytics-card-full-width .analytics-tooltip-row-val,
+.analytics-trends-body-grid .analytics-sidebar-item-val {
+  font-family: inherit;
+  font-variant-numeric: normal;
+  letter-spacing: normal;
+}
+
 /* Card Styling */
 .analytics-card {
   border: 1px solid var(--line);

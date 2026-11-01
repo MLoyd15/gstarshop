@@ -249,7 +249,6 @@ export default function IncomeExpensesBarChart({
                         textAnchor="end"
                         fill="var(--muted)"
                         fontSize="var(--fs-caption)"
-                        fontFamily="ui-monospace, monospace"
                       >
                         {compactCurrency(t)}
                       </text>
@@ -350,7 +349,6 @@ export default function IncomeExpensesBarChart({
                             fill="var(--accent)"
                             fontSize="var(--fs-caption)"
                             fontWeight="700"
-                            fontFamily="ui-monospace, monospace"
                           >
                             ▲ PEAK
                           </text>
@@ -362,7 +360,6 @@ export default function IncomeExpensesBarChart({
                           fill={isMoActive ? 'var(--text)' : 'var(--muted)'}
                           fontWeight={isMoActive ? '700' : '500'}
                           fontSize="var(--fs-caption)"
-                          fontFamily="ui-monospace, monospace"
                         >
                           {mo.label}
                         </text>

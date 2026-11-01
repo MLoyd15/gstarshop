@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Eye, EyeOff, Hash, LockKeyhole, Mail, User } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, Hash, LockKeyhole, Mail, ShieldCheck, User } from 'lucide-react';
+import logo from '../../assets/logo.png';
 import GoogleSignInButton from './GoogleSignInButton.jsx';
 import AuthStickerPlayground from './AuthStickerPlayground.jsx';
 
@@ -35,12 +36,17 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
 
+  const [coinFlipped, setCoinFlipped] = useState(false);
+  const [successFlash, setSuccessFlash] = useState(false);
+
   const [fieldErrors, setFieldErrors] = useState({});
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [busy, setBusy] = useState(false);
   const [shaking, setShaking] = useState(false);
 
+  const cardRef = useRef(null);
+  const cardWrapRef = useRef(null);
   const nameInputRef = useRef(null);
   const emailInputRef = useRef(null);
   const passwordInputRef = useRef(null);
@@ -48,21 +54,7 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
   const newPasswordInputRef = useRef(null);
   const confirmPasswordInputRef = useRef(null);
 
-  // Local device time in the top bar
-  const [localTime, setLocalTime] = useState('');
-  useEffect(() => {
-    function tick() {
-      const d = new Date();
-      const dateStr = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-      const timeStr = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-      setLocalTime(`${dateStr} · ${timeStr}`);
-    }
-    tick();
-    const interval = setInterval(tick, 15000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Light / dark theme toggle with system preference fallback and storage sync
+  // Theme detection & toggle
   const [isDark, setIsDark] = useState(() => {
     if (typeof document !== 'undefined' && document.documentElement.dataset.theme) {
       return document.documentElement.dataset.theme === 'dark';
@@ -82,6 +74,34 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
       localStorage.setItem('g4-sticker-appearance', JSON.stringify(saved));
     } catch (_) {}
   }, [isDark]);
+
+  // 3D Card Parallax on Mouse Move
+  useEffect(() => {
+    function handleMouseMove(e) {
+      if (!cardWrapRef.current || !cardRef.current) return;
+      const bounds = cardWrapRef.current.getBoundingClientRect();
+      const mouseX = e.clientX;
+      const mouseY = e.clientY;
+      const leftX = mouseX - bounds.x;
+      const topY = mouseY - bounds.y;
+      const center = {
+        x: leftX - bounds.width / 2,
+        y: topY - bounds.height / 2,
+      };
+
+      const distance = Math.sqrt(center.x ** 2 + center.y ** 2);
+      if (distance < 750) {
+        const rotateX = (-center.y / 36).toFixed(2);
+        const rotateY = (center.x / 36).toFixed(2);
+        cardRef.current.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateZ(10px)`;
+      } else {
+        cardRef.current.style.transform = 'rotateX(0deg) rotateY(0deg) translateZ(0px)';
+      }
+    }
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
 
   function triggerShake() {
     setShaking(false);
@@ -252,6 +272,9 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
         setPassword('');
         setSuccess('Your password was reset. Sign in with your new password.');
       } else {
+        // Trigger Cyan Success Flash
+        setSuccessFlash(true);
+        setTimeout(() => setSuccessFlash(false), 900);
         await login(cleanEmail, password, registering ? name.trim() : undefined);
       }
     } catch (loginError) {
@@ -268,7 +291,7 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
       : 'Reset your password'
     : registering
     ? 'Create your account'
-    : 'Welcome back';
+    : 'Welcome to G4';
 
   const subtitle = resetMode
     ? resetCodeSent
@@ -276,406 +299,445 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
       : 'We’ll email you a one-time reset code.'
     : registering
     ? 'Register to access the G4 Sticker workspace.'
-    : 'Sign in to manage bookings, stock and payroll.';
+    : 'Sign in to manage bookings, materials and production.';
 
   return (
-    <main className="auth-page">
-      <div className="auth-bar">
-        {localTime && (
-          <span className="auth-pill" aria-label="Local time">
-            {localTime}
-          </span>
-        )}
-        <button
-          className="auth-pill"
-          type="button"
-          onClick={() => setIsDark((prev) => !prev)}
-        >
-          {isDark ? 'Light mode' : 'Dark mode'}
-        </button>
+    <main className={`auth-page ${isDark ? 'theme-dark' : 'theme-light'}`}>
+      {/* 3D Floor Grid */}
+      <div className="grid-scene" aria-hidden="true">
+        <div className="grid-plane" />
       </div>
 
+      {/* Cyan Success Flash */}
+      <div className={`success-flash${successFlash ? ' active' : ''}`} aria-hidden="true" />
+
+      {/* Top Bar */}
+      <header className="auth-bar">
+        <div className="auth-brand-badge">
+          <img src={logo} alt="G4 Logo" className="auth-brand-logo" />
+          <span>G4 Sticker Studio</span>
+        </div>
+
+        <div className="auth-top-actions">
+          <button
+            className="auth-pill-btn theme-toggle-pop"
+            type="button"
+            aria-pressed={!isDark}
+            aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            onClick={() => setIsDark((prev) => !prev)}
+          >
+            {isDark ? 'Light Mode' : 'Dark Mode'}
+          </button>
+          <span className="auth-pill-divider">|</span>
+          <button
+            className="auth-reset-btn"
+            type="button"
+            onClick={() => {
+              if (cardRef.current) {
+                cardRef.current.style.transform = 'rotateX(0deg) rotateY(0deg) translateZ(0px)';
+              }
+              setCoinFlipped(false);
+            }}
+          >
+            Reset 3D
+          </button>
+        </div>
+      </header>
+
+      {/* Floating 3D Stickers */}
       <AuthStickerPlayground />
 
-      <div className="auth-wrap">
+      {/* 3D Card Shell */}
+      <div className="card-3d-wrap" ref={cardWrapRef}>
         <div
+          ref={cardRef}
           className={`auth-card${shaking ? ' shake' : ''}`}
           onAnimationEnd={() => setShaking(false)}
         >
-          <div className="auth-cmyk" aria-hidden="true">
-            <i style={{ background: '#00AEEF' }} />
-            <i style={{ background: '#EC008C' }} />
-            <i style={{ background: '#FFD500' }} />
-            <i style={{ background: '#14121F' }} />
-          </div>
-
-          <div className="auth-body">
-            <div className="auth-brand">
-              <div className="auth-mark" aria-hidden="true">
-                G4
+          {/* Interactive 3D Coin Badge (G4 Logo <-> Security Lock) */}
+          <div
+            className="coin-wrapper"
+            title="Click or focus password to flip 3D Coin"
+            onClick={() => setCoinFlipped((f) => !f)}
+          >
+            <div className={`coin-3d${coinFlipped ? ' flipped' : ''}`}>
+              {/* Front Face: G4 Logo on Frost with Silver Rim */}
+              <div className="coin-face coin-front">
+                <div className="coin-rim-ticks" />
+                <img src={logo} alt="G4 Sticker" className="coin-logo-img" />
               </div>
-              <div>
-                <b>G4 Sticker</b>
-                <span>Decals, tarpaulin and signage</span>
+              {/* Back Face: Electric Security Lock */}
+              <div className="coin-face coin-back">
+                <LockKeyhole size={32} />
               </div>
             </div>
+          </div>
 
+          {/* Header */}
+          <div style={{ textAlign: 'center' }}>
             <h1>{heading}</h1>
-            <p className="auth-sub">{subtitle}</p>
+            <p className="auth-subtitle">{subtitle}</p>
+          </div>
 
-            <form onSubmit={submit} noValidate>
-              {!resetMode && registering && (
-                <div className="auth-field">
-                  <label className="auth-label" htmlFor="auth-name">
-                    Your name
-                  </label>
-                  <div className="auth-ctl">
-                    <User className="auth-ic" aria-hidden="true" />
-                    <input
-                      ref={nameInputRef}
-                      id="auth-name"
-                      type="text"
-                      autoComplete="name"
-                      value={name}
-                      maxLength={100}
-                      disabled={busy}
-                      aria-invalid={!!fieldErrors.name}
-                      aria-describedby={fieldErrors.name ? 'auth-name-err' : undefined}
-                      onChange={(event) => {
-                        setName(event.target.value);
-                        clearField('name');
-                      }}
-                    />
-                  </div>
-                  {fieldErrors.name && (
-                    <p className="auth-msg auth-err" id="auth-name-err" aria-live="polite">
-                      {ALERT_ICON}
-                      <span>{fieldErrors.name}</span>
-                    </p>
-                  )}
-                </div>
-              )}
-
+          {/* Form */}
+          <form onSubmit={submit} noValidate>
+            {!resetMode && registering && (
               <div className="auth-field">
-                <label className="auth-label" htmlFor="auth-email">
-                  Email
+                <label className="auth-label" htmlFor="auth-name">
+                  Your name
                 </label>
-                <div className="auth-ctl">
-                  <Mail className="auth-ic" aria-hidden="true" />
+                <div className={`auth-ctl${fieldErrors.name ? ' has-error' : ''}`}>
+                  <User className="auth-ic" aria-hidden="true" />
                   <input
-                    ref={emailInputRef}
-                    id="auth-email"
-                    type="email"
-                    autoComplete="email"
-                    value={email}
-                    readOnly={resetMode && resetCodeSent}
+                    ref={nameInputRef}
+                    id="auth-name"
+                    type="text"
+                    autoComplete="name"
+                    placeholder="Operator Name"
+                    value={name}
+                    maxLength={100}
                     disabled={busy}
-                    aria-invalid={!!fieldErrors.email}
-                    aria-describedby={fieldErrors.email ? 'auth-email-err' : undefined}
+                    aria-invalid={!!fieldErrors.name}
                     onChange={(event) => {
-                      setEmail(event.target.value);
-                      clearField('email');
+                      setName(event.target.value);
+                      clearField('name');
                     }}
                   />
                 </div>
-                {fieldErrors.email && (
-                  <p className="auth-msg auth-err" id="auth-email-err" aria-live="polite">
+                {fieldErrors.name && (
+                  <p className="auth-msg auth-err" role="alert">
                     {ALERT_ICON}
-                    <span>{fieldErrors.email}</span>
+                    <span>{fieldErrors.name}</span>
                   </p>
                 )}
               </div>
+            )}
 
-              {resetMode && resetCodeSent ? (
-                <>
-                  <div className="auth-field">
-                    <label className="auth-label" htmlFor="auth-code">
-                      Six-digit code
-                    </label>
-                    <div className="auth-ctl">
-                      <Hash className="auth-ic" aria-hidden="true" />
-                      <input
-                        ref={codeInputRef}
-                        id="auth-code"
-                        type="text"
-                        inputMode="numeric"
-                        autoComplete="one-time-code"
-                        pattern="[0-9]{6}"
-                        maxLength={6}
-                        value={resetCode}
-                        disabled={busy}
-                        aria-invalid={!!fieldErrors.code}
-                        aria-describedby={fieldErrors.code ? 'auth-code-err' : undefined}
-                        onChange={(event) => {
-                          setResetCode(event.target.value.replace(/\D/g, '').slice(0, 6));
-                          clearField('code');
-                        }}
-                      />
-                    </div>
-                    {fieldErrors.code && (
-                      <p className="auth-msg auth-err" id="auth-code-err" aria-live="polite">
-                        {ALERT_ICON}
-                        <span>{fieldErrors.code}</span>
-                      </p>
-                    )}
-                  </div>
+            <div className="auth-field">
+              <label className="auth-label" htmlFor="auth-email">
+                Email Address
+              </label>
+              <div className={`auth-ctl${fieldErrors.email ? ' has-error' : ''}`}>
+                <Mail className="auth-ic" aria-hidden="true" />
+                <input
+                  ref={emailInputRef}
+                  id="auth-email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="operator@g4sticker.com"
+                  value={email}
+                  readOnly={resetMode && resetCodeSent}
+                  disabled={busy}
+                  aria-invalid={!!fieldErrors.email}
+                  onChange={(event) => {
+                    setEmail(event.target.value);
+                    clearField('email');
+                  }}
+                  onFocus={() => setCoinFlipped(false)}
+                />
+              </div>
+              {fieldErrors.email && (
+                <p className="auth-msg auth-err" role="alert">
+                  {ALERT_ICON}
+                  <span>{fieldErrors.email}</span>
+                </p>
+              )}
+            </div>
 
-                  <div className="auth-inline-actions">
-                    <button type="button" disabled={busy} onClick={resendResetCode}>
-                      {busy ? 'Sending…' : 'Resend code'}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => {
-                        setResetCodeSent(false);
-                        setResetCode('');
-                        clearFeedback();
-                      }}
-                    >
-                      Use a different email
-                    </button>
-                  </div>
-
-                  <div className="auth-field">
-                    <label className="auth-label" htmlFor="auth-new-password">
-                      New password
-                    </label>
-                    <div className="auth-ctl auth-pw">
-                      <LockKeyhole className="auth-ic" aria-hidden="true" />
-                      <input
-                        ref={newPasswordInputRef}
-                        id="auth-new-password"
-                        type={showResetPassword ? 'text' : 'password'}
-                        autoComplete="new-password"
-                        minLength={12}
-                        maxLength={200}
-                        value={newPassword}
-                        disabled={busy}
-                        aria-invalid={!!fieldErrors.newPassword}
-                        aria-describedby={fieldErrors.newPassword ? 'auth-new-pw-err' : undefined}
-                        onChange={(event) => {
-                          setNewPassword(event.target.value);
-                          clearField('newPassword');
-                        }}
-                        onKeyDown={handleCheckCapsLock}
-                        onKeyUp={handleCheckCapsLock}
-                        onBlur={() => setCapsLockOn(false)}
-                      />
-                      <button
-                        className="auth-eye"
-                        type="button"
-                        disabled={busy}
-                        onClick={() => setShowResetPassword((v) => !v)}
-                        aria-label={showResetPassword ? 'Hide new password' : 'Show new password'}
-                        aria-pressed={showResetPassword}
-                      >
-                        {showResetPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                      </button>
-                    </div>
-                    {fieldErrors.newPassword && (
-                      <p className="auth-msg auth-err" id="auth-new-pw-err" aria-live="polite">
-                        {ALERT_ICON}
-                        <span>{fieldErrors.newPassword}</span>
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="auth-field">
-                    <label className="auth-label" htmlFor="auth-confirm-password">
-                      Confirm new password
-                    </label>
-                    <div className="auth-ctl auth-pw">
-                      <LockKeyhole className="auth-ic" aria-hidden="true" />
-                      <input
-                        ref={confirmPasswordInputRef}
-                        id="auth-confirm-password"
-                        type={showConfirmPassword ? 'text' : 'password'}
-                        autoComplete="new-password"
-                        minLength={12}
-                        maxLength={200}
-                        value={confirmPassword}
-                        disabled={busy}
-                        aria-invalid={!!fieldErrors.confirmPassword}
-                        aria-describedby={fieldErrors.confirmPassword ? 'auth-confirm-pw-err' : undefined}
-                        onChange={(event) => {
-                          setConfirmPassword(event.target.value);
-                          clearField('confirmPassword');
-                        }}
-                        onKeyDown={handleCheckCapsLock}
-                        onKeyUp={handleCheckCapsLock}
-                        onBlur={() => setCapsLockOn(false)}
-                      />
-                      <button
-                        className="auth-eye"
-                        type="button"
-                        disabled={busy}
-                        onClick={() => setShowConfirmPassword((v) => !v)}
-                        aria-label={showConfirmPassword ? 'Hide confirmation password' : 'Show confirmation password'}
-                        aria-pressed={showConfirmPassword}
-                      >
-                        {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                      </button>
-                    </div>
-                    {fieldErrors.confirmPassword && (
-                      <p className="auth-msg auth-err" id="auth-confirm-pw-err" aria-live="polite">
-                        {ALERT_ICON}
-                        <span>{fieldErrors.confirmPassword}</span>
-                      </p>
-                    )}
-                  </div>
-                </>
-              ) : resetMode ? null : (
+            {resetMode && resetCodeSent ? (
+              <>
                 <div className="auth-field">
-                  <label className="auth-label" htmlFor="auth-password">
-                    Password
+                  <label className="auth-label" htmlFor="auth-code">
+                    Six-digit code
                   </label>
-                  <div className="auth-ctl auth-pw">
+                  <div className={`auth-ctl${fieldErrors.code ? ' has-error' : ''}`}>
+                    <Hash className="auth-ic" aria-hidden="true" />
+                    <input
+                      ref={codeInputRef}
+                      id="auth-code"
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      pattern="[0-9]{6}"
+                      maxLength={6}
+                      placeholder="123456"
+                      value={resetCode}
+                      disabled={busy}
+                      aria-invalid={!!fieldErrors.code}
+                      onChange={(event) => {
+                        setResetCode(event.target.value.replace(/\D/g, '').slice(0, 6));
+                        clearField('code');
+                      }}
+                    />
+                  </div>
+                  {fieldErrors.code && (
+                    <p className="auth-msg auth-err" role="alert">
+                      {ALERT_ICON}
+                      <span>{fieldErrors.code}</span>
+                    </p>
+                  )}
+                </div>
+
+                <div className="auth-inline-actions">
+                  <button type="button" disabled={busy} onClick={resendResetCode}>
+                    {busy ? 'Sending…' : 'Resend code'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => {
+                      setResetCodeSent(false);
+                      setResetCode('');
+                      clearFeedback();
+                    }}
+                  >
+                    Use a different email
+                  </button>
+                </div>
+
+                <div className="auth-field">
+                  <label className="auth-label" htmlFor="auth-new-password">
+                    New password
+                  </label>
+                  <div className={`auth-ctl auth-pw${fieldErrors.newPassword ? ' has-error' : ''}`}>
                     <LockKeyhole className="auth-ic" aria-hidden="true" />
                     <input
-                      ref={passwordInputRef}
-                      id="auth-password"
-                      type={showPassword ? 'text' : 'password'}
-                      autoComplete={registering ? 'new-password' : 'current-password'}
-                      value={password}
+                      ref={newPasswordInputRef}
+                      id="auth-new-password"
+                      type={showResetPassword ? 'text' : 'password'}
+                      autoComplete="new-password"
+                      minLength={12}
+                      maxLength={200}
+                      placeholder="••••••••••••"
+                      value={newPassword}
                       disabled={busy}
-                      aria-invalid={!!fieldErrors.password}
-                      aria-describedby={
-                        fieldErrors.password
-                          ? 'auth-password-err'
-                          : capsLockOn
-                          ? 'auth-caps-lock'
-                          : undefined
-                      }
+                      aria-invalid={!!fieldErrors.newPassword}
                       onChange={(event) => {
-                        setPassword(event.target.value);
-                        clearField('password');
+                        setNewPassword(event.target.value);
+                        clearField('newPassword');
                       }}
+                      onFocus={() => setCoinFlipped(true)}
+                      onBlur={() => setCoinFlipped(false)}
                       onKeyDown={handleCheckCapsLock}
                       onKeyUp={handleCheckCapsLock}
-                      onBlur={() => setCapsLockOn(false)}
                     />
                     <button
                       className="auth-eye"
                       type="button"
                       disabled={busy}
-                      onClick={() => setShowPassword((v) => !v)}
-                      aria-label={showPassword ? 'Hide password' : 'Show password'}
-                      aria-pressed={showPassword}
+                      onClick={() => setShowResetPassword((v) => !v)}
+                      aria-label={showResetPassword ? 'Hide new password' : 'Show new password'}
                     >
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      {showResetPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
                   </div>
-                  {capsLockOn && (
-                    <p className="auth-msg auth-caps" id="auth-caps-lock">
-                      Caps Lock is on.
-                    </p>
-                  )}
-                  {registering && (
-                    <span className="auth-field-note">Use at least 12 characters.</span>
-                  )}
-                  {fieldErrors.password && (
-                    <p className="auth-msg auth-err" id="auth-password-err" aria-live="polite">
+                  {fieldErrors.newPassword && (
+                    <p className="auth-msg auth-err" role="alert">
                       {ALERT_ICON}
-                      <span>{fieldErrors.password}</span>
+                      <span>{fieldErrors.newPassword}</span>
                     </p>
                   )}
                 </div>
-              )}
 
-              {!registering && !resetMode && (
-                <div className="auth-row">
-                  <button
-                    type="button"
-                    className="auth-linkbtn"
+                <div className="auth-field">
+                  <label className="auth-label" htmlFor="auth-confirm-password">
+                    Confirm new password
+                  </label>
+                  <div className={`auth-ctl auth-pw${fieldErrors.confirmPassword ? ' has-error' : ''}`}>
+                    <LockKeyhole className="auth-ic" aria-hidden="true" />
+                    <input
+                      ref={confirmPasswordInputRef}
+                      id="auth-confirm-password"
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      autoComplete="new-password"
+                      minLength={12}
+                      maxLength={200}
+                      placeholder="••••••••••••"
+                      value={confirmPassword}
+                      disabled={busy}
+                      aria-invalid={!!fieldErrors.confirmPassword}
+                      onChange={(event) => {
+                        setConfirmPassword(event.target.value);
+                        clearField('confirmPassword');
+                      }}
+                      onFocus={() => setCoinFlipped(true)}
+                      onBlur={() => setCoinFlipped(false)}
+                      onKeyDown={handleCheckCapsLock}
+                      onKeyUp={handleCheckCapsLock}
+                    />
+                    <button
+                      className="auth-eye"
+                      type="button"
+                      disabled={busy}
+                      onClick={() => setShowConfirmPassword((v) => !v)}
+                      aria-label={showConfirmPassword ? 'Hide confirmation password' : 'Show confirmation password'}
+                    >
+                      {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                  {fieldErrors.confirmPassword && (
+                    <p className="auth-msg auth-err" role="alert">
+                      {ALERT_ICON}
+                      <span>{fieldErrors.confirmPassword}</span>
+                    </p>
+                  )}
+                </div>
+              </>
+            ) : resetMode ? null : (
+              <div className="auth-field">
+                <div className="auth-field-header">
+                  <label className="auth-label" htmlFor="auth-password">
+                    Password
+                  </label>
+                  {!registering && (
+                    <button
+                      type="button"
+                      className="auth-linkbtn"
+                      disabled={busy}
+                      onClick={() => {
+                        setResetMode(true);
+                        setResetCodeSent(false);
+                        clearFeedback();
+                      }}
+                    >
+                      Forgot?
+                    </button>
+                  )}
+                </div>
+                <div className={`auth-ctl auth-pw${fieldErrors.password ? ' has-error' : ''}`}>
+                  <LockKeyhole className="auth-ic" aria-hidden="true" />
+                  <input
+                    ref={passwordInputRef}
+                    id="auth-password"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete={registering ? 'new-password' : 'current-password'}
+                    placeholder="••••••••••••"
+                    value={password}
                     disabled={busy}
-                    onClick={() => {
-                      setResetMode(true);
-                      setResetCodeSent(false);
-                      clearFeedback();
+                    aria-invalid={!!fieldErrors.password}
+                    onChange={(event) => {
+                      setPassword(event.target.value);
+                      clearField('password');
                     }}
+                    onFocus={() => setCoinFlipped(true)}
+                    onBlur={() => {
+                      setCoinFlipped(false);
+                      setCapsLockOn(false);
+                    }}
+                    onKeyDown={handleCheckCapsLock}
+                    onKeyUp={handleCheckCapsLock}
+                  />
+                  <button
+                    className="auth-eye"
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
-                    Forgot password?
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
-              )}
-
-              <button className="auth-go" type="submit" disabled={busy}>
-                {busy ? (
-                  <>
-                    <span className="auth-spin" aria-hidden="true" />
-                    <span>
-                      {resetMode
-                        ? resetCodeSent
-                          ? 'Resetting…'
-                          : 'Sending…'
-                        : registering
-                        ? 'Creating account…'
-                        : 'Signing in…'}
-                    </span>
-                  </>
-                ) : resetMode ? (
-                  resetCodeSent ? (
-                    'Reset password'
-                  ) : (
-                    'Send reset code'
-                  )
-                ) : registering ? (
-                  'Create account'
-                ) : (
-                  'Sign in'
+                {capsLockOn && (
+                  <p className="auth-msg auth-caps">
+                    <span>⇪</span> Caps Lock is on.
+                  </p>
                 )}
-              </button>
-
-              {error && (
-                <p className="auth-status-alert auth-status-err" role="alert" aria-live="polite">
-                  {ALERT_ICON}
-                  <span>{error}</span>
-                </p>
-              )}
-
-              {success && (
-                <p className="auth-status-alert auth-status-ok" role="status" aria-live="polite">
-                  <span>{success}</span>
-                </p>
-              )}
-            </form>
-
-            {!resetMode && (
-              <>
-                <div className="auth-divider">
-                  <span>or continue with</span>
-                </div>
-                <GoogleSignInButton
-                  onCredential={handleGoogleCredential}
-                  onError={handleGoogleError}
-                />
-              </>
+                {registering && (
+                  <span className="auth-field-note">Use at least 12 characters.</span>
+                )}
+                {fieldErrors.password && (
+                  <p className="auth-msg auth-err" role="alert">
+                    {ALERT_ICON}
+                    <span>{fieldErrors.password}</span>
+                  </p>
+                )}
+              </div>
             )}
 
-            <p className="auth-switch">
-              {resetMode
-                ? 'Remembered your password?'
-                : registering
-                ? 'Already have an account?'
-                : 'New to G4 Sticker?'}{' '}
-              <button
-                type="button"
-                className="auth-linkbtn"
-                disabled={busy}
-                onClick={() => {
-                  setResetMode(false);
-                  setResetCodeSent(false);
-                  setResetCode('');
-                  setNewPassword('');
-                  setConfirmPassword('');
-                  clearFeedback();
-                  setRegistering((current) => (resetMode ? false : !current));
-                }}
-              >
-                {resetMode ? 'Back to sign in' : registering ? 'Sign in' : 'Create an account'}
-              </button>
-            </p>
+            {/* 3D Tactile Submit Button */}
+            <button className="auth-go" type="submit" disabled={busy}>
+              {busy ? (
+                <>
+                  <span className="auth-spin" aria-hidden="true" />
+                  <span>
+                    {resetMode
+                      ? resetCodeSent
+                        ? 'Resetting…'
+                        : 'Sending…'
+                      : registering
+                      ? 'Creating account…'
+                      : 'Authenticating…'}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span>
+                    {resetMode
+                      ? resetCodeSent
+                        ? 'Reset Password'
+                        : 'Send Reset Code'
+                      : registering
+                      ? 'Create Account'
+                      : 'Sign In to Dashboard'}
+                  </span>
+                  <ArrowRight size={17} />
+                </>
+              )}
+            </button>
+
+            {error && (
+              <p className="auth-status-alert auth-status-err" role="alert" aria-live="polite">
+                {ALERT_ICON}
+                <span>{error}</span>
+              </p>
+            )}
+
+            {success && (
+              <p className="auth-status-alert auth-status-ok" role="status" aria-live="polite">
+                <span>{success}</span>
+              </p>
+            )}
+          </form>
+
+          {!resetMode && (
+            <>
+              <div className="auth-divider">
+                <span>or continue with</span>
+              </div>
+              <GoogleSignInButton
+                onCredential={handleGoogleCredential}
+                onError={handleGoogleError}
+              />
+            </>
+          )}
+
+          <p className="auth-switch">
+            {resetMode
+              ? 'Remembered your password?'
+              : registering
+              ? 'Already have an account?'
+              : 'New to G4 Sticker?'}{' '}
+            <button
+              type="button"
+              className="auth-linkbtn"
+              disabled={busy}
+              onClick={() => {
+                setResetMode(false);
+                setResetCodeSent(false);
+                setResetCode('');
+                setNewPassword('');
+                setConfirmPassword('');
+                clearFeedback();
+                setRegistering((current) => (resetMode ? false : !current));
+              }}
+            >
+              {resetMode ? 'Back to sign in' : registering ? 'Sign in' : 'Create an account'}
+            </button>
+          </p>
+
+          <div className="auth-footer-security">
+            <ShieldCheck size={15} />
+            <span>Protected with TLS 1.3 · G4 Secure Engine</span>
           </div>
         </div>
       </div>

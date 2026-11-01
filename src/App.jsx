@@ -596,7 +596,13 @@ function App() {
   }
 
   function deleteRecord(record) {
-    setConfirmDialog({ record, title: `Delete "${record[fields[0]?.[0]] || 'this record'}"?` });
+    setConfirmDialog({
+      record,
+      title: `Delete "${record[fields[0]?.[0]] || 'this record'}"?`,
+      description: resource === 'bookings'
+        ? 'This permanently deletes the booking and its payment history. Void all payments first. Reverse job completion before deleting a completed booking.'
+        : 'This can’t be undone.'
+    });
   }
 
   async function confirmDelete() {
@@ -779,7 +785,7 @@ function App() {
         </div>
       </main>
       {modal && <RecordModal title={activeLabel} active={active} fields={fields} record={editing} defaultHolidayRate={defaultHolidayRate} saveError={modalError} saving={modalSaving} onClose={() => setModal(false)} onSave={saveRecord} />}
-      <ConfirmDialog open={Boolean(confirmDialog)} title={confirmDialog?.title || ''} description="This can’t be undone." confirmLabel="Delete" busy={confirmBusy} onCancel={() => setConfirmDialog(null)} onConfirm={confirmDelete} />
+      <ConfirmDialog open={Boolean(confirmDialog)} title={confirmDialog?.title || ''} description={confirmDialog?.description || 'This can’t be undone.'} confirmLabel="Delete" busy={confirmBusy} onCancel={() => setConfirmDialog(null)} onConfirm={confirmDelete} />
       {sheetEmployee && <EmployeeMonthlySheet employee={sheetEmployee} overtimeRate={defaultOvertimeRate} onClose={() => setSheetEmployee(null)} />}
     </div>
   );
