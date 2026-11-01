@@ -182,15 +182,17 @@ function DatePicker({ name, value, required }) {
   }, [normalizedValue]);
 
   function updatePopoverPosition() {
-    const rect = wrapperRef.current?.getBoundingClientRect();
-    if (!rect) return;
+    const triggerRect = wrapperRef.current?.getBoundingClientRect();
+    const dialog = wrapperRef.current?.closest('[data-slot="dialog-content"]');
+    if (!triggerRect || !dialog) return;
+    const dialogRect = dialog.getBoundingClientRect();
     const width = Math.min(290, window.innerWidth - 32);
-    const height = 320;
-    const left = Math.max(16, Math.min(rect.left, window.innerWidth - width - 16));
-    const below = rect.bottom + 8;
-    const top = below + height <= window.innerHeight - 12
+    const height = 330;
+    const left = Math.max(12, Math.min(triggerRect.left - dialogRect.left, dialogRect.width - width - 12));
+    const below = triggerRect.bottom - dialogRect.top + 8;
+    const top = triggerRect.bottom + height <= window.innerHeight - 12
       ? below
-      : Math.max(12, rect.top - height - 8);
+      : Math.max(12, triggerRect.top - dialogRect.top - height - 8);
     setPopoverPosition({ top, left });
   }
 
@@ -202,6 +204,7 @@ function DatePicker({ name, value, required }) {
     function handleKeyDown(event) {
       if (event.key === 'Escape') setOpen(false);
     }
+    updatePopoverPosition();
     document.addEventListener('mousedown', handlePointerDown);
     document.addEventListener('keydown', handleKeyDown);
     window.addEventListener('scroll', updatePopoverPosition, true);
@@ -233,7 +236,7 @@ function DatePicker({ name, value, required }) {
   return (
     <div className="date-picker" ref={wrapperRef}>
       <input type="hidden" name={name} value={selectedValue} />
-      <button type="button" className={`input date-picker-trigger${open ? 'is-open' : ''}`}
+      <button type="button" className={`input date-picker-trigger${open ? ' is-open' : ''}`}
         aria-label={selectedDate ? `Selected date: ${selectedDate.toLocaleDateString()}` : 'Choose a date'}
         aria-haspopup="dialog" aria-expanded={open} aria-required={required || undefined}
         onClick={() => {
@@ -280,7 +283,7 @@ function DatePicker({ name, value, required }) {
             <button type="button" className="btn calendar-clear btn-secondary" onClick={() => { setSelectedValue(''); setOpen(false); }}>Clear date</button>
             <button type="button" className="btn calendar-today btn-secondary" onClick={() => chooseDate(new Date())}>Today</button>
           </div>
-        </div>, document.body
+        </div>, wrapperRef.current?.closest('[data-slot="dialog-content"]') || document.body
       )}
     </div>
   );

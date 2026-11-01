@@ -25,6 +25,7 @@
   color: var(--text);
   box-shadow: var(--shadow-glass);
 }
+.dialog-content:has(.calendar-popover) { overflow: visible; }
 .dialog-content[data-size="sm"] { width: min(var(--dialog-w-sm), calc(100% - 16px)); }
 .dialog-content[data-size="md"] { width: min(var(--dialog-w-md), calc(100% - 16px)); }
 .dialog-content[data-size="lg"] { width: min(var(--dialog-w-lg), calc(100% - 16px)); }
