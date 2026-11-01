@@ -36,7 +36,6 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
 
-  const [coinFlipped, setCoinFlipped] = useState(false);
   const [successFlash, setSuccessFlash] = useState(false);
 
   const [fieldErrors, setFieldErrors] = useState({});
@@ -45,8 +44,6 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
   const [busy, setBusy] = useState(false);
   const [shaking, setShaking] = useState(false);
 
-  const cardRef = useRef(null);
-  const cardWrapRef = useRef(null);
   const nameInputRef = useRef(null);
   const emailInputRef = useRef(null);
   const passwordInputRef = useRef(null);
@@ -74,34 +71,6 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
       localStorage.setItem('g4-sticker-appearance', JSON.stringify(saved));
     } catch (_) {}
   }, [isDark]);
-
-  // 3D Card Parallax on Mouse Move
-  useEffect(() => {
-    function handleMouseMove(e) {
-      if (!cardWrapRef.current || !cardRef.current) return;
-      const bounds = cardWrapRef.current.getBoundingClientRect();
-      const mouseX = e.clientX;
-      const mouseY = e.clientY;
-      const leftX = mouseX - bounds.x;
-      const topY = mouseY - bounds.y;
-      const center = {
-        x: leftX - bounds.width / 2,
-        y: topY - bounds.height / 2,
-      };
-
-      const distance = Math.sqrt(center.x ** 2 + center.y ** 2);
-      if (distance < 750) {
-        const rotateX = (-center.y / 36).toFixed(2);
-        const rotateY = (center.x / 36).toFixed(2);
-        cardRef.current.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateZ(10px)`;
-      } else {
-        cardRef.current.style.transform = 'rotateX(0deg) rotateY(0deg) translateZ(0px)';
-      }
-    }
-
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
 
   function triggerShake() {
     setShaking(false);
@@ -329,18 +298,6 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
             {isDark ? 'Light Mode' : 'Dark Mode'}
           </button>
           <span className="auth-pill-divider">|</span>
-          <button
-            className="auth-reset-btn"
-            type="button"
-            onClick={() => {
-              if (cardRef.current) {
-                cardRef.current.style.transform = 'rotateX(0deg) rotateY(0deg) translateZ(0px)';
-              }
-              setCoinFlipped(false);
-            }}
-          >
-            Reset 3D
-          </button>
         </div>
       </header>
 
@@ -348,19 +305,14 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
       <AuthStickerPlayground />
 
       {/* 3D Card Shell */}
-      <div className="card-3d-wrap" ref={cardWrapRef}>
+      <div className="card-3d-wrap">
         <div
-          ref={cardRef}
           className={`auth-card${shaking ? ' shake' : ''}`}
           onAnimationEnd={() => setShaking(false)}
         >
-          {/* Interactive 3D Coin Badge (G4 Logo <-> Security Lock) */}
-          <div
-            className="coin-wrapper"
-            title="Click or focus password to flip 3D Coin"
-            onClick={() => setCoinFlipped((f) => !f)}
-          >
-            <div className={`coin-3d${coinFlipped ? ' flipped' : ''}`}>
+          {/* Static G4 brand badge */}
+          <div className="coin-wrapper">
+            <div className="coin-3d">
               {/* Front Face: G4 Logo on Frost with Silver Rim */}
               <div className="coin-face coin-front">
                 <div className="coin-rim-ticks" />
@@ -433,7 +385,6 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
                     setEmail(event.target.value);
                     clearField('email');
                   }}
-                  onFocus={() => setCoinFlipped(false)}
                 />
               </div>
               {fieldErrors.email && (
@@ -516,8 +467,6 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
                         setNewPassword(event.target.value);
                         clearField('newPassword');
                       }}
-                      onFocus={() => setCoinFlipped(true)}
-                      onBlur={() => setCoinFlipped(false)}
                       onKeyDown={handleCheckCapsLock}
                       onKeyUp={handleCheckCapsLock}
                     />
@@ -560,8 +509,6 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
                         setConfirmPassword(event.target.value);
                         clearField('confirmPassword');
                       }}
-                      onFocus={() => setCoinFlipped(true)}
-                      onBlur={() => setCoinFlipped(false)}
                       onKeyDown={handleCheckCapsLock}
                       onKeyUp={handleCheckCapsLock}
                     />
@@ -619,9 +566,7 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
                       setPassword(event.target.value);
                       clearField('password');
                     }}
-                    onFocus={() => setCoinFlipped(true)}
                     onBlur={() => {
-                      setCoinFlipped(false);
                       setCapsLockOn(false);
                     }}
                     onKeyDown={handleCheckCapsLock}

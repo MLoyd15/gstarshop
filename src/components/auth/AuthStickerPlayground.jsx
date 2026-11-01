@@ -6,6 +6,9 @@ const INITIAL_STICKERS = [
   { id: 'signage', w: 150, h: 70, kind: 'rect', fill: '#043CD4', text: 'SIGNAGE', textColor: '#FFFFFF', left: 8, top: 20, rot: -6 },
   { id: 'vinyl', w: 140, h: 66, kind: 'trapezoid', fill: '#042CAC', text: 'VINYL', textColor: '#2FD0FF', left: 9, top: 66, rot: 4 },
   { id: 'decals', w: 140, h: 64, kind: 'pill', fill: '#060B1F', text: 'DECALS', textColor: '#FFFFFF', left: 38, top: 84, rot: -8 },
+  { id: 'custom', w: 132, h: 64, kind: 'pill', fill: '#0A9CF4', text: 'CUSTOM', textColor: '#060B1F', left: 2, top: 43, rot: 7 },
+  { id: 'gloss', w: 112, h: 62, kind: 'rect', fill: '#E4E6EC', text: 'GLOSS', textColor: '#043CD4', left: 83, top: 39, rot: -7 },
+  { id: 'fast', w: 102, h: 58, kind: 'trapezoid', fill: '#043CD4', text: 'FAST', textColor: '#FFFFFF', left: 13, top: 7, rot: -10 },
 ];
 
 export default function AuthStickerPlayground() {

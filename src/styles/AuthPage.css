@@ -25,6 +25,7 @@
   padding: 80px 16px 72px;
   background-color: var(--ink);
   color: #FFFFFF;
+  transition: background-color 0.35s ease, color 0.35s ease;
   font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
   isolation: isolate;
   perspective: 1200px;
@@ -38,6 +39,16 @@
   pointer-events: none;
   z-index: 1;
   overflow: hidden;
+}
+
+.auth-page.theme-light {
+  background-color: #f2f6fb;
+  color: #101828;
+}
+
+.auth-page.theme-dark {
+  background-color: var(--ink);
+  color: #ffffff;
 }
 
 .auth-page .grid-plane {
@@ -136,8 +147,12 @@
   cursor: pointer;
   padding: 4px 8px;
   border-radius: 6px;
-  transition: color 0.15s, background-color 0.15s;
+  transition: color 0.15s, background-color 0.15s, transform 0.2s cubic-bezier(0.2, 0.8, 0.3, 1.4);
   font-family: inherit;
+}
+
+.auth-page .auth-pill-btn:active {
+  transform: scale(0.92);
 }
 
 .auth-page .auth-pill-btn:hover {
