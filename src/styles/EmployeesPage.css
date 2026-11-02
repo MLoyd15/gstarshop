@@ -45,6 +45,8 @@
 .employee-extras strong{color:var(--text);font-size: var(--fs-caption);font-variant-numeric:tabular-nums}
 .employee-card-actions{display:flex;gap:7px;margin-top:13px;padding-top:12px;border-top:1px solid var(--line)}
 .employee-card-actions button{font:inherit;font-size: var(--fs-body-sm)}
+.employee-card-actions .employee-delete-action{border-color:var(--danger);color:var(--danger)}
+.employee-card-actions .employee-delete-action:hover:not(:disabled){border-color:var(--danger);background:var(--danger-soft);color:var(--danger)}
 .employee-card-actions .employee-sheet-action{flex:1;border-color:var(--line);background:var(--surface);color:var(--text);font-weight:700}
 .employee-card-actions .employee-delete-action:hover{border-color:var(--danger);color:var(--danger)}
 .employees-empty{padding:52px 18px;text-align:center;color:var(--text);font-size: var(--fs-caption)}

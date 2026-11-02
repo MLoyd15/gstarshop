@@ -5,7 +5,6 @@ const CHART_SERIES = [
   { key: 'salesRevenue', label: 'Sales revenue', color: 'var(--chart-2)' },
   { key: 'cashCollected', label: 'Customer payments', color: 'var(--chart-3)' },
   { key: 'expenses', label: 'Expenses', color: 'var(--chart-4)' },
-  { key: 'payrollPaid', label: 'Payroll paid', color: 'var(--chart-3)' },
   { key: 'materialCost', label: 'Material costs', color: 'var(--chart-5)' },
   { key: 'grossMargin', label: 'Gross margin', color: 'var(--accent-hover)' }
 ];

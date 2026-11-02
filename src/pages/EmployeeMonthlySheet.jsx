@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppIcon } from '../components/icons.jsx';
-import { Plus, X } from '../components/icons.jsx';
+import { Check, Plus, X } from '../components/icons.jsx';
 import '../styles/EmployeeMonthlySheet.css';
 import '../styles/EmployeeMonthlyOvertime.css';
 import { Alert, NOTICE_TIMEOUT_MS } from '../components/ui/alert.tsx';
 import { Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../components/ui/dialog.tsx';
+import { ConfirmDialog } from '../components/ui/alert-dialog.tsx';
 import { calculateDailyEntryPay, calculateMonthlyPay } from '../../server/services/payroll.js';
 
 const money = (value) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(value) || 0);
@@ -28,6 +29,10 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
   const [expandedAdvanceIds, setExpandedAdvanceIds] = useState({});
   const [pendingAdvanceId, setPendingAdvanceId] = useState(null);
   const [carryIn, setCarryIn] = useState(0);
+  const [absenceRate, setAbsenceRate] = useState('');
+  const [editingAbsenceRate, setEditingAbsenceRate] = useState(false);
+  const [confirmAbsenceRate, setConfirmAbsenceRate] = useState(false);
+  const [savingAbsenceRate, setSavingAbsenceRate] = useState(false);
   const [locked, setLocked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -74,6 +79,7 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
 
         setAdvances((sheetData.advances || []).map((advance) => ({ ...advance, saved: true })));
         setCarryIn(Number(sheetData.advanceOwedBefore || 0));
+        setAbsenceRate(sheetData.absenceDeductionPerDay == null ? '' : String(sheetData.absenceDeductionPerDay));
         setLocked(Boolean(sheetData.locked));
       })
       .catch((e) => { if (!cancelled) setError(e.message); })
@@ -153,7 +159,7 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
   }).length, [dates, holidayTypes, absentDays, presentDays]);
   const totalAdvances = useMemo(() => advances.reduce((total, advance) => total + (Number(advance.amount) || 0), 0), [advances]);
   const extras = ['allowances', 'bonus', 'commission'].reduce((sum, key) => sum + (Number(employee[key]) || 0), 0);
-  const monthlyPay = calculateMonthlyPay({ monthlySalary: rate, workingDaysPerMonth: employee.workingDaysPerMonth || 26, absentDays: totalAbsentDays, allowances: employee.allowances, bonus: employee.bonus, commission: employee.commission });
+  const monthlyPay = calculateMonthlyPay({ monthlySalary: rate, workingDaysPerMonth: employee.workingDaysPerMonth || 26, absentDays: totalAbsentDays, perDayDeduction: absenceRate === '' ? undefined : Number(absenceRate), allowances: employee.allowances, bonus: employee.bonus, commission: employee.commission });
   const sheetGross = isMonthly ? monthlyPay.basicEarnings : totals.gross;
   const beforeAdvance = Math.max(0, sheetGross + extras - (Number(employee.regularDeductions) || 0));
   const advanceOwed = Math.max(0, carryIn + totalAdvances - beforeAdvance);
@@ -163,6 +169,21 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
     const today = new Date().toISOString().slice(0, 10);
     const date = period === today.slice(0, 7) ? today : `${period}-01`;
     setAdvances((items) => [...items, { id: id(), date, amount: '', note: '', confirmed: false }]);
+  }
+
+  async function saveAbsenceRate() {
+    const amount = absenceRate === '' ? monthlyPay.perDayDeduction : Number(absenceRate);
+    setSavingAbsenceRate(true); setError('');
+    try {
+      const response = await fetch(`/api/payroll/employees/${employee.id}/absence-rate`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Could not save absence rate.');
+      setAbsenceRate(String(data.absenceDeductionPerDay)); setConfirmAbsenceRate(false); setEditingAbsenceRate(false);
+      setNotice('Default absence rate saved for this employee.');
+      if (noticeTimeoutRef.current !== null) window.clearTimeout(noticeTimeoutRef.current);
+      noticeTimeoutRef.current = window.setTimeout(() => { setNotice(''); noticeTimeoutRef.current = null; }, NOTICE_TIMEOUT_MS);
+    } catch (e) { setError(e.message); setConfirmAbsenceRate(false); }
+    finally { setSavingAbsenceRate(false); }
   }
 
   function confirmAdvance(advanceId) {
@@ -220,12 +241,13 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(isMonthly
-          ? { absentDates: dates.filter((date) => absentDays[date]), advances: cleanAdvances }
+          ? { absentDates: dates.filter((date) => absentDays[date]), advances: cleanAdvances, ...(absenceRate === '' ? {} : { absenceDeductionPerDay: Number(absenceRate) }) }
           : { dailyEntries, advances: cleanAdvances, overtimeRate })
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Could not save this sheet.');
       setCarryIn(Number(data.advanceOwedBefore || 0));
+      if (data.absenceDeductionPerDay != null) setAbsenceRate(String(data.absenceDeductionPerDay));
       setAdvances((data.advances || []).map((advance) => ({ ...advance, confirmed: true, saved: true })));
       setLocked(Boolean(data.locked));
       setNotice('Monthly sheet saved.');
@@ -255,7 +277,7 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
         </div>
 
         {error && <Alert className="timesheet-notice" variant="error" dismissible onDismiss={() => setError('')}>{error}</Alert>}
-        {notice && <Alert className="timesheet-notice" variant="success">{notice}</Alert>}
+        {notice && <div className="timesheet-toast" role="status"><AppIcon icon={Check} size="sm" />{notice}</div>}
 
         <div className="timesheet-totals">
           {(isMonthly ? [
@@ -292,7 +314,7 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
         {loading ? <div className="timesheet-loading">Loading monthly sheet…</div> : <div className="timesheet-content">
           {isMonthly ? <section className="timesheet-section timesheet-monthly-section">
             <div className="timesheet-section-heading">
-              <div><h3>Monthly attendance</h3><p>Mark only days absent. Pay starts with the full monthly salary and subtracts ₱{monthlyPay.perDayDeduction.toFixed(2)} per absence day ({monthlyPay.workingDaysPerMonth} working days).</p></div>
+              <div><h3>Monthly attendance</h3><p>Mark only days absent. Pay subtracts ₱{monthlyPay.perDayDeduction.toFixed(2)} per absence day ({monthlyPay.workingDaysPerMonth} working days).</p></div>
             </div>
             <div className="timesheet-days timesheet-monthly-days">
               {visibleDates.map((date) => <div className={`timesheet-day-row ${absentDays[date] ? 'is-absent' : ''}`} key={date}>
@@ -413,14 +435,19 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
             <div className="timesheet-pagination"><button type="button" className="btn btn-secondary" disabled={attendancePage === 0} onClick={() => setAttendancePage((page) => page - 1)}>Previous</button><span>Week {attendancePage + 1} of {attendancePageCount}</span><button type="button" className="btn btn-secondary" disabled={attendancePage + 1 >= attendancePageCount} onClick={() => setAttendancePage((page) => page + 1)}>Next</button></div>
           </section>}
 
+          <div className="timesheet-payroll-tools">
+          <section className="timesheet-section timesheet-absence-rate-section">
+            <div className="timesheet-section-heading"><div><h3>Absence deduction</h3><p>Default amount charged per absent day.</p></div></div>
+            <button type="button" className="btn btn-secondary" disabled={locked || saving} onClick={() => setEditingAbsenceRate((value) => !value)}>{editingAbsenceRate ? 'Cancel' : 'Set absence rate'}</button>
+            {editingAbsenceRate && <div className="timesheet-absence-rate-editor"><label className="timesheet-absence-rate">Amount per absent day<input className="input" type="number" min="0" step="0.01" value={absenceRate === '' ? monthlyPay.perDayDeduction : absenceRate} disabled={locked || savingAbsenceRate} onChange={(event) => setAbsenceRate(event.target.value)} /></label><button type="button" className="btn btn-primary" disabled={locked || savingAbsenceRate || absenceRate === ''} onClick={() => { setEditingAbsenceRate(false); setConfirmAbsenceRate(true); }}>Save default rate</button></div>}
+          </section>
           <section className="timesheet-section">
             <div className="timesheet-section-heading">
               <div>
                 <h3>Pay advances</h3>
+                <p>Advance balance carries into the next month.</p>
               </div>
-              <button type="button" className="btn btn-secondary" disabled={locked} onClick={addAdvance}>
-                <AppIcon icon={Plus} size="sm" /> Add advance
-              </button>
+              <button type="button" className="btn btn-secondary" disabled={locked} onClick={addAdvance}><AppIcon icon={Plus} size="sm" /> Add advance</button>
             </div>
             {!advances.length ? <p className="timesheet-empty">No advances recorded this month.</p> : <div className="timesheet-advance-list">
               {advances.map((advance) => <div className="timesheet-advance-row" key={advance.id}>
@@ -434,6 +461,7 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
               </div>)}
             </div>}
           </section>
+          </div>
         </div>}
       </DialogBody>
 
@@ -447,5 +475,6 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
         </div>
       </DialogFooter>
     </DialogContent>
+    <ConfirmDialog open={confirmAbsenceRate} title="Save default absence rate?" description={`This will set ${money(absenceRate)} per absent day for ${employee.name}, including future months. It saves independently of the monthly sheet.`} confirmLabel={savingAbsenceRate ? 'Saving…' : 'Confirm rate'} onConfirm={saveAbsenceRate} onCancel={() => setConfirmAbsenceRate(false)} busy={savingAbsenceRate} overlayClassName="timesheet-confirm-overlay" />
   </Dialog>;
 }

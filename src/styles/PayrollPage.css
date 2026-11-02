@@ -53,6 +53,8 @@
 .payroll-status.paid{background:#183e31;color:#9be4b8}
 .payroll-status.reversed{background:#462b32;color:#ffb3bd}
 .payroll-row-actions{display:flex;gap:5px}
+.payroll-row-actions .payroll-delete{border-color:var(--danger);color:var(--danger)}
+.payroll-row-actions .payroll-delete:hover:not(:disabled){border-color:var(--danger);background:var(--danger-soft);color:var(--danger)}
 .payroll-row-actions button,.payroll-content footer button{font:inherit}
 .payroll-content{max-height:100%;min-width:0;overflow:hidden;padding:0;background:var(--glass-bg-strong);border-color:var(--glass-border);color:var(--text)}
 .payroll-content>form{display:flex;flex:1;min-height:0;min-width:0;flex-direction:column;overflow:auto;padding:22px 24px 24px}

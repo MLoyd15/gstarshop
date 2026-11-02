@@ -191,9 +191,23 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
       const holidays = holidayRecord?.data?.holidays || [];
       res.json({
         ...(sheet ? serialize(sheet) : { employeeRecordId: req.params.employeeId, period, dailyEntries: [], advances: [], advanceOwedBefore: Number(previous?.data.advanceOwed || 0) }),
+        absenceDeductionPerDay: Number(employee.data.absenceDeductionPerDay) || null,
         holidays,
         locked: Boolean(run)
       });
+    } catch (error) { fail(res, error); }
+  });
+
+  router.put('/employees/:employeeId/absence-rate', async (req, res) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.employeeId)) return res.status(400).json({ error: 'Employee ID is invalid.' });
+      const employee = await BusinessRecord.findOne({ _id: req.params.employeeId, resource: 'employees' });
+      if (!employee) return res.status(404).json({ error: 'Employee not found.' });
+      const amount = toMoney(req.body.amount, 'Absence deduction per day');
+      employee.data.absenceDeductionPerDay = amount;
+      employee.markModified('data');
+      await employee.save();
+      res.json({ absenceDeductionPerDay: amount });
     } catch (error) { fail(res, error); }
   });
 
@@ -223,7 +237,13 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
           if (!amount) throw new PayrollValidationError('Advance amounts must be greater than zero.');
           return { id: String(advance.id || new mongoose.Types.ObjectId()), date: advance.date, amount, note: String(advance.note || '').trim() };
         });
-        const monthly = calculateMonthlyPay({ monthlySalary: employeeRecord.data.salary ?? employeeRecord.data.baseRate, workingDaysPerMonth: employeeRecord.data.workingDaysPerMonth || 26, absentDays: absentDates.length, allowances: employeeRecord.data.allowances, bonus: employeeRecord.data.bonus, commission: employeeRecord.data.commission });
+          const customAbsenceRate = req.body.absenceDeductionPerDay === undefined ? employeeRecord.data.absenceDeductionPerDay : toMoney(req.body.absenceDeductionPerDay, 'Absence deduction per day', { optional: true });
+          if (req.body.absenceDeductionPerDay !== undefined) {
+            employeeRecord.data.absenceDeductionPerDay = customAbsenceRate;
+            employeeRecord.markModified('data');
+            await employeeRecord.save();
+          }
+          const monthly = calculateMonthlyPay({ monthlySalary: employeeRecord.data.salary ?? employeeRecord.data.baseRate, workingDaysPerMonth: employeeRecord.data.workingDaysPerMonth || 26, absentDays: absentDates.length, perDayDeduction: customAbsenceRate, allowances: employeeRecord.data.allowances, bonus: employeeRecord.data.bonus, commission: employeeRecord.data.commission });
         const previous = await BusinessRecord.findOne({ resource: 'payroll-timesheets', 'data.employeeRecordId': req.params.employeeId, 'data.period': { $lt: period } }).sort({ 'data.period': -1 }).lean();
         const advanceOwedBefore = Number(previous?.data?.advanceOwed || 0);
         const totalAdvances = advances.reduce((sum, entry) => sum + entry.amount, 0);
@@ -232,6 +252,7 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
         const advanceApplied = Math.min(advanceOwedBefore + totalAdvances, earningsBeforeAdvance);
         const data = {
           employeeRecordId: req.params.employeeId, employee: employeeRecord.data.name, employeeId: employeeRecord.data.employeeId || '', period,
+          absenceDeductionPerDay: employeeRecord.data.absenceDeductionPerDay ?? null,
           salaryType: 'monthly', rate: monthly.monthlySalary, workingDaysPerMonth: monthly.workingDaysPerMonth,
           absentDates, absentDays: monthly.absentDays, perDayDeduction: monthly.perDayDeduction, absenceDeduction: monthly.absenceDeduction,
           dailyEntries: absentDates.map((date) => ({ date, hours: 0, overtimeHours: 0, absent: true, present: false, holidayType: 'regular' })),

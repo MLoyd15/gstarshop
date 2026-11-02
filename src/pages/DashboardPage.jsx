@@ -49,7 +49,6 @@ const CHART_SERIES = [
   { key: 'salesRevenue', label: 'Sales revenue', color: 'var(--chart-2)' },
   { key: 'cashCollected', label: 'Customer payments', color: 'var(--chart-3)' },
   { key: 'expenses', label: 'Expenses', color: 'var(--chart-4)' },
-  { key: 'payrollPaid', label: 'Payroll paid', color: 'var(--chart-3)' },
   { key: 'materialCosts', label: 'Material costs', color: 'var(--chart-2)' }
 ];
 
@@ -76,9 +75,8 @@ export default function DashboardPage({ onNavigate, data, compact, loading = fal
 
   const deltaFor = (current, previous) => previous ? ((current - previous) / Math.abs(previous)) * 100 : null;
   const stats = [
-    { label: 'Manual income', value: currency(totals.income), count: `${totals.incomeEntries} entries`, current: comparison.current.income, previous: comparison.previous.income, target: 'income' },
+    { label: 'Income', value: currency(totals.income), count: `${totals.incomeEntries} manual entries + completed jobs`, current: comparison.current.income, previous: comparison.previous.income, target: 'income' },
     { label: 'Expenses recorded', value: currency(totals.expenses), count: `${totals.expenseEntries} entries`, current: comparison.current.expenses, previous: comparison.previous.expenses, target: 'expenses' },
-    { label: 'Payroll paid', value: currency(totals.payrollPaid), count: 'From dated pay-run payments', current: comparison.current.payrollPaid, previous: comparison.previous.payrollPaid, target: 'payroll-runs' },
     { label: 'Sales revenue', value: currency(totals.salesRevenue || 0), count: 'Recognized on job completion', current: comparison.current.salesRevenue, previous: comparison.previous.salesRevenue, target: 'bookings' },
     { label: 'Customer payments', value: currency(totals.cashCollected || 0), count: 'Non-voided booking payments', current: comparison.current.cashCollected, previous: comparison.previous.cashCollected, target: 'bookings' },
     { label: 'Receivables', value: currency(totals.receivables || 0), count: `${totals.receivableCount || 0} unpaid jobs`, current: null, previous: null, target: 'bookings' },
@@ -114,7 +112,7 @@ export default function DashboardPage({ onNavigate, data, compact, loading = fal
           </button>;
         })}
       </section>
-      <p className="dashboard-v2-accuracy-note">Manual income, completed-job sales revenue, and customer payments are separate figures; none are added together. {data.financialLimits?.salesRevenueTrackedSeparately ? '' : 'Some legacy or migrated completion revenue needs verification. '}{data.financialLimits?.customerReceivablesTracked ? '' : 'Legacy booking balances exclude unrecorded historic payments. '}Gross margin subtracts recorded job material costs only; it is not net profit.</p>
+      <p className="dashboard-v2-accuracy-note">Income includes manual entries and completed-job sales revenue. Customer payments are shown separately. {data.financialLimits?.salesRevenueTrackedSeparately ? '' : 'Some legacy or migrated completion revenue needs verification. '}{data.financialLimits?.customerReceivablesTracked ? '' : 'Legacy booking balances exclude unrecorded historic payments. '}Gross margin subtracts recorded job material costs only; it is not net profit.</p>
 
       <AnalyticsSection period={currentPeriod} chartMonths={chartMonths} onChartMonthsChange={onChartMonthsChange} />
 

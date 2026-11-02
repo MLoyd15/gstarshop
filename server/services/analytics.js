@@ -54,7 +54,6 @@ export function buildAnalyticsSummary(records = [], requestedPeriod, now = new D
       expenses: 0,
       salesRevenue: 0,
       cashCollected: 0,
-      payrollPaid: 0,
       materialCost: 0,
       actualRevenue: 0,
       estimatedRevenue: 0,
@@ -66,7 +65,7 @@ export function buildAnalyticsSummary(records = [], requestedPeriod, now = new D
   const monthByKey = new Map(months.map((m) => [m.key, m]));
 
   const ordinaryExpenses = (record) =>
-    !record.data?.payrollRunId && !String(record.data?.expenseKind || '').startsWith('payroll-') && String(record.data?.category || '').trim().toLowerCase() !== 'materials';
+    String(record.data?.expenseKind || '') !== 'payroll-accrual' && String(record.data?.expenseKind || '') !== 'payroll-void' && String(record.data?.category || '').trim().toLowerCase() !== 'materials';
 
   const incomes = records.filter((r) => r.resource === 'income' && !isReversed(r.data));
   const expenses = records.filter((r) => r.resource === 'expenses' && ordinaryExpenses(r) && !isReversed(r.data));
@@ -127,18 +126,6 @@ export function buildAnalyticsSummary(records = [], requestedPeriod, now = new D
     }
   }
 
-  // Populate monthly payroll paid
-  const seenPayments = new Set();
-  for (const record of records.filter((item) => item.resource === 'payroll-runs' && item.data?.status !== 'reversed')) {
-    for (const [index, payment] of (record.data?.payments || []).entries()) {
-      const paymentKey = payment.id ? `${record._id}:${payment.id}` : `${record._id}:legacy:${index}`;
-      if (seenPayments.has(paymentKey)) continue;
-      seenPayments.add(paymentKey);
-      const m = monthByKey.get(monthKey(payment.date, ''));
-      if (m && Number.isFinite(Number(payment.amount))) m.payrollPaid += Number(payment.amount);
-    }
-  }
-
   // Finalize monthly margin percentages & calculate peak for Income vs Expenses
   let peakVal = 0;
   let peakMonthKey = '';
@@ -149,7 +136,6 @@ export function buildAnalyticsSummary(records = [], requestedPeriod, now = new D
     m.expenses = roundTo(m.expenses, 2);
     m.salesRevenue = roundTo(m.salesRevenue, 2);
     m.cashCollected = roundTo(m.cashCollected, 2);
-    m.payrollPaid = roundTo(m.payrollPaid, 2);
     m.actualRevenue = roundTo(m.actualRevenue, 2);
     m.estimatedRevenue = roundTo(m.estimatedRevenue, 2);
     m.materialCost = roundTo(m.materialCost, 2);

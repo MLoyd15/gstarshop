@@ -331,8 +331,8 @@ function App() {
   const [notificationsError, setNotificationsError] = useState('');
   const [dashboard, setDashboard] = useState({
     period: new Date().toISOString().slice(0, 7), previousPeriod: '',
-    totals: { income: 0, expenses: 0, payrollPaid: 0, materialCosts: 0, expenseCategories: {}, incomeEntries: 0, expenseEntries: 0, bookings: 0, clients: 0, materials: 0, lowStockMaterials: 0, suppliers: 0, products: 0 },
-    comparison: { current: { income: 0, expenses: 0, payrollPaid: 0, materialCosts: 0 }, previous: { income: 0, expenses: 0, payrollPaid: 0, materialCosts: 0 } },
+    totals: { income: 0, expenses: 0, materialCosts: 0, expenseCategories: {}, incomeEntries: 0, expenseEntries: 0, bookings: 0, clients: 0, materials: 0, lowStockMaterials: 0, suppliers: 0, products: 0 },
+    comparison: { current: { income: 0, expenses: 0, materialCosts: 0 }, previous: { income: 0, expenses: 0, materialCosts: 0 } },
     payroll: { runCount: 0, employeeCount: 0, draftCount: 0, finalizedCount: 0, partiallyPaidCount: 0, paidCount: 0, gross: 0, overtime: 0, deductions: 0, net: 0, paid: 0, outstandingFinalized: 0 },
     financialLimits: { salesRevenueTrackedSeparately: false, customerReceivablesTracked: false, profitReliable: false },
     months: [],
@@ -756,7 +756,8 @@ function App() {
           ) : active === 'income' ? (
             <IncomePage active={active} title={activeLabel} fields={fields} records={filteredRecords} loading={loading}
               search={search} setSearch={setSearch} onCreate={openCreate}
-              onEdit={openEdit} onDelete={deleteRecord} />
+              onEdit={(record) => { if (record.booking) { setActive('bookings'); openEdit(record.booking); } else openEdit(record); }}
+              onDelete={(record) => { if (record.booking) { setActive('bookings'); deleteRecord(record.booking); } else deleteRecord(record); }} />
           ) : active === 'expenses' ? (
             <ExpensesPage active={active} title={activeLabel} fields={fields} records={filteredRecords} loading={loading}
               search={search} setSearch={setSearch} onCreate={openCreate}

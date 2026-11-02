@@ -14,13 +14,14 @@ type ConfirmDialogProps = {
   onConfirm: () => void
   onCancel: () => void
   busy?: boolean
+  overlayClassName?: string
 }
 
-function ConfirmDialog({ open, title, description, confirmLabel, onConfirm, onCancel, busy = false }: ConfirmDialogProps) {
+function ConfirmDialog({ open, title, description, confirmLabel, onConfirm, onCancel, busy = false, overlayClassName = '' }: ConfirmDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={(next) => { if (!next && !busy) onCancel() }}>
       <AlertDialogPrimitive.Portal>
-        <AlertDialogPrimitive.Overlay className="dialog-overlay" />
+        <AlertDialogPrimitive.Overlay className={`dialog-overlay ${overlayClassName}`} />
         <AlertDialogPrimitive.Content className="dialog-content" data-size="sm">
           <header className="dialog-header">
             <AlertDialogPrimitive.Title className="dialog-title">{title}</AlertDialogPrimitive.Title>

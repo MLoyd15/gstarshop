@@ -1,6 +1,6 @@
 import express from 'express';
 import { InventoryValidationError, toUnitCost } from '../services/inventory.js';
-import { recordPurchaseReceipt, recordSupplierPrices, reversePurchaseReceipt, validatePurchaseOrder, validateReceipt, validateSupplier } from '../services/purchasing.js';
+import { recordPurchaseReceipt, recordSupplierPrices, reverseAndDeletePurchaseOrder, reversePurchaseReceipt, validatePurchaseOrder, validateReceipt, validateSupplier } from '../services/purchasing.js';
 
 const serialize = (record) => ({ ...record.data, id: record._id.toString(), createdAt: record.createdAt, updatedAt: record.updatedAt });
 const today = () => new Date().toISOString().slice(0, 10);
@@ -178,13 +178,10 @@ export function createPurchasesRouter(BusinessRecord, mongoose) {
   });
   router.delete('/purchases/:id', async (req, res) => {
     try {
-      const order = await getOrder(req.params.id);
-      const hasReceivedQuantity = order.data.lines?.some((line) => Number(line.receivedQty || 0) > 0);
-      const hasReceipts = order.data.receipts?.length > 0;
-      if (!['draft', 'cancelled'].includes(order.data.status) || hasReceivedQuantity || hasReceipts) {
-        throw new InventoryValidationError('Only draft or cancelled purchase orders with no receipts can be deleted. Orders with receipt history must be kept for audit purposes.', 409);
-      }
-      await order.deleteOne();
+      await inTransaction(async (session) => {
+        const order = await getOrder(req.params.id, session);
+        await reverseAndDeletePurchaseOrder({ BusinessRecord, session, order, date: today() });
+      });
       res.status(204).end();
     } catch (error) { fail(res, error); }
   });

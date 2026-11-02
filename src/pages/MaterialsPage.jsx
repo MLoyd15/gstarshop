@@ -173,7 +173,7 @@ export default function MaterialsPage() {
       name: form.name, category: form.category, unit: form.unit,
       rollWidth: form.rollWidth, rollWidthUnit: form.rollWidthUnit,
       reorderLevel: Number(form.reorderLevel || 0), supplierId: form.supplierId,
-      active: form.active === 'true'
+      active: dialog.type === 'create' || form.active === 'true'
     };
     if (dialog.type === 'create') {
       body.openingQuantity = Number(form.openingQuantity || 0);

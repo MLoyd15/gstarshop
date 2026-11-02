@@ -226,14 +226,18 @@ export function calculatePayroll({ salaryType = 'monthly', baseRate, units, holi
   return res;
 }
 
-export function calculateMonthlyPay({ monthlySalary, workingDaysPerMonth = 26, absentDays = 0, allowances = 0, bonus = 0, commission = 0 }) {
+export function calculateMonthlyPay({ monthlySalary, workingDaysPerMonth = 26, absentDays = 0, perDayDeduction: customPerDayDeduction, allowances = 0, bonus = 0, commission = 0 }) {
   const salary = toMoney(monthlySalary, 'Monthly salary');
   const workingDays = Number(workingDaysPerMonth);
   const absences = Number(absentDays);
   if (!Number.isInteger(workingDays) || workingDays <= 0) throw new PayrollValidationError('Working days per month must be a positive integer.');
   if (!Number.isInteger(absences) || absences < 0) throw new PayrollValidationError('Absent days must be a non-negative integer.');
-  const perDayDeduction = Math.round((salary / workingDays + Number.EPSILON) * 100) / 100;
-  const absenceDeduction = Math.round((absences * salary / workingDays + Number.EPSILON) * 100) / 100;
+  const perDayDeduction = customPerDayDeduction === undefined || customPerDayDeduction === null || customPerDayDeduction === ''
+    ? Math.round((salary / workingDays + Number.EPSILON) * 100) / 100
+    : toMoney(customPerDayDeduction, 'Absence deduction per day', { optional: true });
+  const absenceDeduction = customPerDayDeduction === undefined || customPerDayDeduction === null || customPerDayDeduction === ''
+    ? Math.round((absences * salary / workingDays + Number.EPSILON) * 100) / 100
+    : Math.round((absences * perDayDeduction + Number.EPSILON) * 100) / 100;
   const basicEarnings = Math.round((salary - absenceDeduction + Number.EPSILON) * 100) / 100;
   const extras = ['allowances', 'bonus', 'commission'].reduce((sum, key) => sum + toMoney({ allowances, bonus, commission }[key], key, { optional: true }), 0);
   return { monthlySalary: salary, workingDaysPerMonth: workingDays, absentDays: absences, perDayDeduction, absenceDeduction, basicEarnings, grossPay: Math.round((basicEarnings + extras + Number.EPSILON) * 100) / 100 };

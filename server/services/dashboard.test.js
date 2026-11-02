@@ -10,7 +10,7 @@ test('dashboard returns zero activity and labels unsupported accounting figures'
   const result = buildDashboardSummary([], '2026-10', new Date('2026-10-22T00:00:00.000Z'));
   assert.equal(result.period, '2026-10');
   assert.deepEqual(result.totals, {
-    income: 0, expenses: 0, payrollPaid: 0, materialCosts: 0, salesRevenue: 0, cashCollected: 0, grossMargin: 0,
+    income: 0, expenses: 0, materialCosts: 0, salesRevenue: 0, cashCollected: 0, grossMargin: 0,
     receivables: 0, receivableCount: 0, unpaidBookings: [], receivablesVerified: true, allTime: { salesRevenue: 0, materialCosts: 0, grossMargin: 0, cashCollected: 0 }, expenseCategories: {},
     incomeEntries: 0, expenseEntries: 0, clients: 0, materials: 0,
     lowStockMaterials: 0, suppliers: 0, products: 0, bookings: 0
@@ -36,13 +36,14 @@ test('dashboard keeps manual income, sales revenue, and customer cash separate',
     record('bookings', { name: 'Reversed job', amount: 90, paymentTrackingStartedAt: '2026-01-01', completion: { status: 'reversed', completionDate: '2026-10-03', revenueAmount: 90, revenueSource: 'completion', materialCost: 10 }, payments: [] }, 'booking-reversed')
   ];
   const result = buildDashboardSummary(entries, '2026-10', new Date('2026-10-22T00:00:00.000Z'));
-  assert.equal(result.totals.income, 80);
+  assert.equal(result.totals.income, 180);
   assert.equal(result.totals.salesRevenue, 100);
   assert.equal(result.totals.cashCollected, 40);
   assert.equal(result.totals.receivables, 210);
   assert.equal(result.totals.receivableCount, 3);
   assert.equal(result.totals.grossMargin, 70);
   assert.equal(result.totals.allTime.grossMargin, 70);
+  assert.equal(result.months.find((month) => month.key === '2026-10').income, 180);
   assert.equal(result.months.find((month) => month.key === '2026-10').salesRevenue, 100);
   assert.equal(result.months.find((month) => month.key === '2026-10').cashCollected, 40);
   assert.equal(result.months.find((month) => month.key === '2026-10').grossMargin, 70);
@@ -110,9 +111,11 @@ test('dashboard chart window can be set to three or twelve months and defaults s
   assert.equal(invalidWindow.months.length, 6);
 });
 
-test('dashboard separates job material costs and payroll payments from generic expenses', () => {
+test('dashboard includes payroll payment expenses in the expenses total', () => {
   const entries = [
-    record('expenses', { amount: 500, date: '2026-10-03', payrollRunId: 'run-1', expenseKind: 'payroll-payment' }, 'payroll-expense'),
+    record('expenses', { amount: 500, date: '2026-10-03', category: 'Payroll', payrollRunId: 'run-1', expenseKind: 'payroll-payment' }, 'payroll-expense'),
+    record('expenses', { amount: 300, date: '2026-10-03', category: 'Payroll', payrollRunId: 'run-1', expenseKind: 'payroll-accrual' }, 'payroll-accrual'),
+    record('expenses', { amount: 0, date: '2026-10-03', category: 'Payroll', payrollRunId: 'run-1', expenseKind: 'payroll-void' }, 'payroll-void'),
     record('expenses', { amount: 40, date: '2026-10-03', category: 'Utilities' }, 'ordinary-expense'),
     record('bookings', { status: 'Completed', completion: { status: 'completed', completionDate: '2026-10-12', materialCost: 70 } }, 'booking-complete'),
     record('bookings', { status: 'Active', amount: 800 }, 'booking-quote'),
@@ -123,13 +126,13 @@ test('dashboard separates job material costs and payroll payments from generic e
   ];
   const result = buildDashboardSummary(entries, '2026-10', new Date('2026-10-22T00:00:00.000Z'));
 
-  assert.equal(result.totals.expenses, 40);
-  assert.equal(result.totals.payrollPaid, 250);
+  assert.equal(result.totals.expenses, 540);
+  assert.equal(result.totals.expenseEntries, 2);
   assert.equal(result.totals.materialCosts, 70);
-  assert.deepEqual(result.totals.expenseCategories, { Utilities: 40 });
+  assert.deepEqual(result.totals.expenseCategories, { Payroll: 500, Utilities: 40 });
+  assert.equal(result.months.find((item) => item.key === '2026-10').expenses, 540);
   assert.equal(result.payroll.outstandingFinalized, 350);
   assert.equal(result.payroll.partiallyPaidCount, 1);
-  assert.equal(result.months.find((item) => item.key === '2026-10').payrollPaid, 250);
 });
 
 test('dashboard excludes reversed income and payroll runs', () => {

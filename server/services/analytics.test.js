@@ -87,25 +87,31 @@ test('analytics handles payroll-linked expenses and reversed expenses correctly'
   const records = [
     record('expenses', { category: 'Supplies', amount: 250, date: '2026-10-01' }, 'e1'),
     record('expenses', { category: 'Rent', amount: 1000, date: '2026-10-01' }, 'e2'),
-    // Payroll linked expense should be excluded from operational expenses
+    // Payroll payment expenses are expenses, while accruals and voids are not.
     record('expenses', { category: 'Payroll', amount: 5000, date: '2026-10-05', payrollRunId: 'pr-1' }, 'e-payroll'),
     record('expenses', { category: 'Payroll', amount: 1200, date: '2026-10-05', expenseKind: 'payroll-net' }, 'e-payroll2'),
+    record('expenses', { category: 'Payroll', amount: 300, date: '2026-10-05', expenseKind: 'payroll-accrual' }, 'e-accrual'),
+    record('expenses', { category: 'Payroll', amount: 0, date: '2026-10-05', expenseKind: 'payroll-void' }, 'e-void'),
     // Reversed expense should be excluded
     record('expenses', { category: 'Supplies', amount: 300, date: '2026-10-02', status: 'reversed' }, 'e-reversed')
   ];
 
   const result = buildAnalyticsSummary(records, '2026-10', new Date('2026-10-15T00:00:00Z'), 6);
-  assert.equal(result.expensesByCategory.totalAmount, 1250);
-  assert.equal(result.expensesByCategory.totalCount, 2);
-  assert.equal(result.expensesByCategory.categories.length, 2);
+  assert.equal(result.expensesByCategory.totalAmount, 7450);
+  assert.equal(result.expensesByCategory.totalCount, 4);
+  assert.equal(result.expensesByCategory.categories.length, 3);
+  assert.equal(result.monthlyComparison.months.find((m) => m.key === '2026-10').expenses, 7450);
 
   const rent = result.expensesByCategory.categories.find((c) => c.category === 'Rent');
   const supplies = result.expensesByCategory.categories.find((c) => c.category === 'Supplies');
+  const payroll = result.expensesByCategory.categories.find((c) => c.category === 'Payroll');
   assert.equal(rent.amount, 1000);
-  assert.equal(rent.percentage, 80);
+  assert.equal(rent.percentage, 13.4);
   assert.equal(supplies.amount, 250);
-  assert.equal(supplies.percentage, 20);
-  assert.equal(rent.percentage + supplies.percentage, 100);
+  assert.equal(supplies.percentage, 3.4);
+  assert.equal(payroll.amount, 6200);
+  assert.equal(payroll.percentage, 83.2);
+  assert.equal(rent.percentage + supplies.percentage + payroll.percentage, 100);
 });
 
 test('analytics buckets months accurately across calendar year boundaries', () => {
@@ -147,7 +153,7 @@ test('analytics calculates unpaid balances with ledger verification flag', () =>
   assert.equal(result.unpaidBalances.items[1].paymentLedgerVerified, true);
 });
 
-test('analytics records customer cash collected and payroll paid in monthly comparison', () => {
+test('analytics records customer cash collected in monthly comparison', () => {
   const records = [
     record('bookings', {
       name: 'Booking with payment',
@@ -163,6 +169,6 @@ test('analytics records customer cash collected and payroll paid in monthly comp
   const result = buildAnalyticsSummary(records, '2026-10', new Date('2026-10-15T00:00:00Z'), 6);
   const oct = result.monthlyComparison.months.find((m) => m.key === '2026-10');
   assert.equal(oct.cashCollected, 450);
-  assert.equal(oct.payrollPaid, 800);
+  assert.equal('payrollPaid' in oct, false);
 });
 

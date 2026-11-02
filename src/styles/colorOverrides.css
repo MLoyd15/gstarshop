@@ -17,3 +17,5 @@
 .cp-badge.cancelled { background: var(--danger-soft); color: var(--danger); }
 :is(.booking-delete-action, .employee-delete-action):hover:not(:disabled) { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
 :is(.employee-delete-action, .client-delete-action, .payroll-delete, .record-delete-action):hover:not(:disabled) { background:var(--danger-soft); border-color:#b94f63; color:#ffb2be; }
+:is(.purchase-delete-action, .product-delete-action) { border-color: var(--danger); background: transparent; color: var(--danger); }
+:is(.purchase-delete-action, .product-delete-action):hover:not(:disabled) { border-color: var(--danger); background: var(--danger-soft); color: var(--danger); }

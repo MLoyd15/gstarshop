@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildReorderSuggestions, recordPurchaseReceipt, recordSupplierPrices, reversePurchaseReceipt, validatePurchaseOrder, validateReceipt } from './purchasing.js';
+import { buildReorderSuggestions, recordPurchaseReceipt, recordSupplierPrices, reverseAndDeletePurchaseOrder, reversePurchaseReceipt, validatePurchaseOrder, validateReceipt } from './purchasing.js';
 
 const materialId = '507f1f77bcf86cd799439011';
 function fixture(qty = 0) {
@@ -52,6 +52,56 @@ test('reversing a receipt posts an opposite movement and restores the received q
   assert.deepEqual(reversalMovementIds, ['movement-2']);
   assert.equal(order.data.lines[0].receivedQty, 0);
   assert.equal(order.data.status, 'ordered');
+});
+
+test('deleting a received purchase order reverses active receipts and removes linked supplier prices', async () => {
+  const { order } = fixture();
+  const receiptA = { id: 'receipt-a' };
+  const receiptB = { id: 'receipt-b', reversedAt: '2026-10-21T00:00:00.000Z' };
+  order.data.receipts = [receiptA, receiptB];
+  let deletedOrder = false;
+  let deletedPrices;
+  const reverseCalls = [];
+  order.deleteOne = async ({ session }) => { deletedOrder = session === 'session'; };
+  const BusinessRecord = {
+    deleteMany(filter) {
+      return { session: async (session) => { deletedPrices = { filter, session }; } };
+    }
+  };
+
+  await reverseAndDeletePurchaseOrder({
+    BusinessRecord,
+    session: 'session',
+    order,
+    date: '2026-11-02',
+    reverseReceipt: async (args) => { reverseCalls.push(args); }
+  });
+
+  assert.equal(reverseCalls.length, 1);
+  assert.equal(reverseCalls[0].receipt, receiptA);
+  assert.equal(reverseCalls[0].reason, 'Purchase order deleted');
+  assert.equal(deletedPrices.filter.resource, 'supplier-prices');
+  assert.equal(deletedPrices.filter['data.sourcePurchaseId'], '507f191e810c19729de860ea');
+  assert.equal(deletedPrices.session, 'session');
+  assert.equal(deletedOrder, true);
+});
+
+test('purchase orders with recorded payments cannot be deleted', async () => {
+  const { order } = fixture();
+  order.data.payments = [{ id: 'payment-1', amount: 5 }];
+  order.data.paidAmount = 5;
+  let deletedOrder = false;
+
+  await assert.rejects(
+    reverseAndDeletePurchaseOrder({
+      BusinessRecord: {},
+      session: {},
+      order: { ...order, deleteOne: async () => { deletedOrder = true; } },
+      date: '2026-11-02'
+    }),
+    (error) => error.status === 409 && /payments/i.test(error.message)
+  );
+  assert.equal(deletedOrder, false);
 });
 
 test('purchase validation rejects invalid IDs and over-receiving', () => {

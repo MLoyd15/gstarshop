@@ -173,3 +173,38 @@ export async function reversePurchaseReceipt({ BusinessRecord, session, order, r
   order.data.status = purchaseStatus(order.data.lines, order.data.paidAmount, order.data.subtotal);
   return reversalMovementIds;
 }
+
+export async function reverseAndDeletePurchaseOrder({ BusinessRecord, session, order, date, reverseReceipt = reversePurchaseReceipt }) {
+  const payments = Array.isArray(order.data.payments) ? order.data.payments : [];
+  if (order.data.status === 'paid' || payments.length > 0 || Number(order.data.paidAmount || 0) > 0) {
+    throw new InventoryValidationError('Purchase orders with recorded payments cannot be deleted.', 409);
+  }
+
+  const receipts = Array.isArray(order.data.receipts) ? order.data.receipts : [];
+  const hasReceivedQuantity = order.data.lines?.some((line) => Number(line.receivedQty || 0) > 0);
+  if (hasReceivedQuantity && receipts.length === 0) {
+    throw new InventoryValidationError('This purchase order has stock receipts that cannot be reversed.', 409);
+  }
+  if (!['draft', 'cancelled'].includes(order.data.status) && receipts.length === 0) {
+    throw new InventoryValidationError('Only draft or cancelled purchase orders, or orders with receipt history, can be deleted.', 409);
+  }
+
+  for (const receipt of receipts) {
+    if (receipt.reversedAt) continue;
+    await reverseReceipt({
+      BusinessRecord,
+      session,
+      order,
+      receipt,
+      reason: 'Purchase order deleted',
+      date
+    });
+  }
+
+  const priceRows = BusinessRecord.deleteMany({
+    resource: 'supplier-prices',
+    'data.sourcePurchaseId': order._id.toString()
+  });
+  await priceRows.session(session);
+  await order.deleteOne({ session });
+}

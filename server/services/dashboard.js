@@ -41,7 +41,6 @@ export function buildDashboardSummary(records, requestedPeriod, now = new Date()
       label: date.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' }),
       income: 0,
       expenses: 0,
-      payrollPaid: 0,
       materialCosts: 0,
       salesRevenue: 0,
       cashCollected: 0,
@@ -50,7 +49,7 @@ export function buildDashboardSummary(records, requestedPeriod, now = new Date()
   });
   const monthByKey = new Map(months.map((item) => [item.key, item]));
   const monthTotals = (key) => monthByKey.get(key);
-  const ordinaryExpenses = (record) => !record.data.payrollRunId && !String(record.data.expenseKind || '').startsWith('payroll-') && String(record.data.category || '').trim().toLowerCase() !== 'materials';
+  const ordinaryExpenses = (record) => String(record.data.expenseKind || '') !== 'payroll-accrual' && String(record.data.expenseKind || '') !== 'payroll-void' && String(record.data.category || '').trim().toLowerCase() !== 'materials';
   const incomes = records.filter((record) => record.resource === 'income' && !isReversed(record.data));
   const expenses = records.filter((record) => record.resource === 'expenses' && ordinaryExpenses(record) && !isReversed(record.data));
   const bookings = records.filter((record) => record.resource === 'bookings');
@@ -60,8 +59,6 @@ export function buildDashboardSummary(records, requestedPeriod, now = new Date()
   const eligibleReceivableBookings = bookings.filter((record) => !isCancelledBooking(record.data));
   const receivablesCovered = eligibleReceivableBookings.every((record) => Boolean(record.data.paymentTrackingStartedAt));
   const runs = records.filter((record) => record.resource === 'payroll-runs' && record.data.period === period && record.data.status !== 'reversed');
-  const paymentRecords = [];
-
   for (const record of incomes) {
     const key = monthKey(record.data.date || record.createdAt, '');
     const item = monthTotals(key);
@@ -81,6 +78,7 @@ export function buildDashboardSummary(records, requestedPeriod, now = new Date()
       item.materialCosts += materialCost;
       if (hasRevenueSnapshot(completion)) {
         item.salesRevenue += Number(completion.revenueAmount);
+        item.income += Number(completion.revenueAmount);
         item.grossMargin += Number(completion.revenueAmount) - materialCost;
       }
     }
@@ -113,17 +111,6 @@ export function buildDashboardSummary(records, requestedPeriod, now = new Date()
     }
   }
 
-  const seenPayments = new Set();
-  for (const record of records.filter((item) => item.resource === 'payroll-runs' && item.data.status !== 'reversed')) {
-    for (const [index, payment] of (record.data.payments || []).entries()) {
-      const paymentKey = payment.id ? `${record._id}:${payment.id}` : `${record._id}:legacy:${index}`;
-      if (seenPayments.has(paymentKey)) continue;
-      seenPayments.add(paymentKey);
-      paymentRecords.push({ run: record, payment });
-      const item = monthTotals(monthKey(payment.date, ''));
-      if (item && Number.isFinite(Number(payment.amount))) item.payrollPaid += Number(payment.amount);
-    }
-  }
 
   const previousDate = new Date(Date.UTC(periodDate.getUTCFullYear(), periodDate.getUTCMonth() - 1, 1));
   const previousPeriod = previousDate.toISOString().slice(0, 7);
@@ -131,7 +118,7 @@ export function buildDashboardSummary(records, requestedPeriod, now = new Date()
     const read = (resource, dateSelector) => records
       .filter((record) => record.resource === resource && !isReversed(record.data) && dateSelector(record) === key)
       .reduce((sum, record) => sum + amountOf(record), 0);
-    const income = read('income', (record) => monthKey(record.data.date || record.createdAt, ''));
+    const manualIncome = read('income', (record) => monthKey(record.data.date || record.createdAt, ''));
     const expensesTotal = records.filter((record) => record.resource === 'expenses' && ordinaryExpenses(record) && !isReversed(record.data)
       && monthKey(record.data.date || record.createdAt, '') === key).reduce((sum, record) => sum + amountOf(record), 0);
     const materialCosts = completedBookings.filter((record) => {
@@ -143,15 +130,14 @@ export function buildDashboardSummary(records, requestedPeriod, now = new Date()
       return monthKey(completion.completionDate || completion.completedAt || record.updatedAt, '') === key
         && hasRevenueSnapshot(completion);
     }).reduce((sum, record) => sum + Number(record.data.completion.revenueAmount), 0);
-    const payrollPaid = paymentRecords.filter(({ payment }) => monthKey(payment.date, '') === key)
-      .reduce((sum, { payment }) => sum + (Number(payment.amount) || 0), 0);
+    const income = manualIncome + salesRevenue;
     const cashCollected = bookingPayments.filter(({ payment }) => monthKey(payment.date, '') === key)
       .reduce((sum, { payment }) => sum + (Number(payment.amount) || 0), 0);
     const grossMargin = completedBookings.filter((record) => {
       const completion = record.data.completion;
       return monthKey(completion.completionDate || completion.completedAt || record.updatedAt, '') === key && hasRevenueSnapshot(completion);
     }).reduce((sum, record) => sum + Number(record.data.completion.revenueAmount) - (Number(record.data.completion.materialCost) || 0), 0);
-    return { income, expenses: expensesTotal, payrollPaid, materialCosts, salesRevenue, cashCollected, grossMargin };
+    return { income, expenses: expensesTotal, materialCosts, salesRevenue, cashCollected, grossMargin };
   };
 
   const selectedTotals = periodValues(period);

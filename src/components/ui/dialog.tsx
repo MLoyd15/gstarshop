@@ -19,11 +19,12 @@ function DialogContent({
   children,
   onEscapeKeyDown,
   onPointerDownOutside,
+  overlayClassName = '',
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Content> & { size?: Size; busy?: boolean }) {
+}: React.ComponentProps<typeof DialogPrimitive.Content> & { size?: Size; busy?: boolean; overlayClassName?: string }) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="dialog-overlay" />
+      <DialogPrimitive.Overlay className={`dialog-overlay ${overlayClassName}`} />
       <DialogPrimitive.Content
         data-slot="dialog-content"
         data-size={size}
