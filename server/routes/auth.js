@@ -36,7 +36,7 @@ export function createAuthRouter() {
   const router = Router();
   router.post('/forgot-password', async (request, response, next) => {
     try {
-      if (!isEmailConfigured()) return response.status(503).json({ error: 'Password reset email is not configured. Add MAIL_USER and MAIL_APP_PASSWORD to .env, then restart the server.' });
+      if (!isEmailConfigured()) return response.status(503).json({ error: 'Password reset email is not configured. Set MAIL_USER and MAIL_APP_PASSWORD in the server environment.' });
       const email = String(request.body?.email || '').trim().toLowerCase();
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return response.status(400).json({ error: 'Enter a valid email address.' });
       const requestKey = request.ip || request.socket.remoteAddress || 'unknown';
@@ -59,6 +59,11 @@ export function createAuthRouter() {
           user.resetCodeHash = undefined; user.resetCodeExpiresAt = undefined; user.resetCodeAttempts = 0; user.resetCodeSentAt = undefined;
           await user.save();
           if (error.message.startsWith('Password reset email is not configured')) return response.status(503).json({ error: error.message });
+          console.error('Password reset email delivery failed:', {
+            code: error.code || null,
+            responseCode: error.responseCode || null,
+            command: error.command || null
+          });
           return response.status(503).json({ error: 'Could not send the reset email. Check the Gmail mail settings and try again.' });
         }
       }

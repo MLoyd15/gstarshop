@@ -5,7 +5,7 @@ export function isEmailConfigured() {
 }
 
 export async function sendPasswordResetCode(email, code) {
-  if (!isEmailConfigured()) throw new Error('Password reset email is not configured. Add MAIL_USER and MAIL_APP_PASSWORD to .env.');
+  if (!isEmailConfigured()) throw new Error('Password reset email is not configured. Set MAIL_USER and MAIL_APP_PASSWORD in the server environment.');
   const user = process.env.MAIL_USER;
   const transporter = nodemailer.createTransport({
     service: 'gmail',
