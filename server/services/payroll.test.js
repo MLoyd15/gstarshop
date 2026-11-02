@@ -4,10 +4,12 @@ import {
   addPayrollPayment,
   calculateDailyEntryPay,
   calculatePayroll,
+  calculateMonthlyPay,
   payrollPeriodEnd,
   PayrollConflictError,
   PayrollValidationError,
   toMoney,
+  validateEmployeePayrollData,
   validPayrollPeriod
 } from './payroll.js';
 
@@ -22,6 +24,42 @@ test('daily and hourly rates require worked units', () => {
   assert.equal(calculatePayroll({ salaryType: 'daily', baseRate: 80, units: 20 }).grossPay, 1600);
   assert.equal(calculatePayroll({ salaryType: 'hourly', baseRate: 12.5, units: 40 }).grossPay, 500);
   assert.throws(() => calculatePayroll({ salaryType: 'hourly', baseRate: 12.5, units: 0 }), PayrollValidationError);
+});
+
+test('an untouched daily entry earns no pay', () => {
+  assert.equal(calculateDailyEntryPay({ entry: {}, baseRate: 600, isDaily: true }).regularPay, 0);
+});
+
+test('a present daily entry earns the daily rate', () => {
+  assert.equal(calculateDailyEntryPay({ entry: { present: true }, baseRate: 600, isDaily: true }).regularPay, 600);
+});
+
+test('daily overtime-only entries pay overtime without a full day', () => {
+  const result = calculateDailyEntryPay({ entry: { overtimeHours: 2 }, baseRate: 600, isDaily: true, overtimeRate: 100 });
+  assert.equal(result.regularPay, 0);
+  assert.equal(result.overtimePay, 200);
+});
+
+test('monthly employees with no absences receive the full salary', () => {
+  assert.equal(calculateMonthlyPay({ monthlySalary: 30000, workingDaysPerMonth: 26, absentDays: 0 }).grossPay, 30000);
+});
+
+test('monthly absence deduction uses working days per month', () => {
+  assert.equal(calculateMonthlyPay({ monthlySalary: 30000, workingDaysPerMonth: 26, absentDays: 2 }).grossPay, 27692.31);
+});
+
+test('monthly pay rounds to two decimals', () => {
+  assert.equal(calculateMonthlyPay({ monthlySalary: 30000, workingDaysPerMonth: 26, absentDays: 1 }).grossPay, 28846.15);
+});
+
+test('monthly salary extras are included in gross pay', () => {
+  assert.equal(calculateMonthlyPay({ monthlySalary: 30000, allowances: 1000, bonus: 500, commission: 250 }).grossPay, 31750);
+});
+
+test('working days per month defaults to 26 and must be a positive integer', () => {
+  assert.equal(validateEmployeePayrollData({ salary: 30000, salaryType: 'monthly' }).workingDaysPerMonth, 26);
+  assert.throws(() => validateEmployeePayrollData({ salary: 30000, salaryType: 'monthly', workingDaysPerMonth: '0' }), /positive integer/);
+  assert.throws(() => validateEmployeePayrollData({ salary: 30000, salaryType: 'monthly', workingDaysPerMonth: '26.5' }), /positive integer/);
 });
 
 test('payroll calculation supports holiday pay across salary types', () => {

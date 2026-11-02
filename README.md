@@ -31,3 +31,46 @@ In Google Cloud Console, configure the OAuth consent screen/branding and create 
 ### Password reset email
 
 Password reset codes are six digits, expire after 10 minutes, and are limited to five guesses. To send them through Gmail, enable 2-Step Verification on the sending Google account and create an App Password. Add `MAIL_USER` and `MAIL_APP_PASSWORD` to `.env` and restart the server. Do not use your normal Google password. Gmail App Passwords require 2-Step Verification; for a production deployment, use a transactional email provider if Gmail SMTP is unavailable or unsuitable.
+
+## Deploying
+
+The application can be deployed as a single unified service where the Express backend serves both API endpoints (`/api/*`) and the built React frontend (`dist/`).
+
+### Commands
+
+- **Build command**: `npm install && npm run build`
+- **Start command**: `npm start`
+
+### Required Environment Variables
+
+Configure these variables in your hosting provider's dashboard (e.g. Render, Railway, Heroku, VPS):
+
+| Variable | Type | Purpose | Example |
+| :--- | :--- | :--- | :--- |
+| `PORT` | Runtime | Port the server listens on (cloud hosts like Render provide this automatically) | `4000` |
+| `MONGODB_URI` | Runtime | MongoDB Atlas connection string | `mongodb+srv://<user>:<password>@cluster.mongodb.net/gstarshop?retryWrites=true&w=majority` |
+| `SESSION_SECRET` | Runtime | Secret key for signing sessions and reset tokens (min. 32 random characters) | `a-very-long-random-string-at-least-32-chars` |
+| `COOKIE_SECURE` | Runtime | Set to `true` when serving over HTTPS so the session cookie carries the `Secure` flag | `true` |
+| `CLIENT_URL` | Runtime | Allowed CORS origin (set to your public production URL, e.g. `https://your-domain.com`) | `https://your-domain.com` |
+| `GOOGLE_CLIENT_ID` | Runtime | Google OAuth 2.0 Web Client ID for backend token verification | `123456...apps.googleusercontent.com` |
+| `VITE_GOOGLE_CLIENT_ID` | Build-time | Google OAuth 2.0 Web Client ID embedded into frontend at build time (must match `GOOGLE_CLIENT_ID`) | `123456...apps.googleusercontent.com` |
+| `MAIL_USER` | Runtime | Gmail address for sending password reset emails | `operator@gmail.com` |
+| `MAIL_APP_PASSWORD` | Runtime | 16-character Google App Password for Gmail SMTP | `abcd efgh ijkl mnop` |
+| `MAIL_FROM` | Runtime | (Optional) Custom sender name and address (defaults to `G4 Sticker <MAIL_USER>`) | `G4 Sticker <operator@gmail.com>` |
+
+> **Note on Build-time Variables**: `VITE_GOOGLE_CLIENT_ID` is baked into client assets during `npm run build`. Ensure it is present during your hosting platform's build phase.
+
+### MongoDB Atlas Network Access
+
+1. Log in to [MongoDB Atlas](https://cloud.mongodb.com/).
+2. Navigate to **Security > Network Access**.
+3. Click **Add IP Address**.
+4. If deploying to cloud platforms with dynamic IP ranges (e.g., Render, Railway, Heroku), select **Allow Access from Anywhere** (`0.0.0.0/0`) or configure your platform's static egress IP addresses if available.
+5. Under **Database Access**, verify that your database user has read and write privileges for the target database.
+
+### Google OAuth Configuration
+
+1. In the [Google Cloud Console](https://console.cloud.google.com/), navigate to **APIs & Services > Credentials**.
+2. Open your OAuth 2.0 Web Client ID.
+3. Under **Authorized JavaScript origins**, add your deployed production URL without trailing slashes (e.g., `https://your-domain.com`), alongside `http://localhost` and `http://localhost:5173`.
+4. Save the changes (updates may take a few minutes to propagate on Google's servers).

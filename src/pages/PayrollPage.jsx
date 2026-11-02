@@ -107,9 +107,9 @@ export default function PayrollPage({ defaultOvertimeRate = '0', onOpenEmployee,
 
   const hasDaysWorked = (emp) => {
     const s = sheetsByEmployee[emp.id];
-    return Number(s?.totalDays) > 0 ||
-      Number(s?.holidayPay) > 0 ||
-      (s?.dailyEntries || []).some((e) => e.holidayType === 'paid_holiday' || (!e.absent && Number(e.hours) > 0));
+    return Number(s?.holidayPay) > 0 ||
+      Number(s?.totalOvertimeHours) > 0 ||
+      (s?.dailyEntries || []).some((e) => e.holidayType === 'paid_holiday' || e.holidayType === 'double_holiday' || (!e.absent && (e.present === true || Number(e.hours) > 0)));
   };
 
   function generate(event) {
@@ -376,7 +376,7 @@ export default function PayrollPage({ defaultOvertimeRate = '0', onOpenEmployee,
               const sheetGross = Number(sheet?.grossPay) || 0;
               const sheetHolidayPay = Number(sheet?.holidayPay) || 0;
               const sheetAdvanceOwed = sheet
-                ? Math.max(0, Number(sheet.advanceOwedBefore || 0) + Number(sheet.totalAdvances || 0) - Math.max(0, sheetGross + Number(employee.allowances || 0) + Number(employee.bonus || 0) + Number(employee.commission || 0) - Number(employee.regularDeductions || 0)))
+                ? Math.max(0, Number(sheet.advanceOwedBefore || 0) + Number(sheet.totalAdvances || 0) - Math.max(0, (employee.salaryType === 'monthly' ? sheetGross : sheetGross + Number(employee.allowances || 0) + Number(employee.bonus || 0) + Number(employee.commission || 0)) - Number(employee.regularDeductions || 0)))
                 : 0;
               const hasHoursOrHoliday = employee.salaryType === 'hourly' && (Number(sheet?.totalHours) > 0 || sheetHolidayPay > 0);
               const hasDaysOrHoliday = employee.salaryType === 'daily' && (hasDaysWorked(employee) || sheetHolidayPay > 0);
@@ -402,15 +402,17 @@ export default function PayrollPage({ defaultOvertimeRate = '0', onOpenEmployee,
                       </div>
                     : employee.salaryType === 'monthly'
                       ? <div className="payroll-sheet-summary">
-                          <span>Monthly salary</span>
-                          <span>Fixed monthly pay basis.</span>
+                          <span>{money(sheet?.grossPay ?? employee.salary)} monthly gross</span>
+                          <span>{sheet?.absentDays || 0} absent days · {money(sheet?.absenceDeduction)} absence deduction</span>
+                          {sheet && <span>{money(sheet.totalAdvances)} advances · {money(sheetAdvanceOwed)} still owed</span>}
                         </div>
                       : employee.salaryType === 'daily'
                         ? hasDaysOrHoliday
                           ? <div className="payroll-sheet-summary">
-                              <span>{sheet?.totalDays ?? (sheet?.dailyEntries || []).filter((e) => e.holidayType === 'paid_holiday' || (!e.absent && Number(e.hours) > 0)).length} days</span>
+                              <span>{(sheet?.dailyEntries || []).filter((e) => e.holidayType === 'paid_holiday' || e.holidayType === 'double_holiday' || (!e.absent && (e.present === true || Number(e.hours) > 0))).length} days</span>
                               {sheetHolidayPay > 0 && <span>{money(sheetHolidayPay)} holiday pay</span>}
-                              <span>{money(sheetGross || (sheet?.totalDays || 0) * (Number(employee.salary) || 0))} gross pay</span>
+                              {Number(sheet?.totalOvertimeHours) > 0 && <span>{sheet.totalOvertimeHours} OT hrs</span>}
+                              <span>{money(sheetGross)} gross pay</span>
                             </div>
                           : <div className="payroll-sheet-missing">
                               <span>No days worked or holidays saved for this month. This employee will be skipped.</span>

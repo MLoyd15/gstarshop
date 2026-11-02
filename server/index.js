@@ -2,6 +2,8 @@ import 'dotenv/config';
 import cors from 'cors';
 import express from 'express';
 import mongoose from 'mongoose';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createPayrollRouter } from './routes/payroll.js';
 import { createInventoryRouter } from './routes/inventory.js';
 import { createBookingsRouter } from './routes/bookings.js';
@@ -197,7 +199,7 @@ const resourceWhitelists = {
   expenses: ['name', 'category', 'amount', 'date', 'notes', 'reference'],
   clients: ['name', 'company', 'email', 'phone', 'address', 'city', 'region', 'postalCode', 'country', 'preferredContact', 'status', 'notes'],
   scheduler: ['name', 'date', 'time', 'status', 'notes', 'location'],
-  employees: ['employeeId', 'name', 'position', 'email', 'phone', 'salary', 'baseRate', 'overtimeRate', 'holidayRate', 'salaryType', 'allowances', 'bonus', 'commission', 'regularDeductions', 'effectiveDate', 'payFrequency', 'status'],
+  employees: ['employeeId', 'name', 'position', 'email', 'phone', 'salary', 'baseRate', 'overtimeRate', 'holidayRate', 'salaryType', 'workingDaysPerMonth', 'allowances', 'bonus', 'commission', 'regularDeductions', 'effectiveDate', 'payFrequency', 'status'],
   shareholders: ['name', 'email', 'shares', 'percentage', 'notes'],
   'material-categories': ['name'],
   'excel-sheet': ['name', 'category', 'owner', 'updated', 'content', 'data'],
@@ -295,6 +297,16 @@ app.delete('/api/records/:resource/:id', async (request, response, next) => {
     }
     next(error);
   }
+});
+
+const distPath = fileURLToPath(new URL('../dist', import.meta.url));
+app.use(express.static(distPath));
+
+app.get('*', (request, response, next) => {
+  if (request.path.startsWith('/api')) {
+    return next();
+  }
+  response.sendFile(path.join(distPath, 'index.html'));
 });
 
 app.use((error, _request, response, _next) => {

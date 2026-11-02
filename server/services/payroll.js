@@ -93,8 +93,9 @@ export function calculateDailyEntryPay({ entry, baseRate, isDaily, overtimeRate 
   const overtimePay = Math.round((overtimeHours * otRate + Number.EPSILON) * 100) / 100;
 
   if (isDaily) {
+    const present = entry?.present === true || hours > 0;
     if (holidayType === 'double_holiday') {
-      const multiplier = (!absent && (hours > 0 || entry?.worked !== false)) ? 2 : (absent ? 1 : 2);
+      const multiplier = !absent && present ? 2 : 0;
       const basePay = Math.round((multiplier * rate + Number.EPSILON) * 100) / 100;
       return {
         holidayType,
@@ -123,10 +124,8 @@ export function calculateDailyEntryPay({ entry, baseRate, isDaily, overtimeRate 
         isPaidHoliday: true
       };
     }
-    if (absent || (hours === 0 && entry?.worked === false)) {
-      return { holidayType, basePay: 0, overtimePay: 0, totalPay: 0, holidayPay: 0, regularPay: 0, doubleHolidayPay: 0, paidHolidayPay: 0 };
-    }
-    const basePay = Math.round((rate + Number.EPSILON) * 100) / 100;
+    if (absent) return { holidayType, basePay: 0, overtimePay: 0, totalPay: 0, holidayPay: 0, regularPay: 0, doubleHolidayPay: 0, paidHolidayPay: 0 };
+    const basePay = present ? Math.round((rate + Number.EPSILON) * 100) / 100 : 0;
     return {
       holidayType,
       basePay,
@@ -141,8 +140,8 @@ export function calculateDailyEntryPay({ entry, baseRate, isDaily, overtimeRate 
 
   // Hourly employee:
   if (holidayType === 'double_holiday') {
-    const effectiveHours = hours > 0 ? hours : (absent ? 0 : 8);
-    const hourlyMultiplier = hours > 0 ? 2 : 1;
+    const effectiveHours = hours;
+    const hourlyMultiplier = 2;
     const basePay = Math.round((effectiveHours * (rate * hourlyMultiplier) + Number.EPSILON) * 100) / 100;
     return {
       holidayType,
@@ -195,7 +194,8 @@ export function calculatePayroll({ salaryType = 'monthly', baseRate, units, holi
   const rate = toMoney(baseRate, 'Base pay rate');
   const parsedHolidayPay = toMoney(holidayPay, 'Holiday pay', { optional: true });
   const parsedUnits = type === 'monthly' ? 1 : Number(units);
-  if (!Number.isFinite(parsedUnits) || parsedUnits < 0 || (type !== 'monthly' && parsedUnits === 0 && !(parsedHolidayPay > 0))) {
+  const paidWithoutUnits = Number(otherEarnings) > 0 || parsedHolidayPay > 0;
+  if (!Number.isFinite(parsedUnits) || parsedUnits < 0 || (type !== 'monthly' && parsedUnits === 0 && !paidWithoutUnits)) {
     throw new PayrollValidationError(type === 'daily' ? 'Enter days worked for this employee.' : type === 'hourly' ? 'Enter hours worked for this employee.' : 'Units must be zero or greater.');
   }
 
@@ -226,6 +226,19 @@ export function calculatePayroll({ salaryType = 'monthly', baseRate, units, holi
   return res;
 }
 
+export function calculateMonthlyPay({ monthlySalary, workingDaysPerMonth = 26, absentDays = 0, allowances = 0, bonus = 0, commission = 0 }) {
+  const salary = toMoney(monthlySalary, 'Monthly salary');
+  const workingDays = Number(workingDaysPerMonth);
+  const absences = Number(absentDays);
+  if (!Number.isInteger(workingDays) || workingDays <= 0) throw new PayrollValidationError('Working days per month must be a positive integer.');
+  if (!Number.isInteger(absences) || absences < 0) throw new PayrollValidationError('Absent days must be a non-negative integer.');
+  const perDayDeduction = Math.round((salary / workingDays + Number.EPSILON) * 100) / 100;
+  const absenceDeduction = Math.round((absences * salary / workingDays + Number.EPSILON) * 100) / 100;
+  const basicEarnings = Math.round((salary - absenceDeduction + Number.EPSILON) * 100) / 100;
+  const extras = ['allowances', 'bonus', 'commission'].reduce((sum, key) => sum + toMoney({ allowances, bonus, commission }[key], key, { optional: true }), 0);
+  return { monthlySalary: salary, workingDaysPerMonth: workingDays, absentDays: absences, perDayDeduction, absenceDeduction, basicEarnings, grossPay: Math.round((basicEarnings + extras + Number.EPSILON) * 100) / 100 };
+}
+
 export function validateEmployeePayrollData(data) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) throw new PayrollValidationError('Employee data must be a JSON object.');
   const salaryType = String(data.salaryType || 'monthly').toLowerCase();
@@ -234,6 +247,11 @@ export function validateEmployeePayrollData(data) {
   for (const key of ['overtimeRate', 'holidayRate', 'allowances', 'bonus', 'commission', 'regularDeductions']) {
     toMoney(data[key], key === 'regularDeductions' ? 'Configured deductions' : key, { optional: true });
   }
+  if (data.workingDaysPerMonth !== undefined && data.workingDaysPerMonth !== null && data.workingDaysPerMonth !== '') {
+    const workingDays = Number(data.workingDaysPerMonth);
+    if (!Number.isInteger(workingDays) || workingDays <= 0) throw new PayrollValidationError('Working days per month must be a positive integer.');
+    data.workingDaysPerMonth = workingDays;
+  } else if (salaryType === 'monthly') data.workingDaysPerMonth = 26;
   if (data.effectiveDate && !/^\d{4}-\d{2}-\d{2}$/.test(String(data.effectiveDate))) {
     throw new PayrollValidationError('Effective date must be a valid date.');
   }

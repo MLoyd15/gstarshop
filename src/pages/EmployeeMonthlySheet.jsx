@@ -5,6 +5,7 @@ import '../styles/EmployeeMonthlySheet.css';
 import '../styles/EmployeeMonthlyOvertime.css';
 import { Alert, NOTICE_TIMEOUT_MS } from '../components/ui/alert.tsx';
 import { Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../components/ui/dialog.tsx';
+import { calculateDailyEntryPay, calculateMonthlyPay } from '../../server/services/payroll.js';
 
 const money = (value) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(value) || 0);
 const monthDates = (period) => {
@@ -19,6 +20,7 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
   const [hours, setHours] = useState({});
   const [overtimeHours, setOvertimeHours] = useState({});
   const [absentDays, setAbsentDays] = useState({});
+  const [presentDays, setPresentDays] = useState({});
   const [holidayTypes, setHolidayTypes] = useState({});
   const [holidayNames, setHolidayNames] = useState({});
   const [advances, setAdvances] = useState([]);
@@ -63,6 +65,9 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
         setAbsentDays(Object.fromEntries((sheetData.dailyEntries || []).filter((entry) =>
           entry.absent && holidayMap[entry.date] !== 'paid_holiday'
         ).map((entry) => [entry.date, true])));
+        setPresentDays(Object.fromEntries((sheetData.dailyEntries || []).filter((entry) =>
+          !entry.absent && (entry.present === true || Number(entry.hours) > 0)
+        ).map((entry) => [entry.date, true])));
 
         setAdvances(sheetData.advances || []);
         setCarryIn(Number(sheetData.advanceOwedBefore || 0));
@@ -73,43 +78,24 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
     return () => { cancelled = true; };
   }, [employee.id, period]);
 
-  const isDaily = (employee.salaryType || 'monthly') === 'daily';
+  const salaryType = employee.salaryType || 'monthly';
+  const isDaily = salaryType === 'daily';
+  const isMonthly = salaryType === 'monthly';
   const rate = Number(employee.salary || employee.baseRate) || 0;
   const overtimeRate = Number(sharedOvertimeRate) || 0;
 
   const getDayPay = (date) => {
     const type = holidayTypes[date] || 'regular';
     const isAbsent = Boolean(absentDays[date]);
-    const h = type === 'paid_holiday' ? 0 : Number(hours[date]) || 0;
-    const ot = type === 'paid_holiday' ? 0 : Number(overtimeHours[date]) || 0;
-    const otPay = ot * overtimeRate;
-
-    if (isDaily) {
-      if (type === 'double_holiday') {
-        const multiplier = (!isAbsent && (h > 0 || !isAbsent)) ? 2 : 1;
-        return { basePay: rate * multiplier, otPay, total: rate * multiplier + otPay, type, multiplier };
-      }
-      if (type === 'paid_holiday') {
-        return { basePay: rate, otPay, total: rate + otPay, type, multiplier: 1 };
-      }
-      if (isAbsent) return { basePay: 0, otPay: 0, total: 0, type, multiplier: 0 };
-      return { basePay: rate, otPay, total: rate + otPay, type, multiplier: 1 };
-    }
-
-    // Hourly:
-    if (type === 'double_holiday') {
-      const effH = h > 0 ? h : (isAbsent ? 0 : 8);
-      const mult = h > 0 ? 2 : 1;
-      const basePay = effH * rate * mult;
-      return { basePay, otPay, total: basePay + otPay, type, multiplier: mult };
-    }
-    if (type === 'paid_holiday') {
-      const basePay = 8 * rate;
-      return { basePay, otPay, total: basePay + otPay, type, multiplier: 1 };
-    }
-    if (isAbsent) return { basePay: 0, otPay: 0, total: 0, type, multiplier: 0 };
-    const basePay = h * rate;
-    return { basePay, otPay, total: basePay + otPay, type, multiplier: 1 };
+    const h = isDaily || type === 'paid_holiday' ? 0 : Number(hours[date]) || 0;
+    const ot = isDaily || type === 'paid_holiday' ? 0 : Number(overtimeHours[date]) || 0;
+    const result = calculateDailyEntryPay({
+      entry: { hours: h, overtimeHours: ot, absent: isAbsent, present: presentDays[date] === true, holidayType: type },
+      baseRate: rate,
+      isDaily,
+      overtimeRate
+    });
+    return { basePay: result.basePay, otPay: result.overtimePay, total: result.totalPay, type: result.holidayType };
   };
 
   const dates = useMemo(() => monthDates(period), [period]);
@@ -153,12 +139,18 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
       paidCount,
       gross
     };
-  }, [dates, hours, overtimeHours, absentDays, holidayTypes, rate, overtimeRate, isDaily]);
+  }, [dates, hours, overtimeHours, absentDays, presentDays, holidayTypes, rate, overtimeRate, isDaily]);
 
   const totalAbsentDays = useMemo(() => Object.values(absentDays).filter(Boolean).length, [absentDays]);
+  const totalDailyDays = useMemo(() => dates.filter((date) => {
+    const type = holidayTypes[date] || 'regular';
+    return type === 'paid_holiday' || (!absentDays[date] && presentDays[date] === true);
+  }).length, [dates, holidayTypes, absentDays, presentDays]);
   const totalAdvances = useMemo(() => advances.reduce((total, advance) => total + (Number(advance.amount) || 0), 0), [advances]);
   const extras = ['allowances', 'bonus', 'commission'].reduce((sum, key) => sum + (Number(employee[key]) || 0), 0);
-  const beforeAdvance = Math.max(0, totals.gross + extras - (Number(employee.regularDeductions) || 0));
+  const monthlyPay = calculateMonthlyPay({ monthlySalary: rate, workingDaysPerMonth: employee.workingDaysPerMonth || 26, absentDays: totalAbsentDays, allowances: employee.allowances, bonus: employee.bonus, commission: employee.commission });
+  const sheetGross = isMonthly ? monthlyPay.basicEarnings : totals.gross;
+  const beforeAdvance = Math.max(0, sheetGross + extras - (Number(employee.regularDeductions) || 0));
   const advanceOwed = Math.max(0, carryIn + totalAdvances - beforeAdvance);
   const takeHome = Math.max(0, beforeAdvance - carryIn - totalAdvances);
 
@@ -174,22 +166,25 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
       ...Object.keys(hours),
       ...Object.keys(overtimeHours),
       ...Object.keys(absentDays),
+      ...Object.keys(presentDays),
       ...Object.keys(holidayTypes)
     ])];
 
     const dailyEntries = allDates
       .filter((date) =>
         absentDays[date] ||
-        Number(hours[date]) > 0 ||
-        Number(overtimeHours[date]) > 0 ||
+        presentDays[date] ||
+        (!isDaily && Number(hours[date]) > 0) ||
+        (!isDaily && Number(overtimeHours[date]) > 0) ||
         holidayTypes[date] === 'paid_holiday' ||
         holidayTypes[date] === 'double_holiday'
       )
       .map((date) => ({
         date,
-        hours: absentDays[date] || holidayTypes[date] === 'paid_holiday' ? 0 : Number(hours[date]) || 0,
-        overtimeHours: absentDays[date] || holidayTypes[date] === 'paid_holiday' ? 0 : Number(overtimeHours[date]) || 0,
+        hours: isDaily || absentDays[date] || holidayTypes[date] === 'paid_holiday' ? 0 : Number(hours[date]) || 0,
+        overtimeHours: isDaily || absentDays[date] || holidayTypes[date] === 'paid_holiday' ? 0 : Number(overtimeHours[date]) || 0,
         absent: holidayTypes[date] === 'paid_holiday' ? false : Boolean(absentDays[date]),
+        present: !absentDays[date] && (presentDays[date] === true || (!isDaily && Number(hours[date]) > 0)),
         holidayType: holidayTypes[date] || 'regular'
       }));
 
@@ -198,7 +193,9 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
       const response = await fetch(`/api/payroll/employees/${employee.id}/sheet?period=${period}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dailyEntries, advances: cleanAdvances, overtimeRate })
+        body: JSON.stringify(isMonthly
+          ? { absentDates: dates.filter((date) => absentDays[date]), advances: cleanAdvances }
+          : { dailyEntries, advances: cleanAdvances, overtimeRate })
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Could not save this sheet.');
@@ -219,7 +216,7 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
           <span className="t-eyebrow">EMPLOYEE PAYROLL</span>
           <DialogTitle>{employee.name}</DialogTitle>
           <DialogDescription>
-            {employee.employeeId || 'Employee'} · {money(rate)} {isDaily ? 'daily' : 'hourly'} · {money(overtimeRate)} OT/hr
+            {employee.employeeId || 'Employee'} · {money(rate)} {salaryType} {!isMonthly && !isDaily ? `· ${money(overtimeRate)} OT/hr` : ''}
           </DialogDescription>
         </div>
         <DialogClose disabled={saving} className="timesheet-close" />
@@ -228,31 +225,72 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
       <DialogBody className="timesheet-body">
         <div className="timesheet-period">
           <label>Month<input className="input" type="month" value={period} onChange={(event) => setPeriod(event.target.value)} /></label>
-          <span>{locked ? 'Payroll run exists · sheet locked' : 'Track regular hours and overtime · Holidays managed from Pay runs'}</span>
+          <span>{locked ? 'Payroll run exists · sheet locked' : isMonthly ? 'Mark absences and record advances' : isDaily ? 'Mark each workday Present or Absent' : 'Track regular hours and overtime · Holidays managed from Pay runs'}</span>
         </div>
 
         {error && <Alert className="timesheet-notice" variant="error" dismissible onDismiss={() => setError('')}>{error}</Alert>}
         {notice && <Alert className="timesheet-notice" variant="success">{notice}</Alert>}
 
         <div className="timesheet-totals">
-          {[
+          {(isMonthly ? [
+            ['Monthly salary', money(rate)],
+            ['Working days per month', String(monthlyPay.workingDaysPerMonth)],
+            ['Per-day deduction', money(monthlyPay.perDayDeduction)],
+            ['Absent days', String(totalAbsentDays)],
+            ['Absence deduction', money(monthlyPay.absenceDeduction)],
+            ['Gross earnings', money(monthlyPay.basicEarnings)],
+            ['Allowances', money(employee.allowances)],
+            ['Bonus', money(employee.bonus)],
+            ['Commission', money(employee.commission)],
+            ['Gross incl. extras', money(monthlyPay.grossPay)],
+            ['Regular deductions', `− ${money(employee.regularDeductions)}`],
+            ['Advances', `− ${money(totalAdvances + carryIn)}`],
+            ['Advance still owed', money(advanceOwed)],
+            ['Estimated take-home', money(takeHome)]
+          ] : isDaily ? [
+            ['Days present', String(totalDailyDays)],
+            ['Holiday pay', `${totals.doubleCount + totals.paidCount} days · ${money(totals.holidayEarnings)}`],
+            ['Gross earnings', money(totals.gross)],
+            ['Allowances', money(employee.allowances)],
+            ['Bonus', money(employee.bonus)],
+            ['Commission', money(employee.commission)],
+            ['Regular deductions', `− ${money(employee.regularDeductions)}`],
+            ['Absent days', String(totalAbsentDays)],
+            ['Advances', `− ${money(totalAdvances + carryIn)}`],
+            ['Advance still owed', money(advanceOwed)],
+            ['Estimated take-home', money(takeHome)]
+          ] : [
             ['Hours this month', `${totals.totalHours} hrs`],
             ['Overtime', `${totals.totalOvertimeHours} hrs · ${money(totals.totalOvertimePay)}`],
             ['Holiday pay', `${totals.doubleCount + totals.paidCount} days · ${money(totals.holidayEarnings)}`],
             ['Gross earnings', money(totals.gross)],
+            ['Allowances', money(employee.allowances)],
+            ['Bonus', money(employee.bonus)],
+            ['Commission', money(employee.commission)],
+            ['Regular deductions', `− ${money(employee.regularDeductions)}`],
             ['Absent days', String(totalAbsentDays)],
-            ['Advances paid', money(totalAdvances)],
+            ['Advances', `− ${money(totalAdvances + carryIn)}`],
             ['Advance still owed', money(advanceOwed)],
             ['Estimated take-home', money(takeHome)]
-          ].map(([label, value]) => <article key={label}><span>{label}</span><strong>{value}</strong></article>)}
+          ]).map(([label, value]) => <article key={label}><span>{label}</span><strong>{value}</strong></article>)}
         </div>
 
         {loading ? <div className="timesheet-loading">Loading monthly sheet…</div> : <div className="timesheet-content">
-          <section className="timesheet-section">
+          {isMonthly ? <section className="timesheet-section timesheet-monthly-section">
+            <div className="timesheet-section-heading">
+              <div><h3>Monthly attendance</h3><p>Mark only days absent. Pay starts with the full monthly salary and subtracts ₱{monthlyPay.perDayDeduction.toFixed(2)} per absence day.</p></div>
+            </div>
+            <div className="timesheet-days timesheet-monthly-days">
+              {dates.map((date) => <div className={`timesheet-day-row ${absentDays[date] ? 'is-absent' : ''}`} key={date}>
+                <span>{new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                <button type="button" className={`btn timesheet-absence-toggle ${absentDays[date] ? 'is-absent' : ''}`} aria-pressed={Boolean(absentDays[date])} disabled={locked} onClick={() => setAbsentDays((items) => ({ ...items, [date]: !items[date] }))}>Absent</button>
+              </div>)}
+            </div>
+          </section> : <section className="timesheet-section">
             <div className="timesheet-section-heading">
               <div>
-                <h3>Daily hours & attendance</h3>
-                <p>Track regular hours and overtime. Holidays are applied automatically from <strong>Pay runs &rarr; Manage holidays</strong>.</p>
+                <h3>{isDaily ? 'Daily attendance' : 'Daily hours & attendance'}</h3>
+                <p>{isDaily ? 'Choose Present or Absent. A Present day earns the daily rate. Holidays are managed from ' : 'Track regular hours and overtime. Holidays are applied automatically from '}<strong>Pay runs &rarr; Manage holidays</strong>.</p>
               </div>
             </div>
 
@@ -263,6 +301,7 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
                 const isPaid = holidayTypes[date] === 'paid_holiday';
                 const rowClass = [
                   'timesheet-day-row',
+                  isDaily ? 'timesheet-day-row-daily' : '',
                   absentDays[date] ? 'is-absent' : '',
                   isDouble ? 'is-double-holiday' : '',
                   isPaid ? 'is-paid-holiday' : ''
@@ -276,7 +315,7 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
                     {isPaid && <span className="timesheet-holiday-pill paid" title={holidayNames[date] ? `${holidayNames[date]} (Paid holiday · 100%)` : 'Paid holiday (100%)'}>Paid holiday (100%)</span>}
                   </div>
 
-                  <input
+                  {!isDaily && <input
                     className="input"
                     aria-label={`Regular hours worked on ${date}`}
                     type="number"
@@ -287,9 +326,9 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
                     value={isPaid ? '' : (hours[date] || '')}
                     disabled={locked || isPaid || absentDays[date]}
                     onChange={(event) => setHours((items) => ({ ...items, [date]: event.target.value }))}
-                  />
+                  />}
 
-                  <input
+                  {!isDaily && <input
                     className="input"
                     aria-label={`Overtime hours worked on ${date}`}
                     type="number"
@@ -300,9 +339,35 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
                     value={isPaid ? '' : (overtimeHours[date] || '')}
                     disabled={locked || isPaid || absentDays[date]}
                     onChange={(event) => setOvertimeHours((items) => ({ ...items, [date]: event.target.value }))}
-                  />
+                  />}
 
-                  <button
+                  {isDaily ? <button
+                    type="button"
+                    className={`btn timesheet-presence-toggle ${presentDays[date] ? 'is-present' : ''}`}
+                    aria-pressed={Boolean(presentDays[date])}
+                    disabled={locked || isPaid}
+                    onClick={() => {
+                      const nextPresent = !presentDays[date];
+                      setPresentDays((items) => ({ ...items, [date]: nextPresent }));
+                      setAbsentDays((items) => ({ ...items, [date]: false }));
+                      setHours((items) => ({ ...items, [date]: '' }));
+                      setOvertimeHours((items) => ({ ...items, [date]: '' }));
+                    }}
+                  >Present</button> : null}
+
+                  {isDaily ? <button
+                    type="button"
+                    className={`btn timesheet-absence-toggle ${absentDays[date] ? 'is-absent' : ''}`}
+                    aria-pressed={Boolean(absentDays[date])}
+                    disabled={locked || isPaid}
+                    onClick={() => {
+                      const nextAbsent = !absentDays[date];
+                      setAbsentDays((items) => ({ ...items, [date]: nextAbsent }));
+                      setPresentDays((items) => ({ ...items, [date]: false }));
+                      setHours((items) => ({ ...items, [date]: '' }));
+                      setOvertimeHours((items) => ({ ...items, [date]: '' }));
+                    }}
+                  >Absent</button> : <button
                     type="button"
                     className="btn timesheet-absence-toggle btn-secondary"
                     aria-pressed={Boolean(absentDays[date])}
@@ -311,13 +376,14 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
                       const nextAbsent = !absentDays[date];
                       setAbsentDays((items) => ({ ...items, [date]: nextAbsent }));
                       if (nextAbsent) {
+                        setPresentDays((items) => ({ ...items, [date]: false }));
                         setHours((items) => ({ ...items, [date]: '' }));
                         setOvertimeHours((items) => ({ ...items, [date]: '' }));
                       }
                     }}
                   >
-                    {isPaid ? 'Paid holiday' : absentDays[date] ? 'Absent' : 'Mark absent'}
-                  </button>
+                    {isPaid ? 'Paid holiday' : 'Absent'}
+                  </button>}
 
                   <small title={isDouble ? 'Double Pay (200%)' : isPaid ? 'Paid Holiday (100%)' : 'Regular'}>
                     {absentDays[date] && !isPaid && !isDouble ? 'Absent' : money(dayPay.total)}
@@ -325,7 +391,7 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
                 </div>;
               })}
             </div>
-          </section>
+          </section>}
 
           <section className="timesheet-section">
             <div className="timesheet-section-heading">
@@ -350,7 +416,7 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
       </DialogBody>
 
       <DialogFooter className="timesheet-footer">
-        <span>Advance balance carries into the next month. Double pay holidays calculate at 200%, paid holidays at 100%.</span>
+        <span>{isMonthly ? 'Advance balance carries into the next month.' : 'Advance balance carries into the next month. Double pay holidays calculate at 200%, paid holidays at 100%.'}</span>
         <div>
           <button className="btn btn-secondary" type="button" onClick={onClose} disabled={saving}>Close</button>
           <button type="button" className="btn btn-primary" aria-busy={saving || undefined} disabled={saving || loading || locked} onClick={save}>

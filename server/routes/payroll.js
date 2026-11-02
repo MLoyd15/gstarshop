@@ -1,6 +1,6 @@
 import express from 'express';
 import {
-  addPayrollPayment, calculateDailyEntryPay, calculatePayroll, normalizePayrollPeriod, payrollPeriodEnd,
+  addPayrollPayment, calculateDailyEntryPay, calculateMonthlyPay, calculatePayroll, normalizePayrollPeriod, payrollPeriodEnd,
   PayrollValidationError, toMoney, validPayrollPeriod
 } from '../services/payroll.js';
 
@@ -87,7 +87,7 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
 
           // 3. Clean up empty regular entries that were auto-created from now-removed holidays
           const cleanedEntries = updatedEntries.filter((e) =>
-            e.holidayType !== 'regular' || e.absent || (Number(e.hours || 0) + Number(e.overtimeHours || 0) > 0)
+            e.holidayType !== 'regular' || e.absent || e.present === true || (Number(e.hours || 0) + Number(e.overtimeHours || 0) > 0)
           );
 
           let totalHours = 0;
@@ -123,7 +123,7 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
           doubleHolidayPay = Math.round((doubleHolidayPay + Number.EPSILON) * 100) / 100;
           paidHolidayPay = Math.round((paidHolidayPay + Number.EPSILON) * 100) / 100;
           const grossPay = Math.round((regularPay + holidayPay + overtimePay + Number.EPSILON) * 100) / 100;
-          const totalDays = cleanedEntries.filter((entry) => entry.holidayType === 'paid_holiday' || (!entry.absent && (entry.hours > 0 || entry.worked !== false))).length;
+          const totalDays = cleanedEntries.filter((entry) => entry.holidayType === 'paid_holiday' || (!entry.absent && (entry.present === true || Number(entry.hours) > 0))).length;
           const additions = ['allowances', 'bonus', 'commission'].reduce((sum, key) => sum + (Number(employeeRecord.data[key]) || 0), 0);
           const regularDeductions = Number(ts?.data?.regularDeductions ?? employeeRecord.data.regularDeductions) || 0;
           const earningsBeforeAdvance = Math.max(0, grossPay + additions - regularDeductions);
@@ -203,9 +203,47 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
       if (!mongoose.isValidObjectId(req.params.employeeId)) return res.status(400).json({ error: 'Employee ID is invalid.' });
       const employeeRecord = await BusinessRecord.findOne({ _id: req.params.employeeId, resource: 'employees' });
       if (!employeeRecord) return res.status(404).json({ error: 'Employee not found.' });
-      if (!['hourly', 'daily'].includes(employeeRecord.data.salaryType || 'monthly')) return res.status(409).json({ error: 'Set this employee’s pay basis to Hourly or Daily before entering timesheet records.' });
+      const salaryType = employeeRecord.data.salaryType || 'monthly';
+      if (!['hourly', 'daily', 'monthly'].includes(salaryType)) return res.status(409).json({ error: 'Set this employee’s pay basis before entering sheet records.' });
       const run = await BusinessRecord.findOne({ resource: 'payroll-runs', 'data.employeeRecordId': req.params.employeeId, 'data.period': period }).lean();
       if (run) return res.status(409).json({ error: 'This month already has a payroll run. Edit the draft from Pay runs or reverse the run before changing the sheet.' });
+
+      if (salaryType === 'monthly') {
+        const validDate = (date) => {
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date)) || !String(date).startsWith(`${period}-`)) return false;
+          const [year, month, day] = String(date).split('-').map(Number);
+          const parsed = new Date(year, month - 1, day);
+          return parsed.getFullYear() === year && parsed.getMonth() === month - 1 && parsed.getDate() === day;
+        };
+        const absentDates = [...new Set((Array.isArray(req.body.absentDates) ? req.body.absentDates : []).map(String))];
+        if (absentDates.some((date) => !validDate(date))) throw new PayrollValidationError('Each absence needs a valid date in the selected month.');
+        const advances = (Array.isArray(req.body.advances) ? req.body.advances : []).map((advance) => {
+          if (!validDate(advance.date)) throw new PayrollValidationError('Each advance needs a date in the selected month.');
+          const amount = toMoney(advance.amount, 'Advance amount');
+          if (!amount) throw new PayrollValidationError('Advance amounts must be greater than zero.');
+          return { id: String(advance.id || new mongoose.Types.ObjectId()), date: advance.date, amount, note: String(advance.note || '').trim() };
+        });
+        const monthly = calculateMonthlyPay({ monthlySalary: employeeRecord.data.salary ?? employeeRecord.data.baseRate, workingDaysPerMonth: employeeRecord.data.workingDaysPerMonth || 26, absentDays: absentDates.length, allowances: employeeRecord.data.allowances, bonus: employeeRecord.data.bonus, commission: employeeRecord.data.commission });
+        const previous = await BusinessRecord.findOne({ resource: 'payroll-timesheets', 'data.employeeRecordId': req.params.employeeId, 'data.period': { $lt: period } }).sort({ 'data.period': -1 }).lean();
+        const advanceOwedBefore = Number(previous?.data?.advanceOwed || 0);
+        const totalAdvances = advances.reduce((sum, entry) => sum + entry.amount, 0);
+        const regularDeductions = Number(employeeRecord.data.regularDeductions) || 0;
+        const earningsBeforeAdvance = Math.max(0, monthly.grossPay - regularDeductions);
+        const advanceApplied = Math.min(advanceOwedBefore + totalAdvances, earningsBeforeAdvance);
+        const data = {
+          employeeRecordId: req.params.employeeId, employee: employeeRecord.data.name, employeeId: employeeRecord.data.employeeId || '', period,
+          salaryType: 'monthly', rate: monthly.monthlySalary, workingDaysPerMonth: monthly.workingDaysPerMonth,
+          absentDates, absentDays: monthly.absentDays, perDayDeduction: monthly.perDayDeduction, absenceDeduction: monthly.absenceDeduction,
+          dailyEntries: absentDates.map((date) => ({ date, hours: 0, overtimeHours: 0, absent: true, present: false, holidayType: 'regular' })),
+          advances, totalAdvances, advanceOwedBefore, regularPay: monthly.basicEarnings, grossPay: monthly.grossPay,
+          regularDeductions, advanceApplied, advanceOwed: Math.max(0, advanceOwedBefore + totalAdvances - earningsBeforeAdvance),
+          estimatedNetPay: Math.max(0, earningsBeforeAdvance - advanceApplied), updatedAt: new Date().toISOString()
+        };
+        let sheet = await BusinessRecord.findOne({ resource: 'payroll-timesheets', 'data.employeeRecordId': req.params.employeeId, 'data.period': period });
+        if (sheet) { sheet.data = data; sheet.updatedAt = new Date(); await sheet.save(); }
+        else [sheet] = await BusinessRecord.create([{ resource: 'payroll-timesheets', data }]);
+        return res.json(serialize(sheet));
+      }
 
       // Fetch authoritative global holidays for this period
       const holidayRecord = await BusinessRecord.findOne({ resource: 'payroll-holidays', 'data.period': period }).lean();
@@ -245,7 +283,7 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
           if (totalDayHours !== 0) {
             throw new PayrollValidationError('Days marked absent cannot have worked hours.');
           }
-        } else if (holidayType === 'regular' && totalDayHours <= 0) {
+        } else if (holidayType === 'regular' && totalDayHours <= 0 && entry.present !== true) {
           throw new PayrollValidationError('Each workday needs regular or overtime hours, or must be marked absent or holiday.');
         }
 
@@ -254,6 +292,7 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
           hours: Math.round(hours * 100) / 100,
           overtimeHours: Math.round(overtimeHours * 100) / 100,
           absent,
+          present: !absent && entry.present === true,
           holidayType
         };
       });
@@ -306,7 +345,7 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
       doubleHolidayPay = Math.round((doubleHolidayPay + Number.EPSILON) * 100) / 100;
       paidHolidayPay = Math.round((paidHolidayPay + Number.EPSILON) * 100) / 100;
       const overtimePay = Math.round((overtimeRate * totalOvertimeHours + Number.EPSILON) * 100) / 100;
-      const totalDays = dailyEntries.filter((entry) => entry.holidayType === 'paid_holiday' || (!entry.absent && (entry.hours > 0 || entry.worked !== false))).length;
+      const totalDays = dailyEntries.filter((entry) => entry.holidayType === 'paid_holiday' || (!entry.absent && (entry.present === true || entry.hours > 0))).length;
 
       const previous = await BusinessRecord.findOne({ resource: 'payroll-timesheets', 'data.employeeRecordId': req.params.employeeId, 'data.period': { $lt: period } }).sort({ 'data.period': -1 }).lean();
       const advanceOwedBefore = Number(previous?.data?.advanceOwed || 0);
@@ -386,8 +425,8 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
         if (keys.has(id.toLowerCase()) || keys.has(employeeKey)) { skipped.push({ employee: employee.name || 'Employee', reason: 'A payroll record already exists for this period.' }); return []; }
         const sheet = sheetByEmployee.get(id);
         const salaryType = employee.salaryType || 'monthly';
-        const totalDaysFromEntries = sheet?.dailyEntries?.filter((e) => e.holidayType === 'paid_holiday' || (!e.absent && (e.hours > 0 || e.worked !== false))).length;
-        const daysWorked = sheet?.totalDays ?? (totalDaysFromEntries !== undefined ? totalDaysFromEntries : Number(unitsByEmployee[id] || 0));
+        const totalDaysFromEntries = sheet?.dailyEntries?.filter((e) => e.holidayType === 'paid_holiday' || (!e.absent && (e.present === true || Number(e.hours) > 0))).length;
+        const daysWorked = totalDaysFromEntries ?? 0;
         const unit = salaryType === 'daily' ? daysWorked : (sheet?.totalHours ?? unitsByEmployee[id]);
         const holidayPay = Number(sheet?.holidayPay || 0);
 
@@ -395,7 +434,7 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
           skipped.push({ employee: employee.name || 'Employee', reason: 'No hours saved for this period.' });
           return [];
         }
-        if (salaryType === 'daily' && !(Number(unit) > 0 || holidayPay > 0)) {
+        if (salaryType === 'daily' && !(Number(unit) > 0 || holidayPay > 0 || Number(sheet?.totalOvertimeHours) > 0)) {
           skipped.push({ employee: employee.name || 'Employee', reason: 'No days worked saved for this period.' });
           return [];
         }
@@ -407,6 +446,9 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
           ? Number(sheet.advanceOwedBefore || 0) + Number(sheet.totalAdvances || 0)
           : toMoney(advancesByEmployee[id], `${employee.name || 'Employee'} advance`, { optional: true });
 
+        const monthlyCalc = salaryType === 'monthly'
+          ? calculateMonthlyPay({ monthlySalary: employee.salary ?? employee.baseRate, workingDaysPerMonth: employee.workingDaysPerMonth || 26, absentDays: sheet ? (sheet.absentDays ?? sheet.dailyEntries?.filter((entry) => entry.absent).length ?? 0) : 0, allowances: employee.allowances, bonus: employee.bonus, commission: employee.commission })
+          : null;
         const baseUnits = salaryType === 'daily'
           ? (sheet?.regularDays !== undefined ? sheet.regularDays : unit)
           : salaryType === 'hourly'
@@ -415,7 +457,7 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
 
         const basicEarnings = sheet?.regularPay !== undefined
           ? Number(sheet.regularPay)
-          : (Number(employee.salary ?? employee.baseRate) || 0) * (salaryType === 'hourly' || salaryType === 'daily' ? Number(baseUnits) || 0 : 1);
+          : (monthlyCalc ? monthlyCalc.basicEarnings : (Number(employee.salary ?? employee.baseRate) || 0) * (salaryType === 'hourly' || salaryType === 'daily' ? Number(baseUnits) || 0 : 1));
 
         const earningsBeforeAdvance = Math.max(0,
           basicEarnings + holidayPay +
@@ -426,7 +468,7 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
         const advanceOwed = Math.max(0, advancesToApply - advanceDeduction);
         const calc = calculatePayroll({
           salaryType,
-          baseRate: employee.salary ?? employee.baseRate,
+          baseRate: salaryType === 'monthly' ? monthlyCalc.basicEarnings : employee.salary ?? employee.baseRate,
           units: baseUnits,
           holidayPay,
           allowances: employee.allowances,
@@ -435,11 +477,13 @@ export function createPayrollRouter(BusinessRecord, mongoose) {
           otherEarnings: Number(employee.otherEarnings || 0) + overtimePay,
           deductions: regularDeductions + advanceDeduction
         });
+        if (salaryType === 'monthly') calc.baseRate = monthlyCalc.monthlySalary;
         calc.otherEarnings = toMoney(employee.otherEarnings, 'Other earnings', { optional: true });
         return [{ resource: 'payroll-runs', data: {
           period, periodEnd: payrollPeriodEnd(period).toISOString().slice(0, 10), employee: employee.name,
           employeeId: employee.employeeId || '', employeeRecordId: id, employeeSnapshot: { ...employee },
           ...calc, regularDeductions, advanceDeduction,
+          ...(monthlyCalc ? { workingDaysPerMonth: monthlyCalc.workingDaysPerMonth, absentDays: monthlyCalc.absentDays, perDayDeduction: monthlyCalc.perDayDeduction, absenceDeduction: monthlyCalc.absenceDeduction } : {}),
           advanceDate: advanceDeduction > 0 ? (advanceDatesByEmployee[id] || sheet?.advances?.at(-1)?.date || '') : '',
           overtimeRate, overtimeHours, overtimePay,
           holidayPay,

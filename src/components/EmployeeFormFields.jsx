@@ -43,6 +43,7 @@ export default function EmployeeFormFields({ record }) {
       : salaryType === 'daily'
       ? 'Daily rate (₱)'
       : 'Hourly rate (₱)';
+  const workingDays = Number(record?.workingDaysPerMonth) || 26;
 
   return (
     <div className="employee-form">
@@ -178,6 +179,11 @@ export default function EmployeeFormFields({ record }) {
           </span>
         )}
       </div>
+
+      {salaryType === 'monthly' && <label className="employee-form-field">
+        <span>Working days per month</span>
+        <input className="input" type="number" name="workingDaysPerMonth" min="1" step="1" defaultValue={workingDays} required />
+      </label>}
 
       {/* 4. Optional extras */}
       <details className="employee-form-details" defaultOpen={hasExtras}>
