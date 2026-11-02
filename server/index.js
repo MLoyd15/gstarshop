@@ -18,6 +18,28 @@ import { createAuthRouter, requireAuth } from './routes/auth.js';
 
 const app = express();
 const port = Number(process.env.PORT) || 4000;
+app.set('trust proxy', 1);
+
+let mongooseConnectionPromise;
+
+function connectToDatabase() {
+  if (!process.env.MONGODB_URI) {
+    return Promise.reject(new Error('MONGODB_URI is not set. Configure it in .env to enable data storage.'));
+  }
+  if (!mongooseConnectionPromise) {
+    mongooseConnectionPromise = mongoose.connect(process.env.MONGODB_URI)
+      .then(() => {
+        console.log('Connected to MongoDB');
+        return mongoose.connection;
+      })
+      .catch((error) => {
+        mongooseConnectionPromise = null;
+        throw error;
+      });
+  }
+  return mongooseConnectionPromise;
+}
+
 const resources = [
   'suppliers', 'products', 'inventory', 'prices', 'purchases', 'purchase-orders', 'purchase-order-counters', 'supplier-prices', 'excel-sheet',
   'scheduler', 'bookings', 'clients', 'income', 'expenses', 'profit', 'shareholders',
@@ -71,20 +93,17 @@ app.get('/api/health', (_request, response) => {
   response.json({ status: 'ok', database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected' });
 });
 
-app.use('/api/auth', (_request, response, next) => {
-  if (mongoose.connection.readyState !== 1) return response.status(503).json({ error: 'MongoDB is not connected. Configure MONGODB_URI and make sure the database is running.' });
-  next();
-}, createAuthRouter());
-app.use('/api', requireAuth);
-
-app.use('/api', (_request, response, next) => {
-  if (mongoose.connection.readyState !== 1) {
-    return response.status(503).json({
-      error: 'MongoDB is not connected. Configure MONGODB_URI and make sure the database is running.'
-    });
+app.use('/api', async (_request, response, next) => {
+  try {
+    await connectToDatabase();
+    next();
+  } catch (error) {
+    console.error('Could not connect to MongoDB:', error.message);
+    response.status(503).json({ error: 'MongoDB is not connected. Configure MONGODB_URI and make sure the database is running.' });
   }
-  next();
 });
+app.use('/api/auth', createAuthRouter());
+app.use('/api', requireAuth);
 
 app.use('/api/payroll', createPayrollRouter(BusinessRecord, mongoose));
 app.use('/api/materials', createInventoryRouter(BusinessRecord, mongoose));
@@ -312,14 +331,14 @@ app.use((error, _request, response, _next) => {
   response.status(500).json({ error: 'The request could not be completed. Please try again.' });
 });
 
-if (process.env.MONGODB_URI) {
-  mongoose.connect(process.env.MONGODB_URI)
-    .then(() => console.log('Connected to MongoDB'))
-    .catch((error) => console.error('Could not connect to MongoDB:', error.message));
-} else {
+if (process.env.MONGODB_URI && !process.env.VERCEL) {
+  connectToDatabase().catch((error) => console.error('Could not connect to MongoDB:', error.message));
+} else if (!process.env.MONGODB_URI) {
   console.error('MONGODB_URI is not set. Configure it in .env to enable data storage.');
 }
 
-app.listen(port, () => console.log(`Business Hub API listening on http://localhost:${port}`));
+if (!process.env.VERCEL) {
+  app.listen(port, () => console.log(`Business Hub API listening on http://localhost:${port}`));
+}
 
 export { app };
