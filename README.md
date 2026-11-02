@@ -62,7 +62,7 @@ Configure these variables in your hosting provider's dashboard (e.g. Render, Rai
 
 ### Render backend with Vercel frontend
 
-The repository includes a Render Blueprint in `render.yaml` for the Express API. In Render, create a new Blueprint from this repository and branch. Enter `MONGODB_URI` using the `gstarshop_app` database user and the `gstarshop` database, and set `CLIENT_URL` to the public Vercel frontend origin. Render generates `SESSION_SECRET`; `COOKIE_SECURE` is enabled for HTTPS.
+The repository includes a Render Blueprint in `render.yaml` for the Express API. In Render, create a new Blueprint from this repository and branch. Enter `MONGODB_URI` using the `gstarshop_app` database user and the `gstarshop` database. `CLIENT_URL` is set to the public Vercel frontend origin; Render generates `SESSION_SECRET`, and `COOKIE_SECURE` is enabled for HTTPS.
 
 The Blueprint uses Render's free web-service plan, which may spin down while idle. After the Render service is created, update the `/api/(.*)` rewrite in `vercel.json` to proxy to the service's `https://<service-name>.onrender.com/api/$1` URL. Keep that API rewrite before the SPA catch-all rewrite, then redeploy Vercel. Do not commit credentials or put secrets in `render.yaml`.
 
