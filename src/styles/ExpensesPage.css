@@ -1,3 +1,7 @@
 .expenses-page { --page-accent: var(--accent); }
 .expenses-page .records-summary { border-color: color-mix(in srgb, var(--page-accent), white 82%); }
 .expenses-page .records-welcome .accent-line { background: var(--page-accent); }
+.expenses-page .row-actions { gap: 7px; }
+.expenses-page .row-actions button { width: auto; font-size: var(--fs-caption); font-weight: 600; }
+.expenses-page .row-actions .record-delete-action { border: 1px solid var(--danger); background: transparent; color: var(--danger); }
+.expenses-page .row-actions .record-delete-action:hover:not(:disabled) { border-color: var(--danger); background: var(--danger-soft); color: var(--danger); }

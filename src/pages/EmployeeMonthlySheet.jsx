@@ -17,6 +17,7 @@ const id = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.rand
 
 export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOvertimeRate = 0, onClose }) {
   const [period, setPeriod] = useState(new Date().toISOString().slice(0, 7));
+  const [attendancePage, setAttendancePage] = useState(0);
   const [hours, setHours] = useState({});
   const [overtimeHours, setOvertimeHours] = useState({});
   const [absentDays, setAbsentDays] = useState({});
@@ -24,6 +25,8 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
   const [holidayTypes, setHolidayTypes] = useState({});
   const [holidayNames, setHolidayNames] = useState({});
   const [advances, setAdvances] = useState([]);
+  const [expandedAdvanceIds, setExpandedAdvanceIds] = useState({});
+  const [pendingAdvanceId, setPendingAdvanceId] = useState(null);
   const [carryIn, setCarryIn] = useState(0);
   const [locked, setLocked] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -69,7 +72,7 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
           !entry.absent && (entry.present === true || Number(entry.hours) > 0)
         ).map((entry) => [entry.date, true])));
 
-        setAdvances(sheetData.advances || []);
+        setAdvances((sheetData.advances || []).map((advance) => ({ ...advance, saved: true })));
         setCarryIn(Number(sheetData.advanceOwedBefore || 0));
         setLocked(Boolean(sheetData.locked));
       })
@@ -99,6 +102,8 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
   };
 
   const dates = useMemo(() => monthDates(period), [period]);
+  const attendancePageCount = Math.ceil(dates.length / 7);
+  const visibleDates = dates.slice(attendancePage * 7, attendancePage * 7 + 7);
 
   const totals = useMemo(() => {
     let totalH = 0;
@@ -157,7 +162,28 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
   function addAdvance() {
     const today = new Date().toISOString().slice(0, 10);
     const date = period === today.slice(0, 7) ? today : `${period}-01`;
-    setAdvances((items) => [...items, { id: id(), date, amount: '', note: '' }]);
+    setAdvances((items) => [...items, { id: id(), date, amount: '', note: '', confirmed: false }]);
+  }
+
+  function confirmAdvance(advanceId) {
+    const advance = advances.find((item) => item.id === advanceId);
+    if (!advance || !(Number(advance.amount) > 0)) return;
+    setAdvances((items) => items.map((item) => item.id === advanceId ? { ...item, confirmed: true } : item));
+    setNotice(`Pay advance of ${money(advance.amount)} confirmed.`);
+    if (noticeTimeoutRef.current !== null) window.clearTimeout(noticeTimeoutRef.current);
+    noticeTimeoutRef.current = window.setTimeout(() => { setNotice(''); noticeTimeoutRef.current = null; }, NOTICE_TIMEOUT_MS);
+  }
+
+  function markWeekdaysPresent() {
+    if (locked) return;
+    setPresentDays((items) => {
+      const next = { ...items };
+      dates.forEach((date) => {
+        const isSunday = new Date(`${date}T12:00:00`).getDay() === 0;
+        if (!isSunday && holidayTypes[date] !== 'paid_holiday' && !absentDays[date]) next[date] = true;
+      });
+      return next;
+    });
   }
 
   async function save() {
@@ -188,7 +214,7 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
         holidayType: holidayTypes[date] || 'regular'
       }));
 
-    const cleanAdvances = advances.filter((advance) => Number(advance.amount) > 0).map((advance) => ({ ...advance, amount: Number(advance.amount) }));
+    const cleanAdvances = advances.filter((advance) => advance.confirmed !== false && Number(advance.amount) > 0).map(({ confirmed, saved, ...advance }) => ({ ...advance, amount: Number(advance.amount) }));
     try {
       const response = await fetch(`/api/payroll/employees/${employee.id}/sheet?period=${period}`, {
         method: 'PUT',
@@ -200,7 +226,7 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Could not save this sheet.');
       setCarryIn(Number(data.advanceOwedBefore || 0));
-      setAdvances(data.advances || []);
+      setAdvances((data.advances || []).map((advance) => ({ ...advance, confirmed: true, saved: true })));
       setLocked(Boolean(data.locked));
       setNotice('Monthly sheet saved.');
       if (noticeTimeoutRef.current !== null) window.clearTimeout(noticeTimeoutRef.current);
@@ -224,7 +250,7 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
 
       <DialogBody className="timesheet-body">
         <div className="timesheet-period">
-          <label>Month<input className="input" type="month" value={period} onChange={(event) => setPeriod(event.target.value)} /></label>
+          <label>Month<input className="input" type="month" value={period} onChange={(event) => { setPeriod(event.target.value); setAttendancePage(0); }} /></label>
           <span>{locked ? 'Payroll run exists · sheet locked' : isMonthly ? 'Mark absences and record advances' : isDaily ? 'Mark each workday Present or Absent' : 'Track regular hours and overtime · Holidays managed from Pay runs'}</span>
         </div>
 
@@ -234,68 +260,58 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
         <div className="timesheet-totals">
           {(isMonthly ? [
             ['Monthly salary', money(rate)],
-            ['Working days per month', String(monthlyPay.workingDaysPerMonth)],
-            ['Per-day deduction', money(monthlyPay.perDayDeduction)],
             ['Absent days', String(totalAbsentDays)],
             ['Absence deduction', money(monthlyPay.absenceDeduction)],
             ['Gross earnings', money(monthlyPay.basicEarnings)],
-            ['Allowances', money(employee.allowances)],
-            ['Bonus', money(employee.bonus)],
-            ['Commission', money(employee.commission)],
-            ['Gross incl. extras', money(monthlyPay.grossPay)],
+            ['Additional earnings', money(extras), `Allowances: ${money(employee.allowances)} · Bonus: ${money(employee.bonus)} · Commission: ${money(employee.commission)}`],
             ['Regular deductions', `− ${money(employee.regularDeductions)}`],
             ['Advances', `− ${money(totalAdvances + carryIn)}`],
-            ['Advance still owed', money(advanceOwed)],
             ['Estimated take-home', money(takeHome)]
           ] : isDaily ? [
             ['Days present', String(totalDailyDays)],
             ['Holiday pay', `${totals.doubleCount + totals.paidCount} days · ${money(totals.holidayEarnings)}`],
             ['Gross earnings', money(totals.gross)],
-            ['Allowances', money(employee.allowances)],
-            ['Bonus', money(employee.bonus)],
-            ['Commission', money(employee.commission)],
+            ['Additional earnings', money(extras), `Allowances: ${money(employee.allowances)} · Bonus: ${money(employee.bonus)} · Commission: ${money(employee.commission)}`],
             ['Regular deductions', `− ${money(employee.regularDeductions)}`],
             ['Absent days', String(totalAbsentDays)],
             ['Advances', `− ${money(totalAdvances + carryIn)}`],
-            ['Advance still owed', money(advanceOwed)],
             ['Estimated take-home', money(takeHome)]
           ] : [
             ['Hours this month', `${totals.totalHours} hrs`],
             ['Overtime', `${totals.totalOvertimeHours} hrs · ${money(totals.totalOvertimePay)}`],
             ['Holiday pay', `${totals.doubleCount + totals.paidCount} days · ${money(totals.holidayEarnings)}`],
             ['Gross earnings', money(totals.gross)],
-            ['Allowances', money(employee.allowances)],
-            ['Bonus', money(employee.bonus)],
-            ['Commission', money(employee.commission)],
+            ['Additional earnings', money(extras), `Allowances: ${money(employee.allowances)} · Bonus: ${money(employee.bonus)} · Commission: ${money(employee.commission)}`],
             ['Regular deductions', `− ${money(employee.regularDeductions)}`],
             ['Absent days', String(totalAbsentDays)],
             ['Advances', `− ${money(totalAdvances + carryIn)}`],
-            ['Advance still owed', money(advanceOwed)],
             ['Estimated take-home', money(takeHome)]
-          ]).map(([label, value]) => <article key={label}><span>{label}</span><strong>{value}</strong></article>)}
+          ]).map(([label, value, title]) => <article key={label} title={title} className={label === 'Estimated take-home' ? 'is-total' : undefined}><span>{label}</span><strong>{value}</strong></article>)}
         </div>
 
         {loading ? <div className="timesheet-loading">Loading monthly sheet…</div> : <div className="timesheet-content">
           {isMonthly ? <section className="timesheet-section timesheet-monthly-section">
             <div className="timesheet-section-heading">
-              <div><h3>Monthly attendance</h3><p>Mark only days absent. Pay starts with the full monthly salary and subtracts ₱{monthlyPay.perDayDeduction.toFixed(2)} per absence day.</p></div>
+              <div><h3>Monthly attendance</h3><p>Mark only days absent. Pay starts with the full monthly salary and subtracts ₱{monthlyPay.perDayDeduction.toFixed(2)} per absence day ({monthlyPay.workingDaysPerMonth} working days).</p></div>
             </div>
             <div className="timesheet-days timesheet-monthly-days">
-              {dates.map((date) => <div className={`timesheet-day-row ${absentDays[date] ? 'is-absent' : ''}`} key={date}>
+              {visibleDates.map((date) => <div className={`timesheet-day-row ${absentDays[date] ? 'is-absent' : ''}`} key={date}>
                 <span>{new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
                 <button type="button" className={`btn timesheet-absence-toggle ${absentDays[date] ? 'is-absent' : ''}`} aria-pressed={Boolean(absentDays[date])} disabled={locked} onClick={() => setAbsentDays((items) => ({ ...items, [date]: !items[date] }))}>Absent</button>
               </div>)}
             </div>
+            <div className="timesheet-pagination"><button type="button" className="btn btn-secondary" disabled={attendancePage === 0} onClick={() => setAttendancePage((page) => page - 1)}>Previous</button><span>Week {attendancePage + 1} of {attendancePageCount}</span><button type="button" className="btn btn-secondary" disabled={attendancePage + 1 >= attendancePageCount} onClick={() => setAttendancePage((page) => page + 1)}>Next</button></div>
           </section> : <section className="timesheet-section">
             <div className="timesheet-section-heading">
               <div>
                 <h3>{isDaily ? 'Daily attendance' : 'Daily hours & attendance'}</h3>
                 <p>{isDaily ? 'Choose Present or Absent. A Present day earns the daily rate. Holidays are managed from ' : 'Track regular hours and overtime. Holidays are applied automatically from '}<strong>Pay runs &rarr; Manage holidays</strong>.</p>
               </div>
+              {isDaily && <button type="button" className="btn btn-secondary" disabled={locked} onClick={markWeekdaysPresent}>Mark Mon–Sat present</button>}
             </div>
 
             <div className="timesheet-days timesheet-days-overtime">
-              {dates.map((date) => {
+              {visibleDates.map((date) => {
                 const dayPay = getDayPay(date);
                 const isDouble = holidayTypes[date] === 'double_holiday';
                 const isPaid = holidayTypes[date] === 'paid_holiday';
@@ -369,7 +385,7 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
                     }}
                   >Absent</button> : <button
                     type="button"
-                    className="btn timesheet-absence-toggle btn-secondary"
+                    className={`btn timesheet-absence-toggle btn-secondary ${absentDays[date] ? 'is-absent' : ''}`}
                     aria-pressed={Boolean(absentDays[date])}
                     disabled={locked || isPaid}
                     onClick={() => {
@@ -386,18 +402,21 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
                   </button>}
 
                   <small title={isDouble ? 'Double Pay (200%)' : isPaid ? 'Paid Holiday (100%)' : 'Regular'}>
-                    {absentDays[date] && !isPaid && !isDouble ? 'Absent' : money(dayPay.total)}
+                    {absentDays[date] && !isPaid ? 'Absent'
+                      : !isPaid && isDaily && !presentDays[date] && !absentDays[date] ? '—'
+                        : !isPaid && !isDaily && !absentDays[date] && !(Number(hours[date]) > 0) && !(Number(overtimeHours[date]) > 0) ? '—'
+                          : money(dayPay.total)}
                   </small>
                 </div>;
               })}
             </div>
+            <div className="timesheet-pagination"><button type="button" className="btn btn-secondary" disabled={attendancePage === 0} onClick={() => setAttendancePage((page) => page - 1)}>Previous</button><span>Week {attendancePage + 1} of {attendancePageCount}</span><button type="button" className="btn btn-secondary" disabled={attendancePage + 1 >= attendancePageCount} onClick={() => setAttendancePage((page) => page + 1)}>Next</button></div>
           </section>}
 
           <section className="timesheet-section">
             <div className="timesheet-section-heading">
               <div>
                 <h3>Pay advances</h3>
-                <p>Record each advance paid. The sheet shows any amount still owed after earned pay.</p>
               </div>
               <button type="button" className="btn btn-secondary" disabled={locked} onClick={addAdvance}>
                 <AppIcon icon={Plus} size="sm" /> Add advance
@@ -405,9 +424,12 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
             </div>
             {!advances.length ? <p className="timesheet-empty">No advances recorded this month.</p> : <div className="timesheet-advance-list">
               {advances.map((advance) => <div className="timesheet-advance-row" key={advance.id}>
-                <label>Date<input className="input" type="date" value={advance.date} disabled={locked} onChange={(event) => setAdvances((items) => items.map((item) => item.id === advance.id ? { ...item, date: event.target.value } : item))} /></label>
-                <label>Amount<input className="input" type="number" min="0" step="0.01" placeholder="0.00" value={advance.amount} disabled={locked} onChange={(event) => setAdvances((items) => items.map((item) => item.id === advance.id ? { ...item, amount: event.target.value } : item))} /></label>
-                <label>Note<input className="input" type="text" placeholder="Optional note" value={advance.note || ''} disabled={locked} onChange={(event) => setAdvances((items) => items.map((item) => item.id === advance.id ? { ...item, note: event.target.value } : item))} /></label>
+                {advance.saved ? <div className="timesheet-advance-saved"><button type="button" className="timesheet-advance-summary" aria-expanded={Boolean(expandedAdvanceIds[advance.id])} onClick={() => setExpandedAdvanceIds((items) => ({ ...items, [advance.id]: !items[advance.id] }))}>{money(advance.amount)}</button>{expandedAdvanceIds[advance.id] && <span className="timesheet-advance-detail"><span>Date: {advance.date}</span><span>Optional note: {advance.note || '—'}</span></span>}</div> : <>
+                  <label>Date<input className="input" type="date" value={advance.date} disabled={locked} onChange={(event) => setAdvances((items) => items.map((item) => item.id === advance.id ? { ...item, date: event.target.value } : item))} /></label>
+                  <div className="timesheet-advance-amount"><label>Amount<input className="input" type="number" min="0" step="0.01" placeholder="0.00" value={advance.amount} disabled={locked} onChange={(event) => setAdvances((items) => items.map((item) => item.id === advance.id ? { ...item, amount: event.target.value } : item))} /></label><button type="button" className={`btn btn-secondary ${pendingAdvanceId === advance.id ? 'is-pending' : ''}`} disabled={locked || !(Number(advance.amount) > 0)} onClick={() => setPendingAdvanceId(advance.id)}>Confirm advance</button></div>
+                  {pendingAdvanceId === advance.id && <div className="timesheet-advance-confirmation" role="group" aria-label="Confirm pay advance"><span>Confirm pay advance of {money(advance.amount)}?</span><div><button type="button" className="btn btn-secondary" onClick={() => setPendingAdvanceId(null)}>Cancel</button><button type="button" className="btn btn-primary" onClick={() => { confirmAdvance(advance.id); setPendingAdvanceId(null); }}>Confirm</button></div></div>}
+                  <label>Note<input className="input" type="text" placeholder="Optional note" value={advance.note || ''} disabled={locked} onChange={(event) => setAdvances((items) => items.map((item) => item.id === advance.id ? { ...item, note: event.target.value } : item))} /></label>
+                </>}
                 <button className="btn btn-icon btn-ghost" type="button" aria-label="Remove advance" disabled={locked} onClick={() => setAdvances((items) => items.filter((item) => item.id !== advance.id))}><AppIcon icon={X} size="sm" /></button>
               </div>)}
             </div>}
@@ -416,7 +438,7 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
       </DialogBody>
 
       <DialogFooter className="timesheet-footer">
-        <span>{isMonthly ? 'Advance balance carries into the next month.' : 'Advance balance carries into the next month. Double pay holidays calculate at 200%, paid holidays at 100%.'}</span>
+        <span>Advance balance carries into the next month.</span>
         <div>
           <button className="btn btn-secondary" type="button" onClick={onClose} disabled={saving}>Close</button>
           <button type="button" className="btn btn-primary" aria-busy={saving || undefined} disabled={saving || loading || locked} onClick={save}>

@@ -230,7 +230,6 @@ app.patch('/api/records/:resource/:id', async (request, response, next) => {
     if (request.params.resource === 'payroll-runs') return response.status(409).json({ error: 'Payroll runs can only be changed through the Pay runs page.' });
     if (request.params.resource === 'expenses') {
       const linked = await BusinessRecord.findOne({ _id: request.params.id, resource: 'expenses' }).lean();
-      if (linked?.data?.payrollRunId) return response.status(409).json({ error: 'Payroll linked expenses are managed with their payroll run.' });
       if (linked?.data?.purchaseOrderId) return response.status(409).json({ error: 'Purchase order linked expenses are managed with their purchase order.' });
     }
     const existing = await BusinessRecord.findOne({ _id: request.params.id, resource: request.params.resource });
@@ -283,7 +282,6 @@ app.delete('/api/records/:resource/:id', async (request, response, next) => {
     if (request.params.resource === 'payroll-runs') return response.status(409).json({ error: 'Payroll history is preserved; reverse the run instead.' });
     if (request.params.resource === 'expenses') {
       const linked = await BusinessRecord.findOne({ _id: request.params.id, resource: 'expenses' }).lean();
-      if (linked?.data?.payrollRunId) return response.status(409).json({ error: 'Payroll linked expenses are managed with their payroll run.' });
       if (linked?.data?.purchaseOrderId) return response.status(409).json({ error: 'Purchase order linked expenses are managed with their purchase order.' });
     }
     const record = await BusinessRecord.findOneAndDelete({

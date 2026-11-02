@@ -16,6 +16,7 @@ const money = (value) => new Intl.NumberFormat('en-PH', { style: 'currency', cur
 export default function RecordManagementPage({ active, title, fields, records, loading, search, setSearch, onCreate, onEdit, onDelete, onSelect, pageClass = '' }) {
   const lower = active === 'income' || active === 'expenses' || active === 'profit';
   const isInventory = active === 'inventory';
+  const isExpensesPage = pageClass.split(/\s+/).includes('expenses-page');
   const totalStock = records.reduce((total, record) => total + (Number(record.stock) || 0), 0);
   const lowStockCount = records.filter((record) => Number(record.stock) <= 5).length;
   const [statusFilter, setStatusFilter] = useState('all');
@@ -65,7 +66,7 @@ export default function RecordManagementPage({ active, title, fields, records, l
             : (key.toLowerCase().includes('date') || key === 'updated') && record[key]
               ? <span className="date-cell"><AppIcon icon={CalendarDays} size="sm" />{dateFromValue(String(record[key]).slice(0, 10))?.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) || record[key]}</span>
             : record[key] !== undefined && record[key] !== null && record[key] !== '' ? moneyFields.has(key) && Number.isFinite(Number(record[key])) ? money(record[key]) : record[key] : '—'}</td>)}
-            {!isInventory && <><td>{record.createdAt ? new Date(record.createdAt).toLocaleDateString() : '—'}</td><td><div className="row-actions"><button className="btn btn-icon btn-ghost btn-sm" aria-label="Edit record" onClick={() => onEdit(record)}><AppIcon icon={Pencil} size="sm" /></button><button className="btn btn-icon btn-ghost btn-sm record-delete-action" aria-label="Delete record" onClick={() => onDelete(record)}><AppIcon icon={X} size="sm" /></button></div></td></>}</tr>)}</tbody></table></div>
+            {!isInventory && <><td>{record.createdAt ? new Date(record.createdAt).toLocaleDateString() : '—'}</td><td><div className="row-actions">{isExpensesPage ? <><button type="button" className="btn btn-secondary btn-sm record-edit-action" onClick={() => onEdit(record)}>Edit</button><button type="button" className="btn btn-sm record-delete-action" onClick={() => onDelete(record)}>Delete</button></> : <><button className="btn btn-icon btn-ghost btn-sm" aria-label="Edit record" onClick={() => onEdit(record)}><AppIcon icon={Pencil} size="sm" /></button><button className="btn btn-icon btn-ghost btn-sm record-delete-action" aria-label="Delete record" onClick={() => onDelete(record)}><AppIcon icon={X} size="sm" /></button></>}</div></td></>}</tr>)}</tbody></table></div>
       <div className="table-footer"><span>Showing <strong>{firstResult}–{lastResult}</strong> of <strong>{sortedRecords.length}</strong> results</span><div><button className="btn btn-secondary btn-sm" type="button" disabled={currentPage <= 1} onClick={() => setCurrentPage((page) => page - 1)}><AppIcon icon={ChevronLeft} size="sm" /> Previous</button><button className="btn btn-secondary btn-sm" type="button" disabled={currentPage >= pageCount} onClick={() => setCurrentPage((page) => page + 1)}>Next <AppIcon icon={ChevronRight} size="sm" /></button></div></div>
     </section>
   </div>;
