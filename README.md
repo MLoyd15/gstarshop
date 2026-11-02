@@ -60,6 +60,14 @@ Configure these variables in your hosting provider's dashboard (e.g. Render, Rai
 
 > **Note on Build-time Variables**: `VITE_GOOGLE_CLIENT_ID` is baked into client assets during `npm run build`. Ensure it is present during your hosting platform's build phase.
 
+### Render backend with Vercel frontend
+
+The repository includes a Render Blueprint in `render.yaml` for the Express API. In Render, create a new Blueprint from this repository and branch. Enter `MONGODB_URI` using the `gstarshop_app` database user and the `gstarshop` database, and set `CLIENT_URL` to the public Vercel frontend origin. Render generates `SESSION_SECRET`; `COOKIE_SECURE` is enabled for HTTPS.
+
+The Blueprint uses Render's free web-service plan, which may spin down while idle. After the Render service is created, update the `/api/(.*)` rewrite in `vercel.json` to proxy to the service's `https://<service-name>.onrender.com/api/$1` URL. Keep that API rewrite before the SPA catch-all rewrite, then redeploy Vercel. Do not commit credentials or put secrets in `render.yaml`.
+
+Optional runtime settings such as `GOOGLE_CLIENT_ID`, `MAIL_USER`, and `MAIL_APP_PASSWORD` can be added in Render if those features are needed. `VITE_GOOGLE_CLIENT_ID` belongs in Vercel's build environment because Vercel builds the frontend.
+
 ### MongoDB Atlas Network Access
 
 1. Log in to [MongoDB Atlas](https://cloud.mongodb.com/).
