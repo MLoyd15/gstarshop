@@ -9,6 +9,9 @@ export async function sendPasswordResetCode(email, code) {
   const user = process.env.MAIL_USER;
   const transporter = nodemailer.createTransport({
     service: 'gmail',
+    connectionTimeout: 15000,
+    greetingTimeout: 10000,
+    socketTimeout: 20000,
     auth: { user, pass: process.env.MAIL_APP_PASSWORD.replace(/\s/g, '') }
   });
   await transporter.sendMail({

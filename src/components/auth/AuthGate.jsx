@@ -122,15 +122,33 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
 
   async function requestResetCode() {
     const cleanEmail = email.trim().toLowerCase();
-    const response = await fetch('/api/auth/forgot-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: cleanEmail }),
-    });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'Could not send a reset code.');
-    setResetCodeSent(true);
-    setSuccess(result.message || 'If an account exists for that email, a reset code has been sent.');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    try {
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail }),
+        signal: controller.signal
+      });
+      let result;
+      try {
+        result = await response.json();
+      } catch {
+        if (!response.ok) throw new Error(`The reset request failed (${response.status}). Please try again.`);
+        throw new Error('The server returned an invalid response. Please try again.');
+      }
+      if (!response.ok) throw new Error(result.error || 'Could not send a reset code.');
+      setResetCodeSent(true);
+      setSuccess(result.message || 'If an account exists for that email, a reset code has been sent.');
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        throw new Error('The request timed out. Check your email shortly; if no code arrives, try again in one minute.');
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
 
   async function resendResetCode() {
