@@ -30,7 +30,7 @@ In Google Cloud Console, configure the OAuth consent screen/branding and create 
 
 ### Password reset email
 
-Password reset codes are six digits, expire after 10 minutes, and are limited to five guesses. To send them through Gmail, enable 2-Step Verification on the sending Google account and create an App Password. Add `MAIL_USER` and `MAIL_APP_PASSWORD` to `.env` and restart the server. Do not use your normal Google password. Gmail App Passwords require 2-Step Verification; for a production deployment, use a transactional email provider if Gmail SMTP is unavailable or unsuitable.
+Password reset codes are six digits, expire after 10 minutes, and are limited to five guesses. Password-reset emails are sent using the Resend HTTPS API. Create a Resend account, verify a sender domain, and set `RESEND_API_KEY` and `MAIL_FROM` in the server environment. `MAIL_FROM` must use an address on a domain verified with Resend.
 
 ## Deploying
 
@@ -54,9 +54,8 @@ Configure these variables in your hosting provider's dashboard (e.g. Render, Rai
 | `CLIENT_URL` | Runtime | Allowed CORS origin (set to your public production URL, e.g. `https://your-domain.com`) | `https://your-domain.com` |
 | `GOOGLE_CLIENT_ID` | Runtime | Google OAuth 2.0 Web Client ID for backend token verification | `123456...apps.googleusercontent.com` |
 | `VITE_GOOGLE_CLIENT_ID` | Build-time | Google OAuth 2.0 Web Client ID embedded into frontend at build time (must match `GOOGLE_CLIENT_ID`) | `123456...apps.googleusercontent.com` |
-| `MAIL_USER` | Runtime | Gmail address for sending password reset emails | `operator@gmail.com` |
-| `MAIL_APP_PASSWORD` | Runtime | 16-character Google App Password for Gmail SMTP | `abcd efgh ijkl mnop` |
-| `MAIL_FROM` | Runtime | (Optional) Custom sender name and address (defaults to `G4 Sticker <MAIL_USER>`) | `G4 Sticker <operator@gmail.com>` |
+| `RESEND_API_KEY` | Runtime | Resend API key for password-reset email delivery over HTTPS | `re_...` |
+| `MAIL_FROM` | Runtime | Sender name and address on a domain verified with Resend | `G4 Sticker <no-reply@example.com>` |
 
 > **Note on Build-time Variables**: `VITE_GOOGLE_CLIENT_ID` is baked into client assets during `npm run build`. Ensure it is present during your hosting platform's build phase.
 
@@ -66,7 +65,7 @@ The repository includes a Render Blueprint in `render.yaml` for the Express API.
 
 The Blueprint uses Render's free web-service plan, which may spin down while idle. After the Render service is created, update the `/api/(.*)` rewrite in `vercel.json` to proxy to the service's `https://<service-name>.onrender.com/api/$1` URL. Keep that API rewrite before the SPA catch-all rewrite, then redeploy Vercel. Do not commit credentials or put secrets in `render.yaml`.
 
-Optional runtime settings such as `GOOGLE_CLIENT_ID`, `MAIL_USER`, and `MAIL_APP_PASSWORD` can be added in Render if those features are needed. `VITE_GOOGLE_CLIENT_ID` belongs in Vercel's build environment because Vercel builds the frontend.
+Optional runtime settings such as `GOOGLE_CLIENT_ID`, `RESEND_API_KEY`, and `MAIL_FROM` can be added in Render if those features are needed. `VITE_GOOGLE_CLIENT_ID` belongs in Vercel's build environment because Vercel builds the frontend.
 
 ### MongoDB Atlas Network Access
 
