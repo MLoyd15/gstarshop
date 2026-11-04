@@ -36,7 +36,7 @@ export function createAuthRouter() {
   const router = Router();
   router.post('/forgot-password', async (request, response, next) => {
     try {
-      if (!isEmailConfigured()) return response.status(503).json({ error: 'Password reset email is not configured. Set RESEND_API_KEY and MAIL_FROM in the server environment.' });
+      if (!isEmailConfigured()) return response.status(503).json({ error: 'Password reset email is not configured. Set BREVO_API_KEY and BREVO_SENDER_EMAIL in the server environment.' });
       const email = String(request.body?.email || '').trim().toLowerCase();
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return response.status(400).json({ error: 'Enter a valid email address.' });
       const requestKey = request.ip || request.socket.remoteAddress || 'unknown';
