@@ -27,7 +27,7 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
   const [password, setPassword] = useState('');
   const [registering, setRegistering] = useState(false);
   const [resetMode, setResetMode] = useState(false);
-  const [resetCodeSent, setResetCodeSent] = useState(false);
+  const [resetStep, setResetStep] = useState('email');
   const [resetCode, setResetCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -71,6 +71,16 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
       localStorage.setItem('g4-sticker-appearance', JSON.stringify(saved));
     } catch (_) {}
   }, [isDark]);
+
+  useEffect(() => {
+    if (!resetMode) return;
+    const input = resetStep === 'email'
+      ? emailInputRef.current
+      : resetStep === 'code'
+      ? codeInputRef.current
+      : newPasswordInputRef.current;
+    input?.focus();
+  }, [resetMode, resetStep]);
 
   function triggerShake() {
     setShaking(false);
@@ -139,7 +149,7 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
         throw new Error('The server returned an invalid response. Please try again.');
       }
       if (!response.ok) throw new Error(result.error || 'Could not send a reset code.');
-      setResetCodeSent(true);
+      setResetStep('code');
       setSuccess(result.message || 'If an account exists for that email, a reset code has been sent.');
     } catch (error) {
       if (error.name === 'AbortError') {
@@ -163,6 +173,16 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
     } finally {
       setBusy(false);
     }
+  }
+
+  async function verifyResetCode(email, code) {
+    const response = await fetch('/api/auth/verify-reset-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, code })
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Could not verify the reset code.');
   }
 
   if (checking) {
@@ -192,20 +212,31 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
       }
     }
 
-    if (!cleanEmail) {
-      errors.email = 'Enter your email.';
-      if (!firstErrorField) firstErrorField = emailInputRef.current;
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
-      errors.email = 'Enter a valid email address.';
-      if (!firstErrorField) firstErrorField = emailInputRef.current;
+    if (!resetMode || resetStep === 'email') {
+      if (!cleanEmail) {
+        errors.email = 'Enter your email.';
+        if (!firstErrorField) firstErrorField = emailInputRef.current;
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+        errors.email = 'Enter a valid email address.';
+        if (!firstErrorField) firstErrorField = emailInputRef.current;
+      }
     }
 
     if (resetMode) {
-      if (resetCodeSent) {
+      if (resetStep === 'email') {
+        if (!cleanEmail) {
+          errors.email = 'Enter your email.';
+          if (!firstErrorField) firstErrorField = emailInputRef.current;
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+          errors.email = 'Enter a valid email address.';
+          if (!firstErrorField) firstErrorField = emailInputRef.current;
+        }
+      } else if (resetStep === 'code') {
         if (!resetCode || resetCode.length !== 6) {
           errors.code = 'Enter the six-digit code from your email.';
           if (!firstErrorField) firstErrorField = codeInputRef.current;
         }
+      } else {
         if (!newPassword) {
           errors.newPassword = 'Enter a new password.';
           if (!firstErrorField) firstErrorField = newPasswordInputRef.current;
@@ -240,8 +271,12 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
 
     setBusy(true);
     try {
-      if (resetMode && !resetCodeSent) {
+      if (resetMode && resetStep === 'email') {
         await requestResetCode();
+      } else if (resetMode && resetStep === 'code') {
+        await verifyResetCode(cleanEmail, resetCode);
+        setResetStep('password');
+        setSuccess('Code verified. You can now choose a new password.');
       } else if (resetMode) {
         if (newPassword !== confirmPassword) throw new Error('The passwords do not match.');
         const response = await fetch('/api/auth/reset-password', {
@@ -252,7 +287,7 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || 'Could not reset your password.');
         setResetMode(false);
-        setResetCodeSent(false);
+        setResetStep('email');
         setResetCode('');
         setNewPassword('');
         setConfirmPassword('');
@@ -273,17 +308,21 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
   }
 
   const heading = resetMode
-    ? resetCodeSent
-      ? 'Choose a new password'
-      : 'Reset your password'
+    ? resetStep === 'email'
+      ? 'Reset your password'
+      : resetStep === 'code'
+      ? 'Check your email'
+      : 'Choose a new password'
     : registering
     ? 'Create your account'
     : 'Welcome to G4';
 
   const subtitle = resetMode
-    ? resetCodeSent
+    ? resetStep === 'email'
+      ? 'We’ll email you a one-time reset code.'
+      : resetStep === 'code'
       ? 'Enter the six-digit code from your email.'
-      : 'We’ll email you a one-time reset code.'
+      : 'Your code is verified. Set a new password.'
     : registering
     ? 'Register to access the G4 Sticker workspace.'
     : 'Sign in to manage bookings, materials and production.';
@@ -349,6 +388,24 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
             <p className="auth-subtitle">{subtitle}</p>
           </div>
 
+          {resetMode && (
+            <ol className="auth-reset-steps" aria-label="Password reset steps">
+              {['Email', 'Code', 'New password'].map((label, index) => {
+                const stepIndex = ['email', 'code', 'password'].indexOf(resetStep);
+                return (
+                  <li
+                    className={index === stepIndex ? 'is-active' : index < stepIndex ? 'is-complete' : ''}
+                    key={label}
+                    aria-current={index === stepIndex ? 'step' : undefined}
+                  >
+                    <span>{index < stepIndex ? '✓' : index + 1}</span>
+                    {label}
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+
           {/* Form */}
           <form onSubmit={submit} noValidate>
             {!resetMode && registering && (
@@ -383,7 +440,7 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
               </div>
             )}
 
-            <div className="auth-field">
+            {(!resetMode || resetStep === 'email') && <div className="auth-field">
               <label className="auth-label" htmlFor="auth-email">
                 Email Address
               </label>
@@ -396,7 +453,6 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
                   autoComplete="email"
                   placeholder="operator@g4sticker.com"
                   value={email}
-                  readOnly={resetMode && resetCodeSent}
                   disabled={busy}
                   aria-invalid={!!fieldErrors.email}
                   onChange={(event) => {
@@ -411,10 +467,13 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
                   <span>{fieldErrors.email}</span>
                 </p>
               )}
-            </div>
+            </div>}
 
-            {resetMode && resetCodeSent ? (
+            {resetMode && resetStep === 'code' ? (
               <>
+                <p className="auth-reset-email">
+                  Code sent to <strong>{email.trim()}</strong>
+                </p>
                 <div className="auth-field">
                   <label className="auth-label" htmlFor="auth-code">
                     Six-digit code
@@ -455,7 +514,7 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
                     type="button"
                     disabled={busy}
                     onClick={() => {
-                      setResetCodeSent(false);
+                      setResetStep('email');
                       setResetCode('');
                       clearFeedback();
                     }}
@@ -463,7 +522,29 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
                     Use a different email
                   </button>
                 </div>
+              </>
+            ) : null}
 
+            {resetMode && resetStep === 'password' ? (
+              <>
+                <p className="auth-reset-email">
+                  Code verified for <strong>{email.trim()}</strong>
+                </p>
+                <div className="auth-inline-actions">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => {
+                      setResetStep('code');
+                      clearFeedback();
+                    }}
+                  >
+                    Change code
+                  </button>
+                  <button type="button" disabled={busy} onClick={resendResetCode}>
+                    Resend code
+                  </button>
+                </div>
                 <div className="auth-field">
                   <label className="auth-label" htmlFor="auth-new-password">
                     New password
@@ -561,7 +642,7 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
                       disabled={busy}
                       onClick={() => {
                         setResetMode(true);
-                        setResetCodeSent(false);
+                        setResetStep('email');
                         clearFeedback();
                       }}
                     >
@@ -624,9 +705,11 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
                   <span className="auth-spin" aria-hidden="true" />
                   <span>
                     {resetMode
-                      ? resetCodeSent
-                        ? 'Resetting…'
-                        : 'Sending…'
+                      ? resetStep === 'email'
+                        ? 'Sending…'
+                        : resetStep === 'code'
+                        ? 'Verifying code…'
+                        : 'Resetting…'
                       : registering
                       ? 'Creating account…'
                       : 'Authenticating…'}
@@ -636,9 +719,11 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
                 <>
                   <span>
                     {resetMode
-                      ? resetCodeSent
-                        ? 'Reset Password'
-                        : 'Send Reset Code'
+                      ? resetStep === 'email'
+                        ? 'Send Reset Code'
+                        : resetStep === 'code'
+                        ? 'Verify Code'
+                        : 'Reset Password'
                       : registering
                       ? 'Create Account'
                       : 'Sign In to Dashboard'}
@@ -686,7 +771,7 @@ export default function AuthGate({ checking, user, login, googleLogin, children 
               disabled={busy}
               onClick={() => {
                 setResetMode(false);
-                setResetCodeSent(false);
+                setResetStep('email');
                 setResetCode('');
                 setNewPassword('');
                 setConfirmPassword('');

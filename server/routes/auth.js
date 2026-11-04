@@ -32,7 +32,7 @@ function matchesCode(email, code, storedHash) {
   return expected.length === actual.length && timingSafeEqual(expected, actual);
 }
 
-export function createAuthRouter() {
+export function createAuthRouter({ userModel = User } = {}) {
   const router = Router();
   router.post('/forgot-password', async (request, response, next) => {
     try {
@@ -46,7 +46,7 @@ export function createAuthRouter() {
       recentRequests.push(now);
       resetRequestsByAddress.set(requestKey, recentRequests);
 
-      const user = await User.findOne({ email }).select('+resetCodeHash +resetCodeExpiresAt +resetCodeAttempts +resetCodeSentAt');
+      const user = await userModel.findOne({ email }).select('+resetCodeHash +resetCodeExpiresAt +resetCodeAttempts +resetCodeSentAt');
       if (user && (!user.resetCodeSentAt || now - user.resetCodeSentAt.getTime() >= 60 * 1000)) {
         const code = String(randomInt(0, 1000000)).padStart(6, '0');
         user.resetCodeHash = codeDigest(email, code).toString('hex');
@@ -70,6 +70,33 @@ export function createAuthRouter() {
       response.json({ message: 'If an account exists for that email, a reset code has been sent.' });
     } catch (error) { next(error); }
   });
+  router.post('/verify-reset-code', async (request, response, next) => {
+    try {
+      const email = String(request.body?.email || '').trim().toLowerCase();
+      const code = String(request.body?.code || '').trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !/^\d{6}$/.test(code)) {
+        return response.status(400).json({ error: 'Enter the email address and six-digit code from the reset email.' });
+      }
+
+      const user = await userModel.findOne({ email }).select('+resetCodeHash +resetCodeExpiresAt +resetCodeAttempts');
+      if (!user?.resetCodeHash || !user.resetCodeExpiresAt || user.resetCodeExpiresAt.getTime() <= Date.now() || user.resetCodeAttempts >= 5) {
+        return response.status(400).json({ error: 'That code is invalid or expired. Request a new one and try again.' });
+      }
+      if (!matchesCode(email, code, user.resetCodeHash)) {
+        user.resetCodeAttempts += 1;
+        if (user.resetCodeAttempts >= 5) {
+          user.resetCodeHash = undefined;
+          user.resetCodeExpiresAt = undefined;
+        }
+        await user.save();
+        return response.status(400).json({ error: 'That code is invalid or expired. Request a new one and try again.' });
+      }
+
+      response.json({ ok: true });
+    } catch (error) {
+      next(error);
+    }
+  });
   router.post('/reset-password', async (request, response, next) => {
     try {
       const email = String(request.body?.email || '').trim().toLowerCase();
@@ -77,7 +104,7 @@ export function createAuthRouter() {
       const newPassword = request.body?.newPassword;
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !/^\d{6}$/.test(code)) return response.status(400).json({ error: 'Enter the email address and six-digit code from the reset email.' });
       if (typeof newPassword !== 'string' || newPassword.length < 12 || newPassword.length > 200) return response.status(400).json({ error: 'Password must be between 12 and 200 characters.' });
-      const user = await User.findOne({ email }).select('+resetCodeHash +resetCodeExpiresAt +resetCodeAttempts');
+      const user = await userModel.findOne({ email }).select('+resetCodeHash +resetCodeExpiresAt +resetCodeAttempts');
       if (!user?.resetCodeHash || !user.resetCodeExpiresAt || user.resetCodeExpiresAt.getTime() <= Date.now() || user.resetCodeAttempts >= 5) {
         return response.status(400).json({ error: 'That code is invalid or expired. Request a new one and try again.' });
       }
@@ -104,7 +131,7 @@ export function createAuthRouter() {
       if (!name || name.length > 100) return response.status(400).json({ error: 'Enter your name (up to 100 characters).' });
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return response.status(400).json({ error: 'Enter a valid email address.' });
       const passwordHash = await hashPassword(request.body?.password);
-      const user = await User.create({ name, email, passwordHash, role: 'member' });
+      const user = await userModel.create({ name, email, passwordHash, role: 'member' });
       response.setHeader('Set-Cookie', sessionCookie(createSession(user._id.toString(), user.sessionVersion || 0)));
       response.status(201).json({ user: publicUser(user) });
     } catch (error) {
@@ -117,14 +144,14 @@ export function createAuthRouter() {
     try {
       const identity = await verifyGoogleIdToken(request.body?.credential, process.env.GOOGLE_CLIENT_ID);
       if (!identity) return response.status(401).json({ error: 'Google could not verify this sign-in. Please try again.' });
-      let user = await User.findOne({ googleId: identity.sub });
+      let user = await userModel.findOne({ googleId: identity.sub });
       if (!user) {
-        user = await User.findOne({ email: identity.email });
+        user = await userModel.findOne({ email: identity.email });
         if (user) {
           user.googleId = identity.sub;
           await user.save();
         } else {
-          user = await User.create({ name: identity.name, email: identity.email, googleId: identity.sub, role: 'member' });
+          user = await userModel.create({ name: identity.name, email: identity.email, googleId: identity.sub, role: 'member' });
         }
       }
       response.setHeader('Set-Cookie', sessionCookie(createSession(user._id.toString(), user.sessionVersion || 0)));
@@ -139,7 +166,7 @@ export function createAuthRouter() {
   router.post('/login', async (request, response, next) => {
     try {
       const email = String(request.body?.email || '').trim().toLowerCase();
-      const user = await User.findOne({ email }).select('+passwordHash');
+      const user = await userModel.findOne({ email }).select('+passwordHash');
       if (!user || !(await verifyPassword(request.body?.password, user.passwordHash))) {
         return response.status(401).json({ error: 'Email or password is incorrect.' });
       }
@@ -151,7 +178,7 @@ export function createAuthRouter() {
     try {
       const session = currentUser(request);
       if (!session) return response.status(401).json({ error: 'Please sign in to continue.' });
-      const user = await User.findById(session.sub);
+      const user = await userModel.findById(session.sub);
       if (!user || (session.ver ?? -1) !== (user.sessionVersion || 0)) return response.status(401).json({ error: 'Please sign in to continue.' });
       response.json({ user: publicUser(user) });
     } catch (error) { next(error); }
@@ -165,7 +192,7 @@ export function createAuthRouter() {
       const name = String(request.body?.name || '').trim();
       const email = String(request.body?.email || '').trim().toLowerCase();
       if (!name || name.length > 100 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return response.status(400).json({ error: 'Enter a name and valid email address.' });
-      const user = await User.findByIdAndUpdate(request.authUserId, { name, email }, { new: true, runValidators: true });
+      const user = await userModel.findByIdAndUpdate(request.authUserId, { name, email }, { new: true, runValidators: true });
       response.json({ user: publicUser(user) });
     } catch (error) {
       if (error.code === 11000) return response.status(409).json({ error: 'That email address is already in use.' });
@@ -174,7 +201,7 @@ export function createAuthRouter() {
   });
   router.patch('/password', requireAuth, async (request, response, next) => {
     try {
-      const user = await User.findById(request.authUserId).select('+passwordHash');
+      const user = await userModel.findById(request.authUserId).select('+passwordHash');
       if (!(await verifyPassword(request.body?.currentPassword, user.passwordHash))) return response.status(400).json({ error: 'Current password is incorrect.' });
       user.passwordHash = await hashPassword(request.body?.newPassword);
       user.sessionVersion = (user.sessionVersion || 0) + 1;

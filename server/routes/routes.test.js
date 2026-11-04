@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHmac } from 'node:crypto';
 import express from 'express';
 import http from 'node:http';
 import { createPurchasesRouter } from './purchases.js';
-import { requireAuth } from './auth.js';
+import { createAuthRouter, requireAuth } from './auth.js';
 import { validateFinancialEntry } from '../services/financial.js';
 
 // Helper to start an Express app on an ephemeral port and fetch from it
@@ -18,6 +19,52 @@ function withServer(app) {
     });
   });
 }
+
+test('password reset code is verified before proceeding to new password', async () => {
+  const previousSecret = process.env.SESSION_SECRET;
+  process.env.SESSION_SECRET = 'test-session-secret-for-reset-code';
+  const email = 'customer@example.com';
+  const code = '123456';
+  const user = {
+    resetCodeHash: createHmac('sha256', process.env.SESSION_SECRET).update(`${email}:${code}`).digest('hex'),
+    resetCodeExpiresAt: new Date(Date.now() + 10 * 60 * 1000),
+    resetCodeAttempts: 0,
+    saved: false,
+    async save() { this.saved = true; }
+  };
+  const userModel = {
+    findOne() {
+      return { select: () => Promise.resolve(user) };
+    }
+  };
+  const app = express();
+  app.use(express.json());
+  app.use('/api/auth', createAuthRouter({ userModel }));
+  const { baseUrl, close } = await withServer(app);
+
+  try {
+    const invalid = await fetch(`${baseUrl}/api/auth/verify-reset-code`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, code: '000000' })
+    });
+    assert.equal(invalid.status, 400);
+    assert.equal(user.resetCodeAttempts, 1);
+    assert.equal(user.saved, true);
+
+    const valid = await fetch(`${baseUrl}/api/auth/verify-reset-code`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, code })
+    });
+    assert.equal(valid.status, 200);
+    assert.deepEqual(await valid.json(), { ok: true });
+  } finally {
+    await close();
+    if (previousSecret === undefined) delete process.env.SESSION_SECRET;
+    else process.env.SESSION_SECRET = previousSecret;
+  }
+});
 
 test('Route Test [Issue 1]: unauthenticated requests are rejected with 401 across protected routes', async () => {
   const app = express();

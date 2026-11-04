@@ -357,6 +357,73 @@
   color: var(--steel-light);
 }
 
+.auth-page .auth-reset-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 22px;
+  padding: 0;
+  list-style: none;
+}
+
+.auth-page .auth-reset-steps li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: var(--steel-dark);
+  font-size: 11px;
+  text-align: center;
+}
+
+.auth-page .auth-reset-steps li > span {
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  border: 1px solid rgba(138, 147, 168, 0.4);
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.auth-page .auth-reset-steps li.is-active,
+.auth-page .auth-reset-steps li.is-complete {
+  color: var(--cyan);
+}
+
+.auth-page .auth-reset-steps li.is-active > span,
+.auth-page .auth-reset-steps li.is-complete > span {
+  border-color: var(--cyan);
+  background: rgba(47, 208, 255, 0.12);
+}
+
+:root[data-theme="light"] .auth-page .auth-reset-steps li.is-active,
+:root[data-theme="light"] .auth-page .auth-reset-steps li.is-complete,
+.auth-page.theme-light .auth-reset-steps li.is-active,
+.auth-page.theme-light .auth-reset-steps li.is-complete {
+  color: var(--royal);
+}
+
+:root[data-theme="light"] .auth-page .auth-reset-steps li.is-active > span,
+:root[data-theme="light"] .auth-page .auth-reset-steps li.is-complete > span,
+.auth-page.theme-light .auth-reset-steps li.is-active > span,
+.auth-page.theme-light .auth-reset-steps li.is-complete > span {
+  border-color: var(--royal);
+  background: rgba(4, 60, 212, 0.08);
+}
+
+.auth-page .auth-reset-email {
+  margin: 0 0 16px;
+  padding: 11px 13px;
+  border: 1px solid rgba(138, 147, 168, 0.25);
+  border-radius: 10px;
+  color: var(--steel-dark);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
 /* Form Fields */
 .auth-page .auth-field {
   margin-bottom: 16px;
