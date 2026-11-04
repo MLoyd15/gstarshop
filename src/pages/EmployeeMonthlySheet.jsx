@@ -436,11 +436,11 @@ export default function EmployeeMonthlySheet({ employee, overtimeRate: sharedOve
           </section>}
 
           <div className="timesheet-payroll-tools">
-          <section className="timesheet-section timesheet-absence-rate-section">
+          {isMonthly && <section className="timesheet-section timesheet-absence-rate-section">
             <div className="timesheet-section-heading"><div><h3>Absence deduction</h3><p>Default amount charged per absent day.</p></div></div>
             <button type="button" className="btn btn-secondary" disabled={locked || saving} onClick={() => setEditingAbsenceRate((value) => !value)}>{editingAbsenceRate ? 'Cancel' : 'Set absence rate'}</button>
             {editingAbsenceRate && <div className="timesheet-absence-rate-editor"><label className="timesheet-absence-rate">Amount per absent day<input className="input" type="number" min="0" step="0.01" value={absenceRate === '' ? monthlyPay.perDayDeduction : absenceRate} disabled={locked || savingAbsenceRate} onChange={(event) => setAbsenceRate(event.target.value)} /></label><button type="button" className="btn btn-primary" disabled={locked || savingAbsenceRate || absenceRate === ''} onClick={() => { setEditingAbsenceRate(false); setConfirmAbsenceRate(true); }}>Save default rate</button></div>}
-          </section>
+          </section>}
           <section className="timesheet-section">
             <div className="timesheet-section-heading">
               <div>
