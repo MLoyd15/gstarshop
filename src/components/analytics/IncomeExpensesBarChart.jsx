@@ -38,7 +38,10 @@ export default function IncomeExpensesBarChart({
   chartMonths = 6,
   onChartMonthsChange
 }) {
-  const months = data?.months || [];
+  const months = (data?.months || []).map((month) => ({
+    ...month,
+    salesRevenue: (Number(month.expenses) || 0) - (Number(month.income) || 0)
+  }));
   const [prefs, setPrefs] = useState(readSavedPreferences);
   const [hover, setHover] = useState(null);
   const wrapRef = useRef(null);
